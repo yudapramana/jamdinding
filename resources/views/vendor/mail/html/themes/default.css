@@ -1,0 +1,55 @@
+/* ——— Warna Brand SIGARDA ——— */
+:root {
+  --brand: #28a745;         /* hijau utama */
+  --brand-dark: #1f7a33;    /* hover */
+  --text: #111827;
+  --muted: #6b7280;
+  --border: #e5e7eb;
+}
+
+/* Link */
+a, .sub a { color: var(--brand) !important; text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+/* Headings */
+h1, h2, h3 {
+  color: var(--text) !important;
+  font-weight: 700 !important;
+}
+
+/* Tombol utama */
+.button .button-primary,
+.button-primary,
+a.button-primary {
+  background-color: var(--brand) !important;
+  border-color: var(--brand) !important;
+  color: #ffffff !important;
+  box-shadow: none !important;
+}
+.button-primary:hover {
+  background-color: var(--brand-dark) !important;
+  border-color: var(--brand-dark) !important;
+}
+
+/* Kotak konten */
+.wrapper { background-color: #f9fafb !important; }
+.content { background-color: #ffffff !important; }
+.inner-body { border: 1px solid var(--border) !important; border-radius: 8px !important; }
+.content-cell { color: var(--text) !important; }
+
+/* Table border */
+.table table, .subcopy, .footer .content-cell { border-color: var(--border) !important; }
+
+/* Badge mini (opsional) */
+.badge {
+  display:inline-block; padding:2px 8px; font-size:12px; border-radius:9999px;
+  color:#fff; background: var(--brand);
+}
+
+/* Mode gelap sederhana */
+@media (prefers-color-scheme: dark) {
+  .wrapper { background-color: #0b0f0c !important; }
+  .content, .inner-body { background-color:#111418 !important; }
+  .content-cell, h1,h2,h3, p, a { color:#e5e7eb !important; }
+  .button-primary { color:#fff !important; }
+}

@@ -1,0 +1,36 @@
+<?php
+
+namespace App\Helpers;
+
+class FileHelper
+{
+    /**
+     * Parse filename dengan pola:
+     * {label}[_{parameter}]_{nip}.{extension}
+     */
+    public static function parseFileName(string $fileName): array
+    {
+        // Ambil extension & base name
+        $extension = pathinfo($fileName, PATHINFO_EXTENSION);
+        $baseName  = pathinfo($fileName, PATHINFO_FILENAME);
+
+        // Pecah berdasarkan underscore
+        $parts = explode('_', $baseName);
+
+        // Ambil nip (elemen terakhir)
+        $nip = array_pop($parts);
+
+        // Ambil parameter (opsional)
+        $parameter = (count($parts) > 1) ? array_pop($parts) : null;
+
+        // Sisa jadi label
+        $label = implode('_', $parts);
+
+        return [
+            'label'     => $label,
+            'parameter' => $parameter,
+            'nip'       => $nip,
+            'extension' => $extension,
+        ];
+    }
+}

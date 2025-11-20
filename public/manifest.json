@@ -1,0 +1,17 @@
+{
+    "name": "E-MTQ PLATFORM",
+    "short_name": "E-MTQ PLATFORM",
+    "start_url": "/",
+    "background_color": "#29741D",
+    "description": "Gerbang Cerdas Menuju Arsip Pegawai Digital",
+    "display": "fullscreen",
+    "theme_color": "#29741D",
+    "icons": [
+        {
+            "src": "app_logo.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "any maskable"
+        }
+    ]
+}
