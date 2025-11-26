@@ -12,17 +12,18 @@ class RolePermissionSeeder extends Seeder
     {
         // 1. Definisi PERMISSIONS
         $perms = [
-            ['name' => 'Kelola Master',               'slug' => 'master.manage'],
-            ['name' => 'Kelola Master Tahapan',       'slug' => 'master.manage.stage'],
-            ['name' => 'Kelola Master Cabang',        'slug' => 'master.manage.group'],
-            ['name' => 'Kelola Master Kategori',      'slug' => 'master.manage.category'],
-            ['name' => 'Kelola Master Golongan',      'slug' => 'master.manage.branch'],
-            ['name' => 'Kelola Master Level',         'slug' => 'master.manage.level'],
+            ['name' => 'Kelola Master',                 'slug' => 'master.manage'],
+            ['name' => 'Kelola Master Tahapan',         'slug' => 'master.manage.stage'],
+            ['name' => 'Kelola Master Cabang',          'slug' => 'master.manage.group'],
+            ['name' => 'Kelola Master Kategori',        'slug' => 'master.manage.category'],
+            ['name' => 'Kelola Master Golongan',        'slug' => 'master.manage.branch'],
+            ['name' => 'Kelola Master Level',           'slug' => 'master.manage.level'],
 
-            ['name' => 'Kelola Event',                'slug' => 'event.manage'],
-            ['name' => 'Kelola Event Tahapan',        'slug' => 'event.manage.stage'],
-            ['name' => 'Kelola Event Golongan',       'slug' => 'event.manage.branch'],
-            ['name' => 'Kelola Event User/Peserta',   'slug' => 'event.manage.user'],
+            ['name' => 'Kelola Event',                  'slug' => 'event.manage'],
+            ['name' => 'Kelola Event Tahapan',          'slug' => 'event.manage.stage'],
+            ['name' => 'Kelola Event Golongan',         'slug' => 'event.manage.branch'],
+            ['name' => 'Kelola Event User',             'slug' => 'event.manage.user'],
+            ['name' => 'Kelola Repositori Peserta',     'slug' => 'event.participant.repository'],
         ];
 
         // Simpan / ambil permissions, index by slug
@@ -66,6 +67,7 @@ class RolePermissionSeeder extends Seeder
             'event.manage.stage',
             'event.manage.branch',
             'event.manage.user',
+            'event.participant.repository'
         ];
 
         $roleModels['admin_event']->permissions()->sync(
@@ -77,7 +79,7 @@ class RolePermissionSeeder extends Seeder
 
         // PENDAFTARAN: khusus peserta & mandat (diwakili event.manage.user)
         $pendaftaranSlugs = [
-            'event.manage.user',
+            'event.participant.repository'
         ];
 
         $roleModels['pendaftaran']->permissions()->sync(

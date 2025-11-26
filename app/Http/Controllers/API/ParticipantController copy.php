@@ -2,46 +2,15 @@
 
 namespace App\Http\Controllers\API;
 
-use Illuminate\Support\Facades\Storage;
 use App\Http\Controllers\Controller;
 use App\Models\Event;
 use App\Models\Participant;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Auth;
-use Carbon\Carbon;
 
 class ParticipantController extends Controller
 {
-
-
-    protected function calculateAgeComponents(string $dateOfBirth, $tanggalMulai): array
-    {
-        $birth = Carbon::parse($dateOfBirth);
-
-        // cutoff: tanggal_batas_umur kalau ada, kalau tidak: tanggal_mulai
-        $cutoffDate = $this->event->tanggal_batas_umur ?? $tanggalMulai ?? null;
-        if (!$cutoffDate) {
-            return [null, null, null];
-        }
-
-        $cutoff = Carbon::parse($cutoffDate);
-
-        if ($birth->gt($cutoff)) {
-            // Lahir setelah tanggal batas → umur negatif, anggap 0
-            return [0, 0, 0];
-        }
-
-        $diff = $birth->diff($cutoff);
-
-        return [
-            $diff->y, // year
-            $diff->m, // month
-            $diff->d, // day
-        ];
-    }
-
-
     /**
      * GET /api/v1/participants
      * - SUPERADMIN: bisa lihat semua peserta (dengan filter event_id opsional)
@@ -110,8 +79,9 @@ class ParticipantController extends Controller
         $user     = $request->user();
         $roleSlug = optional($user->role)->slug ?? null;
 
+        // event_id: boleh dikirim dari front-end (localStorage event_data), 
+        // untuk non-superadmin bisa dipaksa pakai user->event_id kalau mau.
         $eventId = $request->get('event_id', $user->event_id ?? null);
-        $event = Event::find($eventId);
 
         if (!$eventId) {
             return response()->json([
@@ -119,27 +89,9 @@ class ParticipantController extends Controller
             ], 422);
         }
 
-        // 1. validasi field utama
         $data = $this->validateData($request, $eventId);
 
-        // 2. validasi lampiran PDF (hanya yang dikirim sebagai file)
-        $this->validateAttachments($request);
-
-        // 3. set event_id
         $data['event_id'] = $eventId;
-
-        // 4. simpan lampiran ke storage (jika ada)
-        $attachmentPaths = $this->handleAttachments($request, null);
-
-        [$ageYear, $ageMonth, $ageDay] = $this->calculateAgeComponents($request['date_of_birth'], $event->tanggal_mulai);
-        $ageData = [
-            'age_year' => $ageYear,
-            'age_month' => $ageMonth,
-            'age_day' => $ageDay,
-        ];
-
-        // gabungkan ke $data
-        $data = array_merge($data, $attachmentPaths, $ageData);
 
         $participant = Participant::create($data);
 
@@ -149,7 +101,6 @@ class ParticipantController extends Controller
             'data'    => $participant->load(['competitionBranch', 'regency']),
         ], 201);
     }
-
 
     /**
      * GET /api/v1/participants/{participant}
@@ -185,27 +136,8 @@ class ParticipantController extends Controller
         }
 
         $eventId = $participant->event_id;
-        $event = Event::find($eventId);
 
-        // 1. validasi field utama
         $data = $this->validateData($request, $eventId, $participant->id, true);
-
-        // 2. validasi lampiran (kalau ada file)
-        $this->validateAttachments($request);
-
-        // 3. simpan lampiran baru (kalau ada) / pertahankan path lama
-        $attachmentPaths = $this->handleAttachments($request, $participant);
-
-        [$ageYear, $ageMonth, $ageDay] = $this->calculateAgeComponents($request['date_of_birth'], $event->tanggal_mulai);
-        $ageData = [
-            'age_year' => $ageYear,
-            'age_month' => $ageMonth,
-            'age_day' => $ageDay,
-        ];
-
-        // 4. gabungkan data utama + lampiran
-        $data = array_merge($data, $attachmentPaths, $ageData);
-
 
         $participant->update($data);
 
@@ -215,7 +147,6 @@ class ParticipantController extends Controller
             'data'    => $participant->load(['competitionBranch', 'regency']),
         ]);
     }
-
 
     /**
      * DELETE /api/v1/participants/{participant}
@@ -250,6 +181,7 @@ class ParticipantController extends Controller
                 $isUpdate ? 'sometimes' : 'required',
                 'string',
                 'max:30',
+                // unique per event_id
                 Rule::unique('participants', 'nik')
                     ->where('event_id', $eventId)
                     ->ignore($participantId),
@@ -275,106 +207,19 @@ class ParticipantController extends Controller
             'bank_account_name'           => [$isUpdate ? 'sometimes' : 'required', 'string', 'max:150'],
             'bank_name'                   => [$isUpdate ? 'sometimes' : 'required', 'string', 'max:50'],
 
-            // tanggal terbit dokumen
+            'photo_url'                   => ['nullable', 'string', 'max:255'],
+            'id_card_url'                 => ['nullable', 'string', 'max:255'],
+            'family_card_url'             => ['nullable', 'string', 'max:255'],
+            'bank_book_url'               => ['nullable', 'string', 'max:255'],
+            'certificate_url'             => ['nullable', 'string', 'max:255'],
+            'other_url'                   => ['nullable', 'string', 'max:255'],
+
             'tanggal_terbit_ktp'          => ['nullable', 'date'],
             'tanggal_terbit_kk'           => ['nullable', 'date'],
         ];
 
         return $request->validate($rules);
     }
-
-    /**
-     * Validasi lampiran (hanya field yang benar-benar dikirim sebagai file).
-     */
-    protected function validateAttachments(Request $request): void
-    {
-        $fileFields = [
-            'photo_url',
-            'id_card_url',
-            'family_card_url',
-            'bank_book_url',
-            'certificate_url',
-            'other_url',
-        ];
-
-        $rules = [];
-
-        foreach ($fileFields as $field) {
-            if ($request->hasFile($field)) {
-
-                if ($field === 'photo_url') {
-                    // FOTO hanya JPEG/PNG max 1 MB
-                    $rules[$field] = ['file', 'mimes:jpg,jpeg,png', 'max:1024'];
-                } else {
-                    // Lainnya wajib PDF
-                    $rules[$field] = ['file', 'mimes:pdf', 'max:1024'];
-                }
-            }
-        }
-
-        if (!empty($rules)) {
-            $request->validate($rules);
-        }
-    }
-
-
-    /**
-     * Simpan lampiran ke storage dan kembalikan array [kolom => path].
-     *
-     * - Jika ada file baru: simpan dan return path barunya.
-     * - Jika tidak ada file, tapi ada string (path lama): gunakan string itu (untuk update).
-     * - Jika tidak ada keduanya: kolom tersebut tidak disentuh.
-     */
-    protected function handleAttachments(Request $request, ?Participant $participant = null): array
-    {
-        $fileFields = [
-            'photo_url',
-            'id_card_url',
-            'family_card_url',
-            'bank_book_url',
-            'certificate_url',
-            'other_url',
-        ];
-
-        $paths = [];
-
-        foreach ($fileFields as $field) {
-            if ($request->hasFile($field)) {
-                $file = $request->file($field);
-                $extension = $file->getClientOriginalExtension();
-
-
-                $fileName = $participant->nik .'_'.$field. '.' . $extension;
-
-
-
-                // folder bisa disesuaikan, misal: participants/photo, participants/ktp, dst.
-                // $dirName = str_replace('_url', '', $field); // contoh: photo_url -> photo
-                // $storedPath = $file->store("participants/{$dirName}", 'public');
-
-                $storedPath = $file->storeAs(
-                    'documents/' . $participant->nik,
-                    $fileName,
-                    'privatedisk'
-                );
-
-                $paths[$field] = $storedPath;
-            } elseif ($participant && $request->has($field)) {
-                // Ambil path lama
-                $oldPath = $request->input($field);
-
-                // Hapus prefix "/secure/" jika ada
-                $cleanPath = str_replace('/secure/', '', $oldPath);
-
-                $paths[$field] = $cleanPath;
-            }
-            // kalau create dan tidak ada file, biasanya field kosong → tidak di-set sama sekali
-        }
-
-        return $paths;
-    }
-
-
 
     /**
      * Cek NIK dalam satu event & wilayah.
@@ -502,69 +347,4 @@ class ParticipantController extends Controller
             'conflict' => false,
         ]);
     }
-
-    /**
-     * POST /api/v1/participants/{participant}/mutasi-wilayah
-     * Memindahkan wilayah peserta (provinsi/kab/kec).
-     */
-    public function mutasiWilayah(Request $request, Participant $participant)
-    {
-        $user     = $request->user();
-        $roleSlug = optional($user->role)->slug ?? null;
-
-        // Izin sama seperti update: hanya SUPERADMIN atau user yang punya akses ke event ini
-        if ($roleSlug !== 'superadmin' && $user->event_id && $user->event_id !== $participant->event_id) {
-            return response()->json([
-                'message' => 'You are not allowed to move this participant.',
-            ], 403);
-        }
-
-        $event = $participant->event ?: Event::find($participant->event_id);
-
-        // Validasi dasar
-        $data = $request->validate([
-            'province_id' => ['required', 'exists:provinces,id'],
-            'regency_id'  => ['required', 'exists:regencies,id'],
-            'district_id' => ['required', 'exists:districts,id'],
-        ]);
-
-        // Sesuaikan dengan tingkat_event (agar tidak keluar dari wilayah event)
-        if ($event) {
-            switch ($event->tingkat_event) {
-                case 'provinsi':
-                    // provinsi harus sama dengan event
-                    $data['province_id'] = $event->province_id;
-                    break;
-
-                case 'kabupaten_kota':
-                    // provinsi & kab/kota ikut event
-                    $data['province_id'] = $event->province_id;
-                    $data['regency_id']  = $event->regency_id;
-                    break;
-
-                case 'kecamatan':
-                    // provinsi, kab/kota, kecamatan sebenarnya sudah fix di event
-                    $data['province_id'] = $event->province_id;
-                    $data['regency_id']  = $event->regency_id;
-                    $data['district_id'] = $event->district_id;
-                    break;
-
-                default:
-                    // nasional → tidak dipaksa, pakai input user
-                    break;
-            }
-        }
-
-        // Optional: reset village_id karena tidak diinput di form mutasi
-        $data['village_id'] = null;
-
-        $participant->update($data);
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Wilayah peserta berhasil diperbarui.',
-            'data'    => $participant->fresh(['regency', 'district', 'province']),
-        ]);
-    }
-
 }

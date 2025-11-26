@@ -16,19 +16,22 @@ return new class extends Migration
 
             // Relasi ke event dan master lomba
             $table->foreignId('event_id')->constrained('events');
-            $table->foreignId('event_competition_branch_id')->constrained('event_competition_branches'); // cabang lomba
+            $table->foreignId('event_competition_branch_id')->constrained('event_competition_branches');
 
             // Identitas dasar
-            $table->string('nik', 30)->index();       // NIK / Passport number
-            $table->string('full_name', 150);         // participant name
+            $table->string('nik', 30)->index();
+            $table->string('full_name', 150);
             $table->string('phone_number', 30)->nullable();
 
-            // Tempat & tanggal lahir
+            // TTL + umur
             $table->string('place_of_birth', 100);
             $table->date('date_of_birth');
             $table->enum('gender', ['MALE', 'FEMALE']);
+            $table->integer('age_year');
+            $table->integer('age_month');
+            $table->integer('age_day');
 
-            // Wilayah domisili
+            // Wilayah
             $table->foreignId('province_id')->constrained('provinces');
             $table->foreignId('regency_id')->constrained('regencies');
             $table->foreignId('district_id')->constrained('districts');
@@ -43,26 +46,70 @@ return new class extends Migration
             // Data rekening
             $table->string('bank_account_number', 50)->nullable();
             $table->string('bank_account_name', 150)->nullable();
-            $table->string('bank_name', 50)->nullable();
+            $table->enum('bank_name', [
+                // BANK BUMN
+                'BRI', 'BNI', 'MANDIRI', 'BTN',
 
-            // Uploaded Files (store path/url)
+                // BANK SYARIAH
+                'BSI', 'BRI SYARIAH', 'BNI SYARIAH', 'MANDIRI SYARIAH',
+
+                // BANK SWASTA NASIONAL
+                'BCA', 'CIMB NIAGA', 'PERMATA', 'PANIN', 'OCBC NISP',
+                'DANAMON', 'MEGA', 'SINARMAS', 'BUKOPIN', 'MAYBANK', 'BTPN', 'J TRUST BANK',
+
+                // BANK PEMBANGUNAN DAERAH (BPD)
+                'BANK DKI', 'BANK BJB', 'BANK BJB SYARIAH', 'BANK JATENG', 'BANK JATIM',
+                'BANK SUMUT', 'BANK NAGARI', 'BANK RIAU KEPRI', 'BANK SUMSEL BABEL',
+                'BANK LAMPUNG', 'BANK KALSEL', 'BANK KALBAR', 'BANK KALTIMTARA',
+                'BANK SULSEL BAR', 'BANK SULTRA', 'BANK SULUTGO', 'BANK NTB SYARIAH',
+                'BANK NTT', 'BANK PAPUA', 'BANK MALUKU MALUT',
+            ])
+            ->nullable();
+
+            // Upload File URL
             $table->string('photo_url')->nullable();
-            $table->string('id_card_url')->nullable();       // KTP
-            $table->string('family_card_url')->nullable();   // KK
-            $table->string('bank_book_url')->nullable();     // Buku Tabungan
-            $table->string('certificate_url')->nullable();   // Piagam Penghargaan
-            $table->string('other_url')->nullable();         // Berkas Lain
+            $table->string('id_card_url')->nullable();
+            $table->string('family_card_url')->nullable();
+            $table->string('bank_book_url')->nullable();
+            $table->string('certificate_url')->nullable();
+            $table->string('other_url')->nullable();
 
             // Tanggal terbit dokumen
             $table->date('tanggal_terbit_ktp')->nullable();
             $table->date('tanggal_terbit_kk')->nullable();
 
+            // ======================
+            // STATUS PENDAFTARAN
+            // ======================
+            $table->enum('status_pendaftaran', [
+                'bankdata',     // default: masih di Bank Data
+                'proses',       // menunggu diverifikasi
+                'diterima',     // final diterima
+                'perbaiki',     // diminta revisi
+                'mundur',       // mengundurkan diri
+                'tolak',        // ditolak
+            ])->default('bankdata');
+
+            $table->text('registration_notes')->nullable();
+
+            $table->foreignId('moved_by')     // siapa yang memindahkan ke PROSES
+                ->nullable()
+                ->constrained('users')
+                ->nullOnDelete();
+
+            $table->foreignId('verified_by')  // siapa verifikatornya
+                ->nullable()
+                ->constrained('users')
+                ->nullOnDelete();
+
+            $table->timestamp('verified_at')->nullable();
+
             $table->timestamps();
             $table->softDeletes();
 
-            // satu NIK hanya sekali per event
             $table->unique(['event_id', 'nik']);
         });
+
 
 
     }

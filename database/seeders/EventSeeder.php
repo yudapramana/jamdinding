@@ -19,7 +19,7 @@ class EventSeeder extends Seeder
                 'token_hasil_penilaian' => 'pessel2026',
                 'tanggal_mulai'         => '2026-04-10',
                 'tanggal_selesai'       => '2026-06-17',
-                'tanggal_batas_umur'    => '2026-12-31',
+                'tanggal_batas_umur'    => '2026-07-01',
                 'logo_event'            => 'http://res.cloudinary.com/dezj1x6xp/image/upload/v1763621790/PandanViewMandeh/qpiwf4a8dubcgok9nnzr.png',
                 'logo_sponsor_1'        => 'https://upload.wikimedia.org/wikipedia/commons/9/9a/Kementerian_Agama_new_logo.png',
                 'logo_sponsor_2'        => 'http://res.cloudinary.com/dezj1x6xp/image/upload/v1763619918/PandanViewMandeh/mjvmbh7mrbpqgq2204qx.svg',

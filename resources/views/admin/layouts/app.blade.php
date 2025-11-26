@@ -108,6 +108,11 @@
                 console.log("Service worker has been registered for scope: " + reg.scope);
             });
         }
+
+        $(document).on('change', '.custom-file-input', function(e) {
+            let fileName = e.target.files[0]?.name || 'Pilih file...'
+            $(this).next('.custom-file-label').html(fileName)
+        })
     </script>
 </body>
 

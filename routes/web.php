@@ -1105,6 +1105,7 @@ Route::get('/landing', function () {
 Route::get('/', function () {
     // ambil semua event aktif (atau semua, kalau mau tampilkan juga yg nonaktif)
     $events = \App\Models\Event::where('is_active', true)
+        ->with('province', 'regency', 'district')
         ->orderBy('tanggal_mulai', 'desc')
         ->get();
 

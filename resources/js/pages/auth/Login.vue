@@ -139,31 +139,31 @@ const errorMessage = ref('')
 const captchaToken = ref('')
 
 // Captcha Site Key
-const siteKey = '0x4AAAAAABg5q-5b8cUPKPGt'
+// const siteKey = '0x4AAAAAABg5q-5b8cUPKPGt'
 
 // -----------------------------
 // Turnstile Helpers
 // -----------------------------
-const resetTurnstile = async () => {
-  captchaToken.value = ''
-  await nextTick()
-  try {
-    if (window?.turnstile) window.turnstile.reset()
-  } catch {}
-}
+// const resetTurnstile = async () => {
+//   captchaToken.value = ''
+//   await nextTick()
+//   try {
+//     if (window?.turnstile) window.turnstile.reset()
+//   } catch {}
+// }
 
 const onPageShow = (e) => {
-  if (e.persisted) resetTurnstile()
+  // if (e.persisted) resetTurnstile()
 }
 
 // -----------------------------
 // HANDLE SUBMIT LOGIN
 // -----------------------------
 const handleSubmit = async () => {
-  if (!captchaToken.value) {
-    errorMessage.value = 'Mohon selesaikan verifikasi captcha.'
-    return
-  }
+  // if (!captchaToken.value) {
+  //   errorMessage.value = 'Mohon selesaikan verifikasi captcha.'
+  //   return
+  // }
 
   if (!authUserStore.selectedEventKey) {
     errorMessage.value = 'Event belum dipilih. Silakan kembali ke halaman landing.'
@@ -330,7 +330,7 @@ const handleSubmit = async () => {
                   </div>
                 </div>
 
-                <div class="text-center row justify-content-center">
+                <!-- <div class="text-center row justify-content-center">
                   <div class="form-group recaptcha-container mx-auto">
                     <TurnstileWidget
                       v-model="captchaToken"
@@ -338,7 +338,7 @@ const handleSubmit = async () => {
                       theme="light"
                     />
                   </div>
-                </div>
+                </div> -->
 
                 <div class="row mb-3 align-items-center">
                   <div class="col-8">
@@ -351,8 +351,10 @@ const handleSubmit = async () => {
                     <button
                       type="submit"
                       class="btn btn-success btn-block"
-                      :disabled="loading || !captchaToken"
+                      :disabled="loading"
                     >
+                      <!-- :disabled="loading || !captchaToken" -->
+
                       <span v-if="loading">Memuat...</span>
                       <span v-else>MASUK</span>
                     </button>

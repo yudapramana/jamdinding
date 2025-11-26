@@ -163,6 +163,7 @@ class UserController extends Controller
         $defaultDomain   = $validated['email_domain'] ?? 'mtq.local';
         $createdCount    = 0;
         $skippedCount    = 0;
+        $role = Role::find($roleId);
 
         if ($event->tingkat_event === 'provinsi') {
             // Ambil semua kabupaten/kota di province_id event ini
@@ -179,11 +180,12 @@ class UserController extends Controller
 
             foreach ($regions as $regency) {
                 // Nama user: KODE_EVENT - Nama Kabupaten/Kota
-                $name = $regency->name;
+                $name = strtoupper($role->name .' '.  $regency->name);
 
                 // Username & email dibikin unik dengan ID wilayah
                 // contoh: mtq-prov-sumbar-2025_kab_1301
-                $username = Str::slug($kodeEvent . '_kab_' . $regency->id, '_');
+                // $username = Str::slug($kodeEvent . '_kab_' . $regency->id, '_');
+                $username = Str::slug($role->name .'_'. $regency->id, '_');
 
                 // contoh email: mtq-prov-sumbar-2025_kab_1301@mtq.local
                 $email = $username . '@' . $defaultDomain;
@@ -191,6 +193,7 @@ class UserController extends Controller
                 // kalau user dengan username + event_id sudah ada → skip
                 $existing = User::where('event_id', $event->id)
                     ->where('username', $username)
+                    ->where('role_id', $roleId)
                     ->first();
 
                 if ($existing) {
@@ -231,14 +234,17 @@ class UserController extends Controller
 
             foreach ($districts as $district) {
                 // Nama user: KODE_EVENT - Nama Kecamatan
-                $name = $district->name;
+                $name = strtoupper($role->name .' '.  $district->name);
 
                 // Username & email: mtq-prov-sumbar-2025_kec_130101
-                $username = Str::slug($kodeEvent . '_kec_' . $district->id, '_');
+                // $username = Str::slug($kodeEvent . '_kec_' . $district->id, '_');
+                $username = Str::slug($role->name .'_'. $district->id, '_');
+
                 $email    = $username . '@' . $defaultDomain;
 
                 $existing = User::where('event_id', $event->id)
                     ->where('username', $username)
+                    ->where('role_id', $roleId)
                     ->first();
 
                 if ($existing) {

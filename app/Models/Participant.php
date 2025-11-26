@@ -36,6 +36,9 @@ class Participant extends Model
         'other_url',
         'tanggal_terbit_ktp',
         'tanggal_terbit_kk',
+        'age_year',
+        'age_month',
+        'age_day',
     ];
 
     protected $casts = [
@@ -44,7 +47,10 @@ class Participant extends Model
         'tanggal_terbit_kk'   => 'date:Y-m-d',
     ];
 
+    // ============================
     // RELATIONS
+    // ============================
+
     public function event()
     {
         return $this->belongsTo(Event::class);
@@ -73,5 +79,46 @@ class Participant extends Model
     public function village()
     {
         return $this->belongsTo(Village::class);
+    }
+
+
+    // ============================
+    // ACCESSORS → AUTO /secure/*
+    // ============================
+
+    protected function secureUrl($value)
+    {
+        if (!$value) return null;
+        return '/secure/' . ltrim($value, '/');
+    }
+
+    public function getPhotoUrlAttribute($value)
+    {
+        return $this->secureUrl($value);
+    }
+
+    public function getIdCardUrlAttribute($value)
+    {
+        return $this->secureUrl($value);
+    }
+
+    public function getFamilyCardUrlAttribute($value)
+    {
+        return $this->secureUrl($value);
+    }
+
+    public function getBankBookUrlAttribute($value)
+    {
+        return $this->secureUrl($value);
+    }
+
+    public function getCertificateUrlAttribute($value)
+    {
+        return $this->secureUrl($value);
+    }
+
+    public function getOtherUrlAttribute($value)
+    {
+        return $this->secureUrl($value);
     }
 }

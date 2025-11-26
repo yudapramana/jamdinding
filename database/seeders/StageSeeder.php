@@ -13,37 +13,37 @@ class StageSeeder extends Seeder
             [
                 'order_number' => 1,
                 'name'         => 'Persiapan',
-                'days'         => 3,
+                'days'         => 15,
                 'description'  => 'Tahapan awal untuk persiapan sistem, dokumen, dan koordinasi panitia.',
             ],
             [
                 'order_number' => 2,
                 'name'         => 'Pendaftaran',
-                'days'         => 7,
+                'days'         => 15,
                 'description'  => 'Proses peserta atau kafilah mengisi data dan mengunggah berkas.',
             ],
             [
                 'order_number' => 3,
                 'name'         => 'Verifikasi I',
-                'days'         => 3,
+                'days'         => 15,
                 'description'  => 'Pemeriksaan awal terhadap kelengkapan berkas peserta.',
             ],
             [
                 'order_number' => 4,
                 'name'         => 'Masa Sanggah',
-                'days'         => 2,
+                'days'         => 6,
                 'description'  => 'Peserta/kafilah diberi kesempatan mengajukan sanggahan terhadap hasil verifikasi.',
             ],
             [
                 'order_number' => 5,
                 'name'         => 'Perbaikan Berkas',
-                'days'         => 3,
+                'days'         => 5,
                 'description'  => 'Peserta/kafilah memperbaiki dokumen yang kurang atau salah.',
             ],
             [
                 'order_number' => 6,
                 'name'         => 'Verifikasi II',
-                'days'         => 2,
+                'days'         => 5,
                 'description'  => 'Pemeriksaan akhir sebelum penetapan peserta.',
             ],
             [
@@ -61,7 +61,7 @@ class StageSeeder extends Seeder
             [
                 'order_number' => 9,
                 'name'         => 'Pelaksanaan',
-                'days'         => 5,
+                'days'         => 7,
                 'description'  => 'Hari pelaksanaan kegiatan MTQ.',
             ],
         ];

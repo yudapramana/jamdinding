@@ -18,6 +18,7 @@ class ProfileController extends Controller
         $user = $request->user();
         $user->load('employee.work_unit');
         $user->load('role');
+        $user->load('province', 'regency', 'district', 'village');
         return $user;
     }
 

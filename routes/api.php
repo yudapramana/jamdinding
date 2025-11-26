@@ -110,6 +110,8 @@ Route::middleware(['auth:sanctum']) // kalau belum pakai sanctum, boleh dihapus 
         Route::apiResource('events', EventController::class);
 
         Route::apiResource('participants', ParticipantController::class);
+        Route::get('check-nik', [ParticipantController::class, 'checkNik']);
+
 
         // Wilayah
         Route::get('get/provinces', [LocationController::class, 'provinces']);
@@ -119,4 +121,8 @@ Route::middleware(['auth:sanctum']) // kalau belum pakai sanctum, boleh dihapus 
 
          // Cabang / Golongan per Event (untuk dropdown peserta)
         Route::get('get/event-competition-branches', [LocationController::class, 'eventBranches']);
+
+        Route::post('participants/{participant}/mutasi-wilayah', [
+            ParticipantController::class, 'mutasiWilayah'
+        ]);
     });

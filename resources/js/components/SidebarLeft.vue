@@ -203,7 +203,7 @@ const logout = () => {
                         </router-link>
                     </li>
 
-                    <li class="nav-item">
+                    <li class="nav-item" v-if="authUserStore.can('event.participant.repository')">
                         <router-link
                             to="/admin/participants"
                             class="nav-link"
@@ -211,7 +211,7 @@ const logout = () => {
                             :class="{ 'active': $route.path.startsWith('/admin/participants') }"
                         >
                             <i class="nav-icon fas fa-users"></i>
-                            <p>Bank Data Peserta</p>
+                            <p>Repositori Peserta</p>
                         </router-link>
                     </li>
 

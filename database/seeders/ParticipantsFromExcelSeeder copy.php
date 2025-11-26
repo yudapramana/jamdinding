@@ -12,19 +12,14 @@ use App\Models\Village;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 use PhpOffice\PhpSpreadsheet\IOFactory;
-use Carbon\Carbon;
 
 class ParticipantsFromExcelSeeder extends Seeder
 {
     /**
      * ID event tujuan import.
+     * Silakan sesuaikan (misal event_id = 1).
      */
     protected int $eventId = 1;
-
-    /**
-     * Event instance (untuk akses tanggal_batas_umur).
-     */
-    protected ?Event $event = null;
 
     /**
      * Path file Excel relatif ke folder database/.
@@ -40,15 +35,7 @@ class ParticipantsFromExcelSeeder extends Seeder
             return;
         }
 
-        // Ambil event
-        $this->event = Event::find($this->eventId);
-        if (!$this->event) {
-            $this->command?->error("Event dengan ID {$this->eventId} tidak ditemukan.");
-            return;
-        }
-
         $this->command?->info("Import peserta dari: {$fullPath}");
-        $this->command?->info("Event: {$this->event->nama_event}");
 
         // Load Excel
         $spreadsheet = IOFactory::load($fullPath);
@@ -60,7 +47,7 @@ class ParticipantsFromExcelSeeder extends Seeder
             return;
         }
 
-        // Baris pertama = header
+        // Asumsikan baris pertama adalah header
         $headerRow = array_shift($rows);
         $headers   = $this->normalizeHeaders($headerRow);
 
@@ -68,12 +55,14 @@ class ParticipantsFromExcelSeeder extends Seeder
 
         try {
             foreach ($rows as $rowIndex => $row) {
-                $data = $this->mapRowToData($row, $headers, $rowIndex + 2);
+                $data = $this->mapRowToData($row, $headers, $rowIndex + 2); // +2 karena sudah shift header
 
                 if (!$data) {
+                    // baris dilewati (misal NIK kosong atau gagal mapping)
                     continue;
                 }
 
+                // Insert / update berdasarkan kombinasi event_id + nik
                 Participant::updateOrCreate(
                     [
                         'event_id' => $this->eventId,
@@ -92,6 +81,11 @@ class ParticipantsFromExcelSeeder extends Seeder
         }
     }
 
+    /**
+     * Normalisasi header Excel jadi array associative:
+     *  - lower case
+     *  - ganti spasi jadi underscore
+     */
     protected function normalizeHeaders(array $headerRow): array
     {
         $headers = [];
@@ -104,9 +98,14 @@ class ParticipantsFromExcelSeeder extends Seeder
         return $headers;
     }
 
+    /**
+     * Mapping satu baris Excel ke data peserta.
+     *
+     * Silakan SESUAIKAN nama header Excel di sini.
+     */
     protected function mapRowToData(array $row, array $headers, int $excelRowNumber): ?array
     {
-        // Helper ambil kolom
+        // Helper untuk ambil nilai kolom berdasarkan nama header
         $get = function (string $name) use ($row, $headers) {
             foreach ($headers as $col => $headerName) {
                 if ($headerName === $name) {
@@ -116,23 +115,24 @@ class ParticipantsFromExcelSeeder extends Seeder
             return '';
         };
 
-        // === SESUAIKAN nama header Excel di sini ===
-        $nik              = $get('nik');
-        $fullName         = $get('nama_lengkap');
-        $phoneNumber      = $get('no_hp');
-        $placeOfBirth     = $get('tempat_lahir');
-        $kecamatanExcel   = $get('kecamatan');
-        $kabupatenExcel   = $get('kabupaten_kota');
-        $provinceName     = $get('provinsi');
-        $villageName      = $get('kelurahan_desa');
+        // === Ambil data mentah dari Excel (SESUAIKAN NAMA HEADER) ===
+        $nik              = $get('nik');                // contoh header 'NIK'
+        $fullName         = strtoupper($get('nama_lengkap'));       // contoh header 'Nama Lengkap'
+        $phoneNumber      = $get('no_hp');              // contoh header 'No HP'
+        $placeOfBirth     = $get('tempat_lahir');       // contoh header 'Tempat Lahir'
+        $kecamatanExcel   = $get('kecamatan');          // contoh header 'Kecamatan'
+        $kabupatenExcel   = $get('kabupaten_kota');     // kalau ada
+        $provinceName     = $get('provinsi');           // kalau ada
+        $villageName      = $get('kelurahan_desa');     // kalau ada
         $address          = $get('alamat');
-        $education        = $get('pendidikan');
-        $branchCodeExcel  = $get('kode_cabang');
+        $education        = $get('pendidikan');         // misal 'SMA', 'S1' dll
+        $branchCodeExcel  = $get('kode_cabang');        // contoh: kode cabang/golongan
+        $branchName       = $get('cabang');        // contoh: kode cabang/golongan
         $bankAccount      = $get('no_rekening');
         $bankAccountName  = $get('nama_rekening');
         $bankName         = $get('nama_bank');
-        $branchName       = $get('cabang');        // contoh: kode cabang/golongan
 
+        // Jika NIK kosong → skip baris
         if (empty($nik)) {
             return null;
         }
@@ -144,22 +144,19 @@ class ParticipantsFromExcelSeeder extends Seeder
             return null;
         }
 
-        $dateOfBirth = $dobGender['date'];      // 'Y-m-d'
-        $gender      = $dobGender['gender'];    // 'MALE'|'FEMALE'
-
-        // === Hitung umur per tanggal_batas_umur event ===
-        [$ageYear, $ageMonth, $ageDay] = $this->calculateAgeComponents($dateOfBirth);
-
-        // === Mapping wilayah: province, regency (pakai potong 3), district, village ===
-        $province = null;
-        $regency  = null;
-        $district = null;
-        $village  = null;
+        // === Mapping wilayah ===
+        // 1. Province
+        $province   = null;
+        $regency    = null;
+        $district   = null;
+        $village    = null;
 
         if ($provinceName !== '') {
             $province = Province::whereRaw('LOWER(name) = ?', [strtolower($provinceName)])->first();
         }
 
+        // 2. REGENT DARI EXCEL (potong 3 karakter di depan → baru cocokan ke nama regency)
+        //    Misal di Excel: "I. PESISIR SELATAN" → substr(3) = "PESISIR SELATAN"
         if ($kabupatenExcel !== '') {
             $cleanRegencyName = strlen($kabupatenExcel) > 3
                 ? trim(substr($kabupatenExcel, 3))
@@ -175,7 +172,9 @@ class ParticipantsFromExcelSeeder extends Seeder
                 ->first();
         }
 
+        // 3. DISTRICT dari KECAMATAN (jika ada kolomnya)
         if ($kecamatanExcel !== '') {
+            // Kalau di Excel juga punya numbering (contoh "01 - KECAMATAN X"), kamu bisa potong 3 karakter juga:
             $cleanDistrictName = strlen($kecamatanExcel) > 3
                 ? trim(substr($kecamatanExcel, 3))
                 : trim($kecamatanExcel);
@@ -190,6 +189,7 @@ class ParticipantsFromExcelSeeder extends Seeder
                 ->first();
         }
 
+        // 4. Village (opsional)
         if ($villageName !== '') {
             $villageQuery = Village::query();
             if ($district) {
@@ -206,7 +206,7 @@ class ParticipantsFromExcelSeeder extends Seeder
             return null;
         }
 
-        // === Mapping cabang event dari kode_cabang ===
+        // === Mapping event_competition_branch_id dari kode cabang (kalau ada) ===
         $eventBranch = null;
         if ($branchName !== '') {
             $branchName = str_replace('— ', '', $branchName);
@@ -216,11 +216,11 @@ class ParticipantsFromExcelSeeder extends Seeder
         }
 
         if (!$eventBranch) {
-            $this->command?->warn("Baris {$excelRowNumber}: Kode cabang '{$branchCodeExcel}' tidak ditemukan untuk event_id {$this->eventId}, baris dilewati.");
+            $this->command?->warn("{$branchName}  Baris {$excelRowNumber}: Kode cabang '{$branchCodeExcel}' tidak ditemukan untuk event_id {$this->eventId}, baris dilewati.");
             return null;
         }
 
-        // Normalisasi education
+        // Normalisasi education ke salah satu enum ['SD','SMP','SMA','D1','D2','D3','D4','S1','S2','S3']
         $education = strtoupper($education ?: 'SMA');
         $allowedEdu = ['SD','SMP','SMA','D1','D2','D3','D4','S1','S2','S3'];
         if (!in_array($education, $allowedEdu, true)) {
@@ -228,37 +228,38 @@ class ParticipantsFromExcelSeeder extends Seeder
         }
 
         return [
-            'event_id'                    => $this->eventId,
-            'event_competition_branch_id' => $eventBranch->id,
-            'nik'                         => $nik,
-            'full_name'                   => $fullName ?: $nik,
-            'phone_number'                => $phoneNumber ?: null,
-            'place_of_birth'              => $placeOfBirth ?: '-',
-            'date_of_birth'               => $dateOfBirth,
-            'gender'                      => $gender,
-            'province_id'                 => $province->id,
-            'regency_id'                  => $regency->id,
-            'district_id'                 => $district->id,
-            'village_id'                  => $village?->id,
-            'address'                     => $address ?: '-',
-            'education'                   => $education,
-            'bank_account_number'         => $bankAccount ?: null,
-            'bank_account_name'           => $bankAccountName ?: null,
-            'bank_name'                   => $bankName ?: null,
-            'photo_url'                   => null,
-            'id_card_url'                 => null,
-            'family_card_url'             => null,
-            'bank_book_url'               => null,
-            'certificate_url'             => null,
-            'other_url'                   => null,
-            'tanggal_terbit_ktp'          => null,
-            'tanggal_terbit_kk'           => null,
-            'age_year'                    => $ageYear,
-            'age_month'                   => $ageMonth,
-            'age_day'                     => $ageDay,
+            'event_id'                   => $this->eventId,
+            'event_competition_branch_id'=> $eventBranch->id,
+            'nik'                        => $nik,
+            'full_name'                  => $fullName ?: $nik,
+            'phone_number'               => $phoneNumber ?: null,
+            'place_of_birth'             => $placeOfBirth ?: '-',
+            'date_of_birth'              => $dobGender['date'],
+            'gender'                     => $dobGender['gender'], // 'MALE'|'FEMALE'
+            'province_id'                => $province->id,
+            'regency_id'                 => $regency->id,
+            'district_id'                => $district->id,
+            'village_id'                 => $village?->id,
+            'address'                    => $address ?: '-',
+            'education'                  => $education,
+            'bank_account_number'        => $bankAccount ?: null,
+            'bank_account_name'          => $bankAccountName ?: null,
+            'bank_name'                  => $bankName ?: null,
+            'photo_url'                  => null,
+            'id_card_url'                => null,
+            'family_card_url'            => null,
+            'bank_book_url'              => null,
+            'certificate_url'            => null,
+            'other_url'                  => null,
+            'tanggal_terbit_ktp'         => null,
+            'tanggal_terbit_kk'          => null,
         ];
     }
 
+    /**
+     * Ambil tanggal lahir & gender dari NIK.
+     * Return: ['date' => 'Y-m-d', 'gender' => 'MALE'|'FEMALE'] atau null kalau gagal.
+     */
     protected function extractBirthdateFromNik(string $nik): ?array
     {
         $nik = preg_replace('/\D/', '', $nik ?? '');
@@ -296,40 +297,6 @@ class ParticipantsFromExcelSeeder extends Seeder
         return [
             'date'   => $date,
             'gender' => $gender,
-        ];
-    }
-
-    /**
-     * Hitung umur (tahun, bulan, hari) terhadap tanggal_batas_umur event.
-     * Jika tanggal_batas_umur null → fallback ke tanggal_mulai event.
-     */
-    protected function calculateAgeComponents(string $dateOfBirth): array
-    {
-        if (!$this->event) {
-            return [null, null, null];
-        }
-
-        $birth = Carbon::parse($dateOfBirth);
-
-        // cutoff: tanggal_batas_umur kalau ada, kalau tidak: tanggal_mulai
-        $cutoffDate = $this->event->tanggal_batas_umur ?? $this->event->tanggal_mulai ?? null;
-        if (!$cutoffDate) {
-            return [null, null, null];
-        }
-
-        $cutoff = Carbon::parse($cutoffDate);
-
-        if ($birth->gt($cutoff)) {
-            // Lahir setelah tanggal batas → umur negatif, anggap 0
-            return [0, 0, 0];
-        }
-
-        $diff = $birth->diff($cutoff);
-
-        return [
-            $diff->y, // year
-            $diff->m, // month
-            $diff->d, // day
         ];
     }
 }

@@ -45,15 +45,15 @@ class FortifyServiceProvider extends ServiceProvider
 
         Fortify::authenticateUsing(function (Request $request) {
             // ✅ Validasi Turnstile token
-            $validator = Validator::make($request->all(), [
-                'cf-turnstile-response' => ['required', new TurnstileRule()],
-            ]);
+            // $validator = Validator::make($request->all(), [
+            //     'cf-turnstile-response' => ['required', new TurnstileRule()],
+            // ]);
 
-            if ($validator->fails()) {
-                throw ValidationException::withMessages([
-                    'cf-turnstile-response' => ['Verifikasi captcha gagal. Silakan coba lagi.'],
-                ]);
-            }
+            // if ($validator->fails()) {
+            //     throw ValidationException::withMessages([
+            //         'cf-turnstile-response' => ['Verifikasi captcha gagal. Silakan coba lagi.'],
+            //     ]);
+            // }
 
             // ✅ Autentikasi user
             $user = \App\Models\User::where('username', $request->username)->first();
