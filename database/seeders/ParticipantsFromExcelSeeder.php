@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use App\Models\Participant;
 use App\Models\Event;
+use App\Models\EventParticipant;
 use App\Models\EventCompetitionBranch;
 use App\Models\Province;
 use App\Models\Regency;
@@ -68,18 +69,29 @@ class ParticipantsFromExcelSeeder extends Seeder
 
         try {
             foreach ($rows as $rowIndex => $row) {
-                $data = $this->mapRowToData($row, $headers, $rowIndex + 2);
+                $mapped = $this->mapRowToData($row, $headers, $rowIndex + 2);
 
-                if (!$data) {
+                if (!$mapped) {
                     continue;
                 }
 
-                Participant::updateOrCreate(
+                [$participantData, $eventParticipantData] = $mapped;
+
+                // 1. Simpan / update bank-data peserta (UNIQUE by NIK)
+                $participant = Participant::updateOrCreate(
+                    ['nik' => $participantData['nik']],
+                    $participantData
+                );
+
+                // 2. Simpan / update relasi di event_participants
+                EventParticipant::updateOrCreate(
                     [
-                        'event_id' => $this->eventId,
-                        'nik'      => $data['nik'],
+                        'event_id'       => $this->eventId,
+                        'participant_id' => $participant->id,
                     ],
-                    $data
+                    array_merge($eventParticipantData, [
+                        'participant_id' => $participant->id,
+                    ])
                 );
             }
 
@@ -104,6 +116,11 @@ class ParticipantsFromExcelSeeder extends Seeder
         return $headers;
     }
 
+    /**
+     * Return:
+     * - null → baris dilewati
+     * - [participantData, eventParticipantData]
+     */
     protected function mapRowToData(array $row, array $headers, int $excelRowNumber): ?array
     {
         // Helper ambil kolom
@@ -130,8 +147,8 @@ class ParticipantsFromExcelSeeder extends Seeder
         $branchCodeExcel  = $get('kode_cabang');
         $bankAccount      = $get('no_rekening');
         $bankAccountName  = $get('nama_rekening');
-        $bankName         = $get('nama_bank');
-        $branchName       = $get('cabang');        // contoh: kode cabang/golongan
+        $bankNameRaw      = $get('nama_bank');
+        $branchName       = $get('cabang');        // contoh: nama cabang/golongan
 
         if (empty($nik)) {
             return null;
@@ -147,7 +164,7 @@ class ParticipantsFromExcelSeeder extends Seeder
         $dateOfBirth = $dobGender['date'];      // 'Y-m-d'
         $gender      = $dobGender['gender'];    // 'MALE'|'FEMALE'
 
-        // === Hitung umur per tanggal_batas_umur event ===
+        // === Hitung umur per tanggal_batas_umur / tanggal_mulai event ===
         [$ageYear, $ageMonth, $ageDay] = $this->calculateAgeComponents($dateOfBirth);
 
         // === Mapping wilayah: province, regency (pakai potong 3), district, village ===
@@ -206,17 +223,17 @@ class ParticipantsFromExcelSeeder extends Seeder
             return null;
         }
 
-        // === Mapping cabang event dari kode_cabang ===
+        // === Mapping cabang event dari nama cabang ===
         $eventBranch = null;
         if ($branchName !== '') {
-            $branchName = str_replace('— ', '', $branchName);
+            $branchNameNormalized = str_replace('— ', '', $branchName);
             $eventBranch = EventCompetitionBranch::where('event_id', $this->eventId)
-                ->where('name', $branchName)
+                ->where('name', $branchNameNormalized)
                 ->first();
         }
 
         if (!$eventBranch) {
-            $this->command?->warn("Baris {$excelRowNumber}: Kode cabang '{$branchCodeExcel}' tidak ditemukan untuk event_id {$this->eventId}, baris dilewati.");
+            $this->command?->warn("Baris {$excelRowNumber}: Kode/nama cabang '{$branchCodeExcel}' / '{$branchName}' tidak ditemukan untuk event_id {$this->eventId}, baris dilewati.");
             return null;
         }
 
@@ -227,36 +244,47 @@ class ParticipantsFromExcelSeeder extends Seeder
             $education = 'SMA';
         }
 
-        return [
+        // Normalisasi / mapping nama bank ke enum
+        $bankName = $this->normalizeBankName($bankNameRaw);
+
+        // ====== DATA UNTUK TABEL participants (bank data) ======
+        $participantData = [
+            'nik'                 => $nik,
+            'full_name'           => $fullName ?: $nik,
+            'phone_number'        => $phoneNumber ?: null,
+            'place_of_birth'      => $placeOfBirth ?: '-',
+            'date_of_birth'       => $dateOfBirth,
+            'gender'              => $gender,
+            'province_id'         => $province->id,
+            'regency_id'          => $regency->id,
+            'district_id'         => $district->id,
+            'village_id'          => $village?->id,
+            'address'             => $address ?: '-',
+            'education'           => $education,
+            'bank_account_number' => $bankAccount ?: null,
+            'bank_account_name'   => $bankAccountName ?: null,
+            'bank_name'           => $bankName,   // sudah dinormalisasi ke enum / null
+            'photo_url'           => null,
+            'id_card_url'         => null,
+            'family_card_url'     => null,
+            'bank_book_url'       => null,
+            'certificate_url'     => null,
+            'other_url'           => null,
+            'tanggal_terbit_ktp'  => null,
+            'tanggal_terbit_kk'   => null,
+        ];
+
+        // ====== DATA UNTUK TABEL event_participants ======
+        $eventParticipantData = [
             'event_id'                    => $this->eventId,
             'event_competition_branch_id' => $eventBranch->id,
-            'nik'                         => $nik,
-            'full_name'                   => $fullName ?: $nik,
-            'phone_number'                => $phoneNumber ?: null,
-            'place_of_birth'              => $placeOfBirth ?: '-',
-            'date_of_birth'               => $dateOfBirth,
-            'gender'                      => $gender,
-            'province_id'                 => $province->id,
-            'regency_id'                  => $regency->id,
-            'district_id'                 => $district->id,
-            'village_id'                  => $village?->id,
-            'address'                     => $address ?: '-',
-            'education'                   => $education,
-            'bank_account_number'         => $bankAccount ?: null,
-            'bank_account_name'           => $bankAccountName ?: null,
-            'bank_name'                   => $bankName ?: null,
-            'photo_url'                   => null,
-            'id_card_url'                 => null,
-            'family_card_url'             => null,
-            'bank_book_url'               => null,
-            'certificate_url'             => null,
-            'other_url'                   => null,
-            'tanggal_terbit_ktp'          => null,
-            'tanggal_terbit_kk'           => null,
             'age_year'                    => $ageYear,
             'age_month'                   => $ageMonth,
             'age_day'                     => $ageDay,
+            // status_pendaftaran, registration_notes, dll pakai default migration
         ];
+
+        return [$participantData, $eventParticipantData];
     }
 
     protected function extractBirthdateFromNik(string $nik): ?array
@@ -331,5 +359,70 @@ class ParticipantsFromExcelSeeder extends Seeder
             $diff->m, // month
             $diff->d, // day
         ];
+    }
+
+    /**
+     * Normalisasi nama bank dari Excel ke enum di DB.
+     * Kalau tidak cocok, return null + beri warning (sekali per value).
+     */
+    protected function normalizeBankName(?string $raw): ?string
+    {
+        if (!$raw) {
+            return null;
+        }
+
+        $rawUpper = strtoupper(trim($raw));
+
+        $allowed = [
+            // BANK BUMN
+            'BRI', 'BNI', 'MANDIRI', 'BTN',
+
+            // BANK SYARIAH
+            'BSI', 'BRI SYARIAH', 'BNI SYARIAH', 'MANDIRI SYARIAH',
+
+            // BANK SWASTA NASIONAL
+            'BCA', 'CIMB NIAGA', 'PERMATA', 'PANIN', 'OCBC NISP',
+            'DANAMON', 'MEGA', 'SINARMAS', 'BUKOPIN', 'MAYBANK', 'BTPN', 'J TRUST BANK',
+
+            // BANK PEMBANGUNAN DAERAH (BPD)
+            'BANK DKI', 'BANK BJB', 'BANK BJB SYARIAH', 'BANK JATENG', 'BANK JATIM',
+            'BANK SUMUT', 'BANK NAGARI', 'BANK RIAU KEPRI', 'BANK SUMSEL BABEL',
+            'BANK LAMPUNG', 'BANK KALSEL', 'BANK KALBAR', 'BANK KALTIMTARA',
+            'BANK SULSEL BAR', 'BANK SULTRA', 'BANK SULUTGO', 'BANK NTB SYARIAH',
+            'BANK NTT', 'BANK PAPUA', 'BANK MALUKU MALUT',
+        ];
+
+        // Mapping sederhana beberapa bentuk umum
+        $map = [
+            'BANK BRI'          => 'BRI',
+            'BANK RAKYAT INDONESIA' => 'BRI',
+            'BANK BNI'          => 'BNI',
+            'BANK NEGARA INDONESIA' => 'BNI',
+            'BANK MANDIRI'      => 'MANDIRI',
+            'BANK BTN'          => 'BTN',
+            'BANK BCA'          => 'BCA',
+            'BANK CIMB NIAGA'   => 'CIMB NIAGA',
+            'BANK PERMATA'      => 'PERMATA',
+            'BANK DANAMON'      => 'DANAMON',
+            'BANK MEGA'         => 'MEGA',
+            'BANK SINARMAS'     => 'SINARMAS',
+            'BANK BUKOPIN'      => 'BUKOPIN',
+            'BANK MAYBANK'      => 'MAYBANK',
+            'BANK BTPN'         => 'BTPN',
+            'BANK DKI'          => 'BANK DKI',
+            'BANK SUMUT'        => 'BANK SUMUT',
+            'BANK NAGARI'       => 'BANK NAGARI',
+        ];
+
+        if (isset($map[$rawUpper])) {
+            $rawUpper = $map[$rawUpper];
+        }
+
+        if (!in_array($rawUpper, $allowed, true)) {
+            $this->command?->warn("Nama bank '{$raw}' tidak cocok dengan enum, diset NULL.");
+            return null;
+        }
+
+        return $rawUpper;
     }
 }

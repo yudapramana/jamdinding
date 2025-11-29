@@ -9,6 +9,8 @@ class Event extends Model
 {
     use HasFactory;
 
+    protected $table = 'events';
+
     protected $fillable = [
         'event_key',
         'nama_event',
@@ -31,12 +33,18 @@ class Event extends Model
     ];
 
     protected $casts = [
-        'tanggal_mulai'       => 'date:Y-m-d',
-        'tanggal_selesai'     => 'date:Y-m-d',
-        'tanggal_batas_umur'  => 'date:Y-m-d',
-        'is_active'           => 'boolean',
+        'tanggal_mulai'      => 'date:Y-m-d',
+        'tanggal_selesai'    => 'date:Y-m-d',
+        'tanggal_batas_umur' => 'date:Y-m-d',
+        'is_active'          => 'boolean',
     ];
 
+    /* ============================
+     *  RELATIONSHIPS
+     * ============================
+     */
+
+    // wilayah event
     public function province()
     {
         return $this->belongsTo(Province::class);
@@ -50,5 +58,47 @@ class Event extends Model
     public function district()
     {
         return $this->belongsTo(District::class);
+    }
+
+    // cabang lomba di event ini
+    public function competitionBranches()
+    {
+        return $this->hasMany(EventCompetitionBranch::class);
+    }
+
+    // pivot event_participants
+    public function eventParticipants()
+    {
+        return $this->hasMany(EventParticipant::class);
+    }
+
+    // many-to-many ke peserta
+    public function participants()
+    {
+        return $this->belongsToMany(Participant::class, 'event_participants')
+            ->using(EventParticipant::class)
+            ->withPivot([
+                'event_competition_branch_id',
+                'age_year',
+                'age_month',
+                'age_day',
+                'status_pendaftaran',
+                'registration_notes',
+                'moved_by',
+                'verified_by',
+                'verified_at',
+                'created_at',
+                'updated_at',
+            ]);
+    }
+
+    /* ============================
+     *  SCOPES
+     * ============================
+     */
+
+    public function scopeActive($query)
+    {
+        return $query->where('is_active', true);
     }
 }

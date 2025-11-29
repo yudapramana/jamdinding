@@ -32,7 +32,7 @@ export default defineConfig({
     //     host: '0.0.0.0', // Listen on all network interfaces
     //     port: 5173, // Default Vite port
     //     hmr: {
-    //         host: '10.134.11.29', // Replace with your machine's local IP
+    //         host: '0.0.0.0', // Replace with your machine's local IP
     //     },
     // },
 });

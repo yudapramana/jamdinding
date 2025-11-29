@@ -10,14 +10,33 @@
             <span v-if="eventInfo?.lokasi_event"> • {{ eventInfo.lokasi_event }}</span>
           </p>
         </div>
-        <button
-          class="btn btn-primary btn-sm"
-          @click="openCreateModal"
-          :disabled="!eventId"
-        >
-          <i class="fas fa-user-plus mr-1"></i>
-          Tambah Peserta
-        </button>
+
+
+
+        
+      
+        <div class="btn btn-group btn-group-sm">
+          <button class="btn btn-outline-info btn-sm disabled">
+              Dipilih: <strong>{{ selectedParticipantIds.length }}</strong>
+          </button>
+          <button
+            class="btn btn-success btn-sm"
+            :disabled="!selectedParticipantIds.length || !eventId"
+            @click="openRegisterModal"
+          >
+            <i class="fas fa-check-double mr-1"></i>
+            Daftarkan Peserta
+          </button>
+          <button
+            class="btn btn-primary btn-sm"
+            @click="openCreateModal"
+            :disabled="!eventId"
+          >
+            <i class="fas fa-user-plus mr-1"></i>
+            Tambah Peserta
+          </button>
+        </div>
+        
       </div>
     </div>
   </section>
@@ -25,27 +44,64 @@
   <section class="content">
     <div class="container-fluid">
       <div class="card">
-        <div class="card-header d-flex justify-content-between align-items-center">
-          <input
-            v-model="search"
-            type="text"
-            class="form-control form-control-sm w-50"
-            placeholder="Cari nama, NIK, atau nomor HP..."
-          />
+        <div class="card-header">
+          <div class="row w-100">
+            
+            <!-- LEFT SIDE -->
+            <div class="col-md-6 d-flex align-items-center">
+              <label class="mb-0 mr-2 text-sm text-muted">Tampilkan</label>
+
+              <select
+                v-model.number="perPage"
+                class="form-control form-control-sm w-auto"
+              >
+                <option :value="10">10</option>
+                <option :value="25">25</option>
+                <option :value="50">50</option>
+                <option :value="100">100</option>
+              </select>
+
+              <span class="ml-2 text-sm text-muted">entri</span>
+            </div>
+
+            <!-- RIGHT SIDE -->
+            <div class="col-md-6 d-flex justify-content-end">
+              <input
+                v-model="search"
+                type="text"
+                class="form-control form-control-sm w-75"
+                placeholder="Cari nama, NIK, atau nomor HP..."
+              />
+            </div>
+
+          </div>
         </div>
+
+
+
 
         <div class="card-body table-responsive p-0">
           <table class="table table-bordered table-hover text-sm">
             <thead class="thead-light">
               <tr>
+                <th style="width: 30px;" class="text-center">
+                  <input
+                    type="checkbox"
+                    :checked="isAllSelected"
+                    @change="toggleSelectAll($event)"
+                    disabled
+                  />
+                </th>
                 <th style="width: 40px;">#</th>
                 <th>Nama Peserta</th>
                 <th>NIK</th>
                 <th>Cabang_Golongan</th>
-                <th>Asal</th>
+                <!-- <th>Asal</th> -->
+                <th>Lampiran</th>
                 <th style="width: 90px;">Aksi</th>
               </tr>
             </thead>
+
             <tbody>
               <tr v-if="isLoading">
                 <td colspan="7" class="text-center">Memuat data...</td>
@@ -57,6 +113,16 @@
                 v-for="(p, index) in participants"
                 :key="p.id"
               >
+                <!-- Checkbox pilih peserta -->
+                <td class="text-center">
+                  <input
+                    type="checkbox"
+                    :value="p.id"
+                    v-model="selectedParticipantIds"
+                  />
+                    <!-- :disabled="(p.status_pendaftaran || '').toLowerCase() !== 'bankdata' || p.lampiran_completion_percent < 80" -->
+
+                </td>
                 <td>{{ index + 1 + (meta.current_page - 1) * meta.per_page }}</td>
                 <td>
                   <strong>{{ p.full_name }}</strong>
@@ -64,6 +130,10 @@
                     {{ p.gender === 'MALE' ? 'Laki-laki' : 'Perempuan' }},
                     lahir {{ p.place_of_birth }}
                   </div>
+                  <button class="btn btn-warning btn-xs">
+                    {{ p.status_pendaftaran }}
+                  </button>
+
                 </td>
                 <td>
                   {{ p.nik }}
@@ -85,11 +155,33 @@
                     29H
                   </div>
                 </td>
-                <td>
+                <!-- <td>
                   <span class="text-sm">
                     {{ getAsalWilayah(p) }}
                   </span>
+                </td> -->
+                <td>
+                  <div class="progress" style="height: 16px; font-size: 10px;">
+                    <div
+                      class="progress-bar d-flex justify-content-center align-items-center"
+                      :class="{
+                        'bg-danger': p.lampiran_completion_percent <= 20,
+                        'bg-warning': p.lampiran_completion_percent > 20 && p.lampiran_completion_percent <= 50,
+                        'bg-info': p.lampiran_completion_percent > 50 && p.lampiran_completion_percent <= 80,
+                        'bg-success': p.lampiran_completion_percent > 80
+                      }"
+                      role="progressbar"
+                      :style="{ width: p.lampiran_completion_percent + '%' }"
+                      :aria-valuenow="p.lampiran_completion_percent"
+                      aria-valuemin="0"
+                      aria-valuemax="100"
+                    >
+                      {{ p.lampiran_completion_percent }}%
+                    </div>
+                  </div>
                 </td>
+
+
                 <!-- <td class="text-center">
                   <div class="btn-group btn-group-sm">
                     <button
@@ -264,23 +356,29 @@
                           placeholder="Masukkan NIK"
                         />
                         <div class="input-group-append">
-                          <span class="input-group-text">
-                            <i
-                              v-if="isNikChecking"
-                              class="fas fa-spinner fa-spin text-muted"
-                            ></i>
-                            <i v-else class="fas fa-id-card"></i>
-                          </span>
+                          <button
+                            type="button"
+                            class="btn btn-outline-secondary btn-sm"
+                            @click="onSearchNik"
+                            :disabled="isNikChecking || !form.nik || isEdit"
+                            title="Cari data peserta berdasarkan NIK"
+                          >
+                            <i v-if="isNikChecking" class="fas fa-spinner fa-spin"></i>
+                            <span v-else>
+                              <i class="fas fa-search mr-1"></i> Cari
+                            </span>
+                          </button>
                         </div>
                         <div class="invalid-feedback" v-if="fieldErrors.nik || nikError">
                           {{ fieldErrors.nik || nikError }}
                         </div>
-                        <div class="valid-feedback" v-else-if="form.nik">
+                        <div class="valid-feedback" v-else-if="form.nik && !nikError">
                           NIK dapat digunakan
                         </div>
                       </div>
                     </div>
                   </div>
+
 
                   <div class="col-md-4">
                     <div class="form-group">
@@ -1044,7 +1142,7 @@
                     <!-- LAINNYA -->
                     <div class="form-group row align-items-center lampiran-row">
                       <label class="col-sm-3 col-form-label col-form-label-sm mb-0">
-                        Lainnya <span class="text-muted">(Opsional)</span>
+                        Akta Kelahiran <span class="text-muted"></span>
                       </label>
                       <div class="col-sm-7">
                         <div class="custom-file">
@@ -1522,6 +1620,81 @@
       </div>
     </div>
 
+    <!-- MODAL KONFIRMASI DAFTARKAN PESERTA -->
+    <div class="modal fade" id="registerParticipantsModal" tabindex="-1" role="dialog">
+      <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+          <div class="modal-header py-2">
+            <h5 class="modal-title">
+              <i class="fas fa-check-double mr-2"></i>
+              Konfirmasi Pendaftaran Peserta
+            </h5>
+            <button type="button" class="close" data-dismiss="modal">
+              <span>&times;</span>
+            </button>
+          </div>
+
+          <div class="modal-body">
+            <p class="mb-2">
+              Anda akan mendaftarkan <strong>{{ selectedParticipants.length }}</strong> peserta
+              untuk event ini dan mengubah <code>status_pendaftaran</code> menjadi
+              <span class="badge badge-info">proses</span>.
+            </p>
+
+            <div v-if="selectedParticipants.length">
+              <table class="table table-sm table-bordered mb-0">
+                <thead>
+                  <tr>
+                    <th style="width: 50px;">#</th>
+                    <th>Nama Peserta</th>
+                    <th>NIK</th>
+                    <th>Cabang / Golongan</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr
+                    v-for="(p, idx) in selectedParticipants"
+                    :key="p.id"
+                  >
+                    <td>{{ idx + 1 }}</td>
+                    <td>{{ p.full_name }}</td>
+                    <td class="text-monospace">{{ p.nik }}</td>
+                    <td>{{ p.competition_branch?.name || '-' }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div v-else class="text-muted">
+              Tidak ada peserta yang dipilih.
+            </div>
+          </div>
+
+          <div class="modal-footer py-2">
+            <button
+              type="button"
+              class="btn btn-sm btn-secondary"
+              data-dismiss="modal"
+              :disabled="isRegistering"
+            >
+              Batal
+            </button>
+            <button
+              type="button"
+              class="btn btn-sm btn-success"
+              :disabled="!selectedParticipants.length || isRegistering"
+              @click="submitRegisterParticipants"
+            >
+              <i v-if="isRegistering" class="fas fa-spinner fa-spin mr-1"></i>
+              <i v-else class="fas fa-check mr-1"></i>
+              Ya, Daftarkan
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+
 
   </section>
 </template>
@@ -1569,12 +1742,153 @@ const openFileDetail = (field) => {
   window.open(url, '_blank')
 }
 
+// ==================================================
+
+const selectedParticipantIds = ref([])
+const isRegistering = ref(false)
+
+// peserta yang sedang terpilih (berdasarkan selectedParticipantIds)
+const selectedParticipants = computed(() =>
+  participants.value.filter(p => selectedParticipantIds.value.includes(p.id))
+)
+
+// apakah di halaman ini semua peserta sudah tercentang
+const isAllSelected = computed(() => {
+  if (!participants.value.length) return false
+  return participants.value.every(p => selectedParticipantIds.value.includes(p.id))
+})
+
+const toggleSelectAll = (event) => {
+  const checked = event.target.checked
+  if (checked) {
+    // pilih semua peserta di halaman saat ini
+    selectedParticipantIds.value = participants.value.map(p => p.id)
+  } else {
+    // hapus semua id peserta yang ada di halaman ini dari selection
+    const pageIds = participants.value.map(p => p.id)
+    selectedParticipantIds.value = selectedParticipantIds.value.filter(
+      id => !pageIds.includes(id)
+    )
+  }
+}
+
+const openRegisterModal = () => {
+  if (!selectedParticipantIds.value.length) return
+  $('#registerParticipantsModal').modal('show')
+}
+
+const submitRegisterParticipants = async () => {
+  // 1. Tidak ada peserta dipilih
+  if (!selectedParticipantIds.value.length || !eventId.value) {
+    Swal.fire({
+      icon: 'warning',
+      title: 'Belum ada peserta dipilih',
+      text: 'Silakan checklist peserta berstatus BANKDATA yang akan didaftarkan.',
+    })
+    return
+  }
+
+  // 2. Ambil peserta terpilih dari computed selectedParticipants
+  const selected = selectedParticipants.value
+
+  // Peserta yang status_pendaftaran-nya BUKAN bankdata
+  const invalidSelected = selected.filter(
+    p => (p.status_pendaftaran || '').toLowerCase() !== 'bankdata'
+  )
+
+  // Peserta yang boleh didaftarkan
+  const bankdataParticipants = selected.filter(
+    p => (p.status_pendaftaran || '').toLowerCase() === 'bankdata'
+  )
+
+  // 3. Kalau tidak ada yang berstatus bankdata → warning
+  if (!bankdataParticipants.length) {
+    Swal.fire({
+      icon: 'warning',
+      title: 'Tidak ada peserta berstatus BANKDATA',
+      text: 'Hanya peserta dengan status pendaftaran "bankdata" yang dapat didaftarkan.',
+    })
+    return
+  }
+
+  // 4. Kalau ada kombinasi (ada bankdata + ada selain bankdata) → warning detail
+  if (invalidSelected.length) {
+    const names = invalidSelected
+      .slice(0, 5)
+      .map(p => `- ${p.full_name} (${p.status_pendaftaran || '-'})`)
+      .join('\n')
+
+    Swal.fire({
+      icon: 'warning',
+      title: 'Sebagian peserta tidak bisa didaftarkan',
+      text: 'Hanya peserta dengan status "bankdata" yang akan diproses. Periksa kembali daftar peserta.',
+      footer: `<pre style="text-align:left;margin:0;">${names}${invalidSelected.length > 5 ? '\n... dan lainnya' : ''}</pre>`,
+    })
+    // lanjut tetap boleh, tapi hanya kirim yang bankdata
+  }
+
+  const idsToRegister = bankdataParticipants.map(p => p.id)
+
+  // 5. Konfirmasi terakhir (opsional, karena kamu sudah punya modal list)
+  const confirmResult = await Swal.fire({
+    icon: 'question',
+    title: `Daftarkan ${idsToRegister.length} peserta?`,
+    text: 'Status pendaftaran akan diubah menjadi "proses".',
+    showCancelButton: true,
+    confirmButtonText: 'Ya, daftarkan',
+    cancelButtonText: 'Batal',
+  })
+
+  if (!confirmResult.isConfirmed) {
+    return
+  }
+
+  isRegistering.value = true
+
+  try {
+    await axios.post('/api/v1/participants/bulk-register', {
+      ids: idsToRegister,
+      event_id: eventId.value,
+      status_pendaftaran: 'proses',
+    })
+
+    $('#registerParticipantsModal').modal('hide')
+
+    // bersihkan selection setelah berhasil
+    selectedParticipantIds.value = []
+
+    // reload list peserta
+    await fetchParticipants(meta.value.current_page)
+
+    Swal.fire({
+      icon: 'success',
+      title: 'Pendaftaran berhasil',
+      text: `Sebanyak ${idsToRegister.length} peserta berstatus BANKDATA berhasil didaftarkan ke status "proses".`,
+    })
+  } catch (error) {
+    console.error('Gagal mendaftarkan peserta:', error)
+    const msg = error.response?.data?.message || 'Gagal mendaftarkan peserta.'
+
+    Swal.fire({
+      icon: 'error',
+      title: 'Gagal',
+      text: msg,
+    })
+  } finally {
+    isRegistering.value = false
+  }
+}
+
+
+
+// ==================================================
 
 // TAB aktif (biodata / lampiran)
 const activeTab = ref('biodata')
 
 // LIST
 const participants = ref([])
+const perPage = ref(10)
 const meta = ref({
   current_page: 1,
   per_page: 10,
@@ -1585,6 +1899,7 @@ const meta = ref({
 })
 const search = ref('')
 const isLoading = ref(false)
+
 
 // EVENT
 const eventInfo = ref(null)
@@ -1877,6 +2192,7 @@ const toDateInput = (val) => {
 const fetchParticipants = async (page = 1) => {
   if (!eventId.value) {
     participants.value = []
+    selectedParticipantIds.value = []
     return
   }
 
@@ -1885,6 +2201,7 @@ const fetchParticipants = async (page = 1) => {
     const res = await axios.get('/api/v1/participants', {
       params: {
         page,
+        per_page: perPage.value,
         search: search.value,
         event_id: eventId.value,
       },
@@ -1899,6 +2216,9 @@ const fetchParticipants = async (page = 1) => {
       to: res.data.to,
       last_page: res.data.last_page,
     }
+
+    // 🔹 reset checklist ketika data halaman berubah
+    selectedParticipantIds.value = []
   } catch (error) {
     console.error('Gagal memuat peserta:', error)
     if (error.response && error.response.status === 401) {
@@ -2025,6 +2345,17 @@ const fetchDistrictOptions = async (preserveSelection = false) => {
         { id: u.district_id, name: 'Kecamatan Akun' },
       ]
       form.value.district_id = u.district_id
+    } else {
+      try {
+        const res = await axios.get('/api/v1/get/districts', {
+          params: { regency_id: form.value.regency_id },
+        })
+        districtOptions.value = res.data.data || res.data || []
+      } catch (e) {
+        console.error('Gagal load kecamatan:', e)
+      } finally {
+        isLoadingDistricts.value = false
+      }
     }
 
     return
@@ -2532,6 +2863,123 @@ const extractBirthdateFromNik = (nikRaw) => {
   }
 }
 
+const prefillFormFromParticipant = async (p) => {
+  if (!p) return
+
+  // JANGAN set id → tetap record baru untuk event ini
+  form.value.full_name = p.full_name || ''
+  form.value.phone_number = p.phone_number || ''
+  form.value.place_of_birth = p.place_of_birth || ''
+  form.value.date_of_birth = toDateInput(p.date_of_birth)
+  form.value.gender = p.gender || 'MALE'
+  form.value.address = p.address || ''
+  form.value.education = p.education || 'SMA'
+
+  form.value.bank_account_number = p.bank_account_number || ''
+  form.value.bank_account_name = p.bank_account_name || ''
+  form.value.bank_name = p.bank_name || ''
+
+  form.value.tanggal_terbit_ktp = toDateInput(p.tanggal_terbit_ktp)
+  form.value.tanggal_terbit_kk = toDateInput(p.tanggal_terbit_kk)
+
+  // lampiran: pakai URL lama, nanti bisa di-replace kalau upload baru
+  form.value.photo_url = p.photo_url || ''
+  form.value.id_card_url = p.id_card_url || ''
+  form.value.family_card_url = p.family_card_url || ''
+  form.value.bank_book_url = p.bank_book_url || ''
+  form.value.certificate_url = p.certificate_url || ''
+  form.value.other_url = p.other_url || ''
+
+  // Atur wilayah sesuai tingkat event & data peserta lama
+  isInitLocation.value = true
+  try {
+    await applyEventRegionToForm(p)
+  } finally {
+    isInitLocation.value = false
+  }
+}
+
+const searchExistingParticipantByNik = async () => {
+  if (isEdit.value) return // fitur ini khusus mode tambah
+
+  nikError.value = ''
+  fieldErrors.value.nik = ''
+
+  const nikRaw = form.value.nik || ''
+  const nik = nikRaw.replace(/\D/g, '')
+
+  if (!nik) {
+    nikError.value = 'Masukkan NIK terlebih dahulu.'
+    fieldErrors.value.nik = nikError.value
+    return
+  }
+
+  if (nik.length !== 16) {
+    nikError.value = 'NIK harus 16 digit sebelum pencarian.'
+    fieldErrors.value.nik = nikError.value
+    return
+  }
+
+  try {
+    isNikChecking.value = true
+
+    // *** ENDPOINT BARU YANG PERLU DIBUAT DI BACKEND ***
+    // Misal: return 200 + { data: participant } kalau ada, 404 kalau tidak
+    const res = await axios.get('/api/v1/get/participants/search-by-nik', {
+      params: { nik },
+    })
+
+    const p = res.data.data || res.data
+
+    if (p && p.id) {
+      await prefillFormFromParticipant(p)
+
+      Swal.fire({
+        icon: 'success',
+        title: 'Data peserta ditemukan',
+        text: `Data ${p.full_name} telah dimuat ke formulir.`,
+      })
+    } else {
+      Swal.fire({
+        icon: 'info',
+        title: 'Tidak ditemukan',
+        text: 'NIK ini belum ada di bank data peserta. Silakan isi biodata secara manual.',
+      })
+    }
+  } catch (e) {
+    console.log('e')
+    console.log(e)
+    console.log('e.response')
+    console.log(e.response)
+    if (e.response && e.response.status === 404) {
+      // backend bisa sengaja balas 404 jika tidak ada
+      console.log('e.response')
+      console.log(e.response)
+      Swal.fire({
+        icon: 'info',
+        title: 'Tidak ditemukan',
+        text: 'NIK ini belum ada di bank data peserta. Silakan isi biodata secara manual.',
+      })
+    } else {
+      // console.error('Gagal mencari peserta by NIK:', e)
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'Gagal mencari peserta berdasarkan NIK.',
+      })
+    }
+  } finally {
+    isNikChecking.value = false
+  }
+}
+
+const onSearchNik = async () => {
+  // bisa dipanggil dari tombol "Cari"
+  await searchExistingParticipantByNik()
+}
+
+
+
 const validateNik = async () => {
   nikError.value = ''
   fieldErrors.value.nik = ''
@@ -2633,8 +3081,17 @@ const onNikBlur = async () => {
   if (debouncedNikCheck.cancel) {
     debouncedNikCheck.cancel()
   }
-  await validateNik()
+
+  // Validasi & cek konflik di event ini
+  const okNik = await validateNik()
+  if (!okNik) return
+
+  // Kalau mode tambah, coba cari di bank data untuk prefill
+  if (!isEdit.value) {
+    await searchExistingParticipantByNik()
+  }
 }
+
 
 
 
@@ -2938,6 +3395,12 @@ watch(
   }
 )
 
+watch(
+  () => perPage.value,
+  () => {
+    fetchParticipants(1)
+  }
+)
 
 watch(
   () => search.value,
@@ -2955,6 +3418,7 @@ watch(
 watch(
   () => form.value.regency_id,
   () => {
+    console.log(isInitLocation.value)
     if (isInitLocation.value) return
     fetchDistrictOptions()
   }

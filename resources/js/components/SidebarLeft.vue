@@ -215,6 +215,22 @@ const logout = () => {
                         </router-link>
                     </li>
 
+                    <li
+                        class="nav-item"
+                        v-i="authUserStore.can('event.participant.repository')"
+                        >
+                        <router-link
+                            :to="{ name: 'admin.participants.status', params: { status: 'proses' } }"
+                            class="nav-link"
+                            active-class="active"
+                            :class="{ 'active': $route.name === 'participants.status' }"
+                        >
+                            <i class="nav-icon fas fa-users"></i>
+                            <p>Pendaftaran Peserta</p>
+                        </router-link>
+                    </li>
+
+
 
 
 

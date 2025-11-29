@@ -109,7 +109,11 @@ Route::middleware(['auth:sanctum']) // kalau belum pakai sanctum, boleh dihapus 
 
         Route::apiResource('events', EventController::class);
 
-        Route::apiResource('participants', ParticipantController::class);
+        // LIST / CREATE / UPDATE / DELETE EVENT_PARTICIPANTS
+        Route::get('participants', [ParticipantController::class, 'index']);
+        Route::post('participants', [ParticipantController::class, 'store']);
+        Route::get('participants/{eventParticipant}', [ParticipantController::class, 'show']);
+        Route::put('participants/{eventParticipant}', [ParticipantController::class, 'update']);
         Route::get('check-nik', [ParticipantController::class, 'checkNik']);
 
 
@@ -122,7 +126,13 @@ Route::middleware(['auth:sanctum']) // kalau belum pakai sanctum, boleh dihapus 
          // Cabang / Golongan per Event (untuk dropdown peserta)
         Route::get('get/event-competition-branches', [LocationController::class, 'eventBranches']);
 
-        Route::post('participants/{participant}/mutasi-wilayah', [
+        Route::post('participants/{eventParticipant}/mutasi-wilayah', [
             ParticipantController::class, 'mutasiWilayah'
         ]);
+
+        Route::get('get/participants/search-by-nik', [ParticipantController::class, 'searchByNik']);
+        Route::post('participants/bulk-register', [ParticipantController::class, 'bulkRegister']);
+    
+        Route::get('get/participants/status-counts', [ParticipantController::class, 'statusCounts']);
+
     });

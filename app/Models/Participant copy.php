@@ -44,8 +44,6 @@ class Participant extends Model
         'tanggal_terbit_kk'   => 'date:Y-m-d',
     ];
 
-    protected $appends = ['lampiran_completion_percent'];
-
     /* ============================
      *  RELATIONSHIPS
      * ============================
@@ -114,78 +112,5 @@ class Participant extends Model
         ];
 
         return trim(collect($parts)->filter()->implode(', '));
-    }
-
-    // ============================
-    // ACCESSORS → AUTO /secure/*
-    // ============================
-
-    protected function secureUrl($value)
-    {
-        if (!$value) return null;
-        return '/secure/' . ltrim($value, '/');
-    }
-
-    public function getPhotoUrlAttribute($value)
-    {
-        return $this->secureUrl($value);
-    }
-
-    public function getIdCardUrlAttribute($value)
-    {
-        return $this->secureUrl($value);
-    }
-
-    public function getFamilyCardUrlAttribute($value)
-    {
-        return $this->secureUrl($value);
-    }
-
-    public function getBankBookUrlAttribute($value)
-    {
-        return $this->secureUrl($value);
-    }
-
-    public function getCertificateUrlAttribute($value)
-    {
-        return $this->secureUrl($value);
-    }
-
-    public function getOtherUrlAttribute($value)
-    {
-        return $this->secureUrl($value);
-    }
-
-    /**
-     * Persentase kelengkapan lampiran (0–100)
-     * berdasarkan: id_card_url, family_card_url,
-     * bank_book_url, certificate_url, other_url.
-     */
-    public function getLampiranCompletionPercentAttribute(): int
-    {
-        $fields = [
-            'id_card_url',
-            'family_card_url',
-            'bank_book_url',
-            'certificate_url',
-            'other_url',
-        ];
-
-        $total  = count($fields);
-        $filled = 0;
-
-        foreach ($fields as $field) {
-            // pakai nilai asli di DB, bukan accessor /secure/*
-            $raw = $this->getRawOriginal($field);
-            if (!empty($raw)) {
-                $filled++;
-            }
-        }
-
-        if ($total === 0) {
-            return 0;
-        }
-
-        return (int) round(($filled / $total) * 100);
     }
 }

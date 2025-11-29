@@ -75,6 +75,12 @@ export default [
         component: () => import('./pages/participant/ParticipantList.vue'),
       },
       {
+        path: '/participants/status/:status',
+        name: 'admin.participants.status',
+        component: () => import('./pages/participant/ParticipantStatusList.vue'),
+        props: true, // kirim param status ke props
+      },
+      {
         path: 'vervals',
         name: 'admin.vervals',
         component: () => import('./pages/vervals/VervalList.vue'),

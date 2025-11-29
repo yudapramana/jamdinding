@@ -260,6 +260,76 @@
                     </select>
                   </div>
 
+                  <!-- WILAYAH EVENT SESUAI SKEMA -->
+                  <div class="form-group mb-2">
+                    <label class="mb-1">Provinsi Event</label>
+                    <select
+                      v-model="form.province_id"
+                      class="form-control form-control-sm"
+                      :disabled="form.tingkat_event === 'nasional'"
+                    >
+                      <option :value="''">-- Pilih Provinsi --</option>
+                      <option
+                        v-for="p in provinceOptions"
+                        :key="p.id"
+                        :value="p.id"
+                      >
+                        {{ p.name }}
+                      </option>
+                    </select>
+                  </div>
+
+                  <div class="form-group mb-2">
+                    <label class="mb-1">Kabupaten / Kota Event</label>
+                    <select
+                      v-model="form.regency_id"
+                      class="form-control form-control-sm"
+                      :disabled="
+                        form.tingkat_event === 'nasional' ||
+                        form.tingkat_event === 'provinsi' ||
+                        !form.province_id ||
+                        isLoadingRegencies
+                      "
+                    >
+                      <option :value="''">
+                        {{ isLoadingRegencies ? 'Memuat Kab/Kota...' : '-- Pilih Kab/Kota --' }}
+                      </option>
+                      <option
+                        v-for="r in regencyOptions"
+                        :key="r.id"
+                        :value="r.id"
+                      >
+                        {{ r.name }}
+                      </option>
+                    </select>
+                  </div>
+
+                  <div class="form-group mb-2">
+                    <label class="mb-1">Kecamatan Event</label>
+                    <select
+                      v-model="form.district_id"
+                      class="form-control form-control-sm"
+                      :disabled="
+                        form.tingkat_event === 'nasional' ||
+                        form.tingkat_event === 'provinsi' ||
+                        form.tingkat_event === 'kabupaten_kota' ||
+                        !form.regency_id ||
+                        isLoadingDistricts
+                      "
+                    >
+                      <option :value="''">
+                        {{ isLoadingDistricts ? 'Memuat Kecamatan...' : '-- Pilih Kecamatan --' }}
+                      </option>
+                      <option
+                        v-for="d in districtOptions"
+                        :key="d.id"
+                        :value="d.id"
+                      >
+                        {{ d.name }}
+                      </option>
+                    </select>
+                  </div>
+
                   <div class="form-group mb-2">
                     <label class="mb-1">Logo Event (URL / path)</label>
                     <input
@@ -348,6 +418,14 @@ const meta = ref({
 const search = ref('')
 const isLoading = ref(false)
 
+// ===== MASTER WILAYAH =====
+const provinceOptions = ref([])
+const regencyOptions = ref([])
+const districtOptions = ref([])
+const isLoadingRegencies = ref(false)
+const isLoadingDistricts = ref(false)
+const isInitRegion = ref(false) // guard supaya watcher tidak jalan saat init/edit
+
 // ===== FORM / MODAL =====
 const isEdit = ref(false)
 const isSubmitting = ref(false)
@@ -367,6 +445,9 @@ const form = ref({
   logo_sponsor_2: '',
   logo_sponsor_3: '',
   tingkat_event: 'kabupaten_kota',
+  province_id: '',
+  regency_id: '',
+  district_id: '',
   is_active: true,
 })
 
@@ -379,7 +460,7 @@ const formatDate = (val) => {
     'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun',
     'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des',
   ]
-  return `${day} ${bulanIndo[parseInt(month) - 1]} ${year}`
+  return `${day} ${bulanIndo[parseInt(month, 10) - 1]} ${year}`
 }
 
 // untuk input type="date": pastikan format YYYY-MM-DD
@@ -389,6 +470,81 @@ const toDateInput = (val) => {
   return String(val).substring(0, 10)
 }
 
+// =============================
+// FETCH MASTER WILAYAH
+// =============================
+const fetchProvinceOptions = async () => {
+  try {
+    const res = await axios.get('/api/v1/get/provinces')
+    provinceOptions.value = res.data.data || res.data || []
+  } catch (e) {
+    console.error('Gagal memuat daftar provinsi:', e)
+  }
+}
+
+const fetchRegencyOptions = async (preserveSelection = false) => {
+  if (!form.value.province_id) {
+    regencyOptions.value = []
+    districtOptions.value = []
+    if (!preserveSelection) {
+      form.value.regency_id = ''
+      form.value.district_id = ''
+    }
+    return
+  }
+
+  isLoadingRegencies.value = true
+
+  if (!preserveSelection) {
+    regencyOptions.value = []
+    form.value.regency_id = ''
+    districtOptions.value = []
+    form.value.district_id = ''
+  }
+
+  try {
+    const res = await axios.get('/api/v1/get/regencies', {
+      params: { province_id: form.value.province_id },
+    })
+    regencyOptions.value = res.data.data || res.data || []
+  } catch (e) {
+    console.error('Gagal memuat kab/kota:', e)
+  } finally {
+    isLoadingRegencies.value = false
+  }
+}
+
+const fetchDistrictOptions = async (preserveSelection = false) => {
+  if (!form.value.regency_id) {
+    districtOptions.value = []
+    if (!preserveSelection) {
+      form.value.district_id = ''
+    }
+    return
+  }
+
+  isLoadingDistricts.value = true
+
+  if (!preserveSelection) {
+    districtOptions.value = []
+    form.value.district_id = ''
+  }
+
+  try {
+    const res = await axios.get('/api/v1/get/districts', {
+      params: { regency_id: form.value.regency_id },
+    })
+    districtOptions.value = res.data.data || res.data || []
+  } catch (e) {
+    console.error('Gagal memuat kecamatan:', e)
+  } finally {
+    isLoadingDistricts.value = false
+  }
+}
+
+// =============================
+// FETCH EVENTS
+// =============================
 const fetchEvents = async (page = 1) => {
   isLoading.value = true
 
@@ -399,7 +555,7 @@ const fetchEvents = async (page = 1) => {
     }
 
     // Kalau BUKAN superadmin → kirim event_id dari localStorage
-    if (!isSuperadmin.value && authUserStore.eventData.id) {
+    if (!isSuperadmin.value && authUserStore.eventData?.id) {
       params.event_id = authUserStore.eventData.id
     }
 
@@ -429,8 +585,10 @@ const changePage = (page) => {
   fetchEvents(page)
 }
 
-const openCreateModal = () => {
-  isEdit.value = false
+// =============================
+// MODAL CREATE / EDIT
+// =============================
+const resetForm = () => {
   form.value = {
     id: null,
     event_key: '',
@@ -447,13 +605,28 @@ const openCreateModal = () => {
     logo_sponsor_2: '',
     logo_sponsor_3: '',
     tingkat_event: 'kabupaten_kota',
+    province_id: '',
+    regency_id: '',
+    district_id: '',
     is_active: true,
   }
+}
+
+const openCreateModal = () => {
+  isEdit.value = false
+  isInitRegion.value = true
+  resetForm()
+  // opsi wilayah sudah di-load di onMounted
+  regencyOptions.value = []
+  districtOptions.value = []
+  isInitRegion.value = false
   $('#eventModal').modal('show')
 }
 
-const openEditModal = (event) => {
+const openEditModal = async (event) => {
   isEdit.value = true
+  isInitRegion.value = true
+
   form.value = {
     id: event.id,
     event_key: event.event_key,
@@ -470,11 +643,32 @@ const openEditModal = (event) => {
     logo_sponsor_2: event.logo_sponsor_2,
     logo_sponsor_3: event.logo_sponsor_3,
     tingkat_event: event.tingkat_event || 'kabupaten_kota',
+    province_id: event.province_id || '',
+    regency_id: event.regency_id || '',
+    district_id: event.district_id || '',
     is_active: !!event.is_active,
   }
+
+  // Pastikan master wilayah sudah ada
+  if (!provinceOptions.value.length) {
+    await fetchProvinceOptions()
+  }
+
+  // Load kab/kota & kecamatan sesuai existing event
+  if (form.value.province_id) {
+    await fetchRegencyOptions(true)
+  }
+  if (form.value.regency_id) {
+    await fetchDistrictOptions(true)
+  }
+
+  isInitRegion.value = false
   $('#eventModal').modal('show')
 }
 
+// =============================
+// SUBMIT
+// =============================
 const submitForm = async () => {
   isSubmitting.value = true
 
@@ -493,6 +687,9 @@ const submitForm = async () => {
     logo_sponsor_2: form.value.logo_sponsor_2,
     logo_sponsor_3: form.value.logo_sponsor_3,
     tingkat_event: form.value.tingkat_event,
+    province_id: form.value.province_id || null,
+    regency_id: form.value.regency_id || null,
+    district_id: form.value.district_id || null,
     is_active: form.value.is_active,
   }
 
@@ -527,12 +724,32 @@ const deleteEvent = async (event) => {
   }
 }
 
+// =============================
+// WATCHERS
+// =============================
 watch(
   () => search.value,
   useDebounceFn(() => fetchEvents(1), 400)
 )
 
-onMounted(() => {
+watch(
+  () => form.value.province_id,
+  () => {
+    if (isInitRegion.value) return
+    fetchRegencyOptions()
+  }
+)
+
+watch(
+  () => form.value.regency_id,
+  () => {
+    if (isInitRegion.value) return
+    fetchDistrictOptions()
+  }
+)
+
+onMounted(async () => {
+  await fetchProvinceOptions()
   fetchEvents()
 })
 </script>

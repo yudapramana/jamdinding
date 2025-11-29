@@ -204,7 +204,7 @@ const handleSubmit = async () => {
 
     errorMessage.value = msg
   } finally {
-    await resetTurnstile()
+    // await resetTurnstile()
     setTimeout(() => (loading.value = false), 400)
   }
 }
