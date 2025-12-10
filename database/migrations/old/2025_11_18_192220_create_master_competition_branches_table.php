@@ -33,6 +33,10 @@ return new class extends Migration
 
             $table->text('description')->nullable();
 
+            $table->integer('require_judges')->default(3);
+            $table->integer('min_judges')->default(2);
+            $table->integer('max_judges')->default(5);
+
             $table->boolean('is_active')->default(true);
 
             $table->timestamps();

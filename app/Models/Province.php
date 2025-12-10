@@ -2,19 +2,27 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class Province extends Model
 {
-    protected $table = 'provinces';
+    use HasFactory;
 
-    protected $fillable = ['name'];
+    protected $guarded = [];
 
-    public $timestamps = false;
-
-    /** Relasi ke Regency */
     public function regencies()
     {
         return $this->hasMany(Regency::class);
+    }
+
+    public function events()
+    {
+        return $this->hasMany(Event::class);
+    }
+
+    public function participants()
+    {
+        return $this->hasMany(Participant::class);
     }
 }

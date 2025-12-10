@@ -40,4 +40,20 @@ class MasterCompetitionBranch extends Model
     {
         return $this->belongsTo(MasterCompetitionCategory::class, 'master_competition_category_id');
     }
+
+    /** 
+     * Template field penilaian di level master
+     */
+    public function masterFieldComponents()
+    {
+        return $this->hasMany(MasterBranchFieldComponent::class, 'master_competition_branch_id');
+    }
+
+    /**
+     * Cabang yang dipakai di event-event (event_competition_branches)
+     */
+    public function eventCompetitionBranches()
+    {
+        return $this->hasMany(EventCompetitionBranch::class, 'master_competition_branch_id');
+    }
 }

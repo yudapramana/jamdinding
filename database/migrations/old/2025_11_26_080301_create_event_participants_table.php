@@ -53,6 +53,21 @@ return new class extends Migration
 
             $table->timestamp('verified_at')->nullable();
 
+            $table->enum('status_daftar_ulang', [
+                'belum',          // peserta belum hadir daftar ulang
+                'terverifikasi',  // peserta lolos tahap daftar ulang
+                'gagal',          // peserta tidak lolos daftar ulang
+            ])->default('belum');
+
+            // Metadata tambahan
+            $table->timestamp('daftar_ulang_at')->nullable();   // kapan peserta diverifikasi ulang
+            $table->foreignId('daftar_ulang_by')                // petugas yang melakukan verifikasi ulang
+                ->nullable()
+                ->constrained('users')
+                ->nullOnDelete();
+
+            $table->text('daftar_ulang_notes')->nullable();     // catatan kekurangan / alasan gagal
+
             $table->timestamps();
             $table->softDeletes();
 

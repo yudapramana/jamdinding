@@ -1,0 +1,124 @@
+id_cabang;golongan_lomba;field_penilaian;default_weight
+1;Fahm Al Qur'an Beregu;Nilai Akhir;100
+2;Hafalan Al Qur'an 1 Juz + Tilawah;Tajwid;25
+2;Hafalan Al Qur'an 1 Juz + Tilawah;Tahfizh;50
+2;Hafalan Al Qur'an 1 Juz + Tilawah;Fashahah;25
+3;Hafalan Al Qur'an 1 Juz Non Tilawah;Tajwid;25
+3;Hafalan Al Qur'an 1 Juz Non Tilawah;Tahfizh;50
+3;Hafalan Al Qur'an 1 Juz Non Tilawah;Fashahah;25
+4;Hafalan Al Qur'an 10 Juz;Tajwid;25
+4;Hafalan Al Qur'an 10 Juz;Tahfizh;50
+4;Hafalan Al Qur'an 10 Juz;Fashahah;25
+4;Hafalan Al Qur'an 10 Juz;Tajwid;25
+5;Hafalan Al Qur'an 20 Juz;Tahfizh;50
+5;Hafalan Al Qur'an 20 Juz;Fashahah;25
+5;Hafalan Al Qur'an 20 Juz;Tajwid;25
+5;Hafalan Al Qur'an 20 Juz;Tahfizh;50
+6;Hafalan Al Qur'an 30 Juz;Fashahah;25
+6;Hafalan Al Qur'an 30 Juz;Tajwid;25
+6;Hafalan Al Qur'an 30 Juz;Tahfizh;50
+6;Hafalan Al Qur'an 30 Juz;Fashahah;25
+7;Hafalan Al Qur'an 5 Juz + Tilawah;Tajwid;25
+7;Hafalan Al Qur'an 5 Juz + Tilawah;Tahfizh;50
+7;Hafalan Al Qur'an 5 Juz + Tilawah;Fashahah;25
+7;Hafalan Al Qur'an 5 Juz + Tilawah;Lagu;15
+8;Hafalan Al Qur'an 5 Juz Non Tilawah;Tajwid;30
+8;Hafalan Al Qur'an 5 Juz Non Tilawah;Tahfizh;30
+8;Hafalan Al Qur'an 5 Juz Non Tilawah;Fashahah;25
+9;Karya Tulis Ilmiah Al Qur'an (KTIQ) Umum;Materi atau Isi;40
+9;Karya Tulis Ilmiah Al Qur'an (KTIQ) Umum;Kaidah dan Gaya Bahasa;30
+9;Karya Tulis Ilmiah Al Qur'an (KTIQ) Umum;Logika dan Organisasi Pesan;30
+9;Karya Tulis Ilmiah Al Qur'an (KTIQ) Umum;Presentasi;20
+10;Karya Tulis Ilmiah Hadits (KTIH) Umum;Materi atau Isi;40
+10;Karya Tulis Ilmiah Hadits (KTIH) Umum;Kaidah dan Gaya Bahasa;30
+10;Karya Tulis Ilmiah Hadits (KTIH) Umum;Logika dan Organisasi Pesan;30
+10;Karya Tulis Ilmiah Hadits (KTIH) Umum;Presentasi;20
+11;Khutbah Jum'at & Adzan Khatib + Mu'adzin;Materi atau Isi;30
+11;Khutbah Jum'at & Adzan Khatib + Mu'adzin;Logika dan Organisasi Pesan;25
+11;Khutbah Jum'at & Adzan Khatib + Mu'adzin;Vokal dan Artikulasi;25
+11;Khutbah Jum'at & Adzan Khatib + Mu'adzin;Adzan;20
+12;Kitab Standar Umum;Tajwid;30
+12;Kitab Standar Umum;Fashahah;25
+12;Kitab Standar Umum;Kefasihan Bacaan;25
+12;Kitab Standar Umum;Kaidah;20
+13;Musabaqah Hafalan Hadits Nabi 100 Hadits dengan Sanad;Tahfizh;30
+13;Musabaqah Hafalan Hadits Nabi 100 Hadits dengan Sanad;Ketepatan Hafalan;25
+13;Musabaqah Hafalan Hadits Nabi 100 Hadits dengan Sanad;Penguasaan;30
+13;Musabaqah Hafalan Hadits Nabi 100 Hadits dengan Sanad;Tajwid;15
+14;Musabaqah Hafalan Hadits Nabi 500 Hadits tanpa Sanad;Tahfizh;30
+14;Musabaqah Hafalan Hadits Nabi 500 Hadits tanpa Sanad;Ketepatan Hafalan;25
+14;Musabaqah Hafalan Hadits Nabi 500 Hadits tanpa Sanad;Penguasaan;30
+14;Musabaqah Hafalan Hadits Nabi 500 Hadits tanpa Sanad;Tajwid;15
+15;Qiraat Al Qur'an Mujawwad Dewasa;Tajwid;30
+15;Qiraat Al Qur'an Mujawwad Dewasa;Fashahah;30
+15;Qiraat Al Qur'an Mujawwad Dewasa;Suara;15
+15;Qiraat Al Qur'an Mujawwad Dewasa;Lagu;25
+16;Qiraat Al Qur'an Murattal Dewasa;Tajwid;30
+16;Qiraat Al Qur'an Murattal Dewasa;Fashahah;30
+16;Qiraat Al Qur'an Murattal Dewasa;Suara;15
+16;Qiraat Al Qur'an Murattal Dewasa;Lagu;25
+17;Qiraat Al Qur'an Murattal Remaja;Tajwid;30
+17;Qiraat Al Qur'an Murattal Remaja;Fashahah;30
+17;Qiraat Al Qur'an Murattal Remaja;Suara;15
+17;Qiraat Al Qur'an Murattal Remaja;Lagu;25
+18;Seni Baca Al Qur'an (Tilawah) Anak-anak;Tajwid;30
+18;Seni Baca Al Qur'an (Tilawah) Anak-anak;Fashahah;30
+18;Seni Baca Al Qur'an (Tilawah) Anak-anak;Suara;15
+18;Seni Baca Al Qur'an (Tilawah) Anak-anak;Lagu;25
+19;Seni Baca Al Qur'an (Tilawah) Cacat Netra;Tajwid;30
+19;Seni Baca Al Qur'an (Tilawah) Cacat Netra;Fashahah;30
+19;Seni Baca Al Qur'an (Tilawah) Cacat Netra;Suara;15
+19;Seni Baca Al Qur'an (Tilawah) Cacat Netra;Lagu;25
+20;Seni Baca Al Qur'an (Tilawah) Dewasa;Tajwid;30
+20;Seni Baca Al Qur'an (Tilawah) Dewasa;Fashahah;30
+20;Seni Baca Al Qur'an (Tilawah) Dewasa;Suara;15
+20;Seni Baca Al Qur'an (Tilawah) Dewasa;Lagu;25
+21;Seni Baca Al Qur'an (Tilawah) Remaja;Tajwid;30
+21;Seni Baca Al Qur'an (Tilawah) Remaja;Fashahah;30
+21;Seni Baca Al Qur'an (Tilawah) Remaja;Suara;15
+21;Seni Baca Al Qur'an (Tilawah) Remaja;Lagu;25
+22;Seni Baca Al Qur'an (Tilawah) Taman Kanak-Kanak;Tajwid;30
+22;Seni Baca Al Qur'an (Tilawah) Taman Kanak-Kanak;Fashahah;30
+22;Seni Baca Al Qur'an (Tilawah) Taman Kanak-Kanak;Suara;15
+22;Seni Baca Al Qur'an (Tilawah) Taman Kanak-Kanak;Lagu;25
+23;Seni Kaligrafi Al Qur'an Dekorasi;Kaidah;35
+23;Seni Kaligrafi Al Qur'an Dekorasi;Keindahan;25
+23;Seni Kaligrafi Al Qur'an Dekorasi;Keindahan Hiasan;40
+24;Seni Kaligrafi Al Qur'an Digital;Kaidah;35
+24;Seni Kaligrafi Al Qur'an Digital;Keindahan;25
+24;Seni Kaligrafi Al Qur'an Digital;Keindahan Hiasan;40
+25;Seni Kaligrafi Al Qur'an Hiasan Mushaf;Kaidah;35
+25;Seni Kaligrafi Al Qur'an Hiasan Mushaf;Keindahan;25
+25;Seni Kaligrafi Al Qur'an Hiasan Mushaf;Keindahan Hiasan;40
+26;Seni Kaligrafi Al Qur'an Kontemporer;Kaidah;35
+26;Seni Kaligrafi Al Qur'an Kontemporer;Keindahan;25
+26;Seni Kaligrafi Al Qur'an Kontemporer;Keindahan Hiasan;40
+27;Seni Kaligrafi Al Qur'an Naskah;Kaidah;60
+27;Seni Kaligrafi Al Qur'an Naskah;Keindahan;40
+28;Syarhil Qur'an Beregu;Terjemah dan Materi;40
+28;Syarhil Qur'an Beregu;Penghayatan dan Retorika;30
+28;Syarhil Qur'an Beregu;Tilawah;30
+29;Tafsir Al Qur'an Bahasa Arab;Mufradat / Kosakata;10
+29;Tafsir Al Qur'an Bahasa Arab;Munasabat / Korelasi;20
+29;Tafsir Al Qur'an Bahasa Arab;Muradu Ayat / Wawasan;50
+29;Tafsir Al Qur'an Bahasa Arab;Tabir / Bahasa;20
+30;Tafsir Al Qur'an Bahasa Indonesia;Mufradat / Kosakata;10
+30;Tafsir Al Qur'an Bahasa Indonesia;Munasabat / Korelasi;20
+30;Tafsir Al Qur'an Bahasa Indonesia;Muradu Ayat / Wawasan;50
+30;Tafsir Al Qur'an Bahasa Indonesia;Tabir / Bahasa;20
+31;Tafsir Al Qur'an Bahasa Inggris;Mufradat / Kosakata;10
+31;Tafsir Al Qur'an Bahasa Inggris;Munasabat / Korelasi;20
+31;Tafsir Al Qur'an Bahasa Inggris;Muradu Ayat / Wawasan;50
+31;Tafsir Al Qur'an Bahasa Inggris;Tabir / Bahasa;20
+32;Tartil Al Qur'an Dasar;Tajwid;40
+32;Tartil Al Qur'an Dasar;Fashahah;30
+32;Tartil Al Qur'an Dasar;Irama dan Suara;30
+33;Tartil Al Qur'an Menengah;Tajwid;40
+33;Tartil Al Qur'an Menengah;Fashahah;30
+33;Tartil Al Qur'an Menengah;Irama dan Suara;30
+34;Tartil Al Qur'an Umum;Tajwid;40
+34;Tartil Al Qur'an Umum;Fashahah;30
+34;Tartil Al Qur'an Umum;Irama dan Suara;30
+35;Tartil Al Qur'an Eksekutif (Eselon II) Eksekutif Eselon II;Tajwid;40
+35;Tartil Al Qur'an Eksekutif (Eselon II) Eksekutif Eselon II;Fashahah;30
+35;Tartil Al Qur'an Eksekutif (Eselon II) Eksekutif Eselon II;Irama dan Suara;30

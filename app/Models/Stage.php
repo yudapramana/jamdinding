@@ -2,37 +2,32 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
 
 class Stage extends Model
 {
     use HasFactory;
 
-    protected $table = 'stages';
-
-    protected $fillable = [
-        'name',
-        'order_number',
-        'description',
-        'is_active',
-        'days'
-    ];
+    protected $guarded = [];
 
     protected $casts = [
+        'days' => 'integer',
+        'order_number' => 'integer',
         'is_active' => 'boolean',
     ];
 
-    /*
-    |--------------------------------------------------------------------------
-    | RELATIONSHIPS
-    |--------------------------------------------------------------------------
-    */
-
-    // Tahapan ini bisa diadopsi banyak event
     public function eventStages()
     {
-        return $this->hasMany(EventStage::class, 'stage_id');
+        return $this->hasMany(EventStage::class);
+    }
+
+    public function events()
+    {
+        return $this->belongsToMany(Event::class, 'event_stages')
+            ->using(EventStage::class)
+            ->withPivot(['order_number', 'name', 'start_date', 'end_date', 'notes', 'is_active'])
+            ->withTimestamps();
     }
 
     /*

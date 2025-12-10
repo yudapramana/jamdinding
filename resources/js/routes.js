@@ -25,6 +25,57 @@ export default [
         component: () => import('./components/Dashboard.vue'),
       },
       {
+        path: 'master-branches-groups-categories',
+        name: 'admin.master.branches-groups-categories',
+        component: () => import('./pages/master/MasterBranchesGroupsCategories.vue'),
+      },
+      {
+        path: 'master-list-fields',
+        name: 'admin.master.list-fields',
+        component: () => import('./pages/master/MasterListFields.vue'),
+      },
+      {
+        path: 'master-branches',
+        name: 'admin.master.branches',
+        component: () => import('./pages/master/MasterBranches.vue'),
+      },
+      {
+        path: 'master-groups',
+        name: 'admin.master.groups',
+        component: () => import('./pages/master/MasterGroups.vue'),
+      },
+      {
+        path: 'master-categories',
+        name: 'admin.master.categories',
+        component: () => import('./pages/master/MasterCategories.vue'),
+      },
+      {
+        path: 'master-field-components',
+        name: 'admin.master.field-components',
+        component: () => import('./pages/master/MasterFieldComponents.vue'),
+      },
+      {
+        path: 'event-branches',
+        name: 'admin.event.branches',
+        component: () => import('./pages/event/EventBranches.vue'),
+      },
+      {
+        path: 'event-groups',
+        name: 'admin.event.groups',
+        component: () => import('./pages/event/EventGroups.vue'),
+      },
+      {
+        path: 'event-categories',
+        name: 'admin.event.categories',
+        component: () => import('./pages/event/EventCategories.vue'),
+      },
+      {
+        path: 'event-field-components',
+        name: 'admin.event.field-components',
+        component: () => import('./pages/event/EventFieldComponents.vue'),
+      },
+
+      {
         path: 'event-stage',
         name: 'admin.eventstagelist',
         component: () => import('./pages/event/EventStageList.vue'),
@@ -78,6 +129,12 @@ export default [
         path: '/participants/status/:status',
         name: 'admin.participants.status',
         component: () => import('./pages/participant/ParticipantStatusList.vue'),
+        props: true, // kirim param status ke props
+      },
+      {
+        path: '/participants/reregister',
+        name: 'admin.participants.reregister',
+        component: () => import('./pages/participant/ParticipantReregisterList.vue'),
         props: true, // kirim param status ke props
       },
       {

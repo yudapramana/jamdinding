@@ -1,5 +1,18 @@
 <?php
 
+use App\Http\Controllers\Api\__BranchController;
+use App\Http\Controllers\Api\__CategoryController;
+use App\Http\Controllers\Api\__EventBranchController;
+use App\Http\Controllers\Api\__EventCategoryController;
+use App\Http\Controllers\API\__EventFieldComponentController;
+use App\Http\Controllers\Api\__EventGroupController;
+use App\Http\Controllers\Api\__GroupController;
+use App\Http\Controllers\Api\__ListFieldController;
+use App\Http\Controllers\Api\__MasterBranchController;
+use App\Http\Controllers\Api\__MasterCategoryController;
+use App\Http\Controllers\Api\__MasterFieldComponentController;
+use App\Http\Controllers\API\__MasterGroupController;
+use App\Http\Controllers\API\__StageController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\API\StageController;
@@ -14,9 +27,11 @@ use App\Http\Controllers\API\PermissionRoleController;
 use App\Http\Controllers\API\SimpleRoleController;
 use App\Http\Controllers\API\SimplePermissionController;
 use App\Http\Controllers\API\EventController;
+use App\Http\Controllers\API\EventParticipantReRegistrationController;
 use App\Http\Controllers\API\ParticipantController;
 use App\Http\Controllers\API\LocationController;
-
+use App\Http\Controllers\API\ParticipantVerificationController;
+use App\Http\Controllers\API\PublicEventController;
 use App\Http\Controllers\WhatsAppController;
 use App\Http\Controllers\Auth\PasswordResetWhatsappController;
 
@@ -51,13 +66,73 @@ Route::post('/auth/wa/request-reset', [PasswordResetWhatsappController::class, '
     ->middleware('throttle:5,1')
     ->name('api.password.wa.request');
 
+Route::prefix('v1')->group(function () {
+    Route::get('/public-events', [PublicEventController::class, 'index']);
+});
 
 Route::middleware(['auth:sanctum']) // kalau belum pakai sanctum, boleh dihapus dulu
     ->prefix('v1')
     ->group(function () {
 
+
+        
+        // MASTER CABANG GOLONGAN
+        Route::apiResource('branches', __BranchController::class)->except(['show']);
+        Route::apiResource('groups', __GroupController::class)->except(['show']);
+        Route::apiResource('categories', __CategoryController::class)->except(['show']);
+
+        // MASTER BIDANG PENILAIAN
+        Route::apiResource('list-fields', __ListFieldController::class)->except(['show']);
+        
         // MASTER STAGES
-        Route::apiResource('stages', StageController::class)->middleware('permission:master.manage.stage');
+        Route::apiResource('stages', __StageController::class)->middleware('permission:master.manage.stage');
+
+        Route::apiResource('master-branches', __MasterBranchController::class)->except(['show']);
+
+        Route::get('/master-groups', [__MasterGroupController::class, 'index']);
+        Route::post('/master-groups', [__MasterGroupController::class, 'store']);
+        Route::put('/master-groups/{id}', [__MasterGroupController::class, 'update']);
+        Route::delete('/master-groups/{id}', [__MasterGroupController::class, 'destroy']);
+
+        Route::apiResource('master-categories', __MasterCategoryController::class)->except(['show']);
+
+        Route::apiResource('master-field-components', __MasterFieldComponentController::class)
+        ->except(['show']);
+
+
+        Route::get('event-branches', [__EventBranchController::class, 'index']);
+        Route::post('event-branches', [__EventBranchController::class, 'store']);
+        Route::put('event-branches/{eventBranch}', [__EventBranchController::class, 'update']);
+        Route::delete('event-branches/{eventBranch}', [__EventBranchController::class, 'destroy']);
+
+        // tombol "Generate dari Template"
+        Route::post('event-branches/generate-from-template', [__EventBranchController::class, 'generateFromTemplate']);
+
+        Route::get('event-groups', [__EventGroupController::class, 'index']);
+        Route::post('event-groups', [__EventGroupController::class, 'store']);
+        Route::put('event-groups/{eventGroup}', [__EventGroupController::class, 'update']);
+        Route::delete('event-groups/{eventGroup}', [__EventGroupController::class, 'destroy']);
+
+        // Generate dari master_groups
+        Route::post('event-groups/generate-from-template', [__EventGroupController::class, 'generateFromTemplate']);
+        
+        Route::get('event-categories', [__EventCategoryController::class, 'index']);
+        Route::post('event-categories', [__EventCategoryController::class, 'store']);
+        Route::put('event-categories/{eventCategory}', [__EventCategoryController::class, 'update']);
+        Route::delete('event-categories/{eventCategory}', [__EventCategoryController::class, 'destroy']);
+
+        Route::post('event-categories/generate-from-template', [__EventCategoryController::class, 'generateFromTemplate']);
+
+        Route::get('event-field-components', [__EventFieldComponentController::class, 'index']);
+        Route::post('event-field-components', [__EventFieldComponentController::class, 'store']);
+        Route::put('event-field-components/{id}', [__EventFieldComponentController::class, 'update']);
+        Route::delete('event-field-components/{id}', [__EventFieldComponentController::class, 'destroy']);
+
+        Route::post(
+            'event-field-components/generate-from-template',
+            [__EventFieldComponentController::class, 'generateFromTemplate']
+        );
+
 
         // EVENT STAGES
         Route::get('events/{event}/stages', [EventStageController::class, 'index'])->middleware('permission:event.manage.stage');
@@ -135,4 +210,16 @@ Route::middleware(['auth:sanctum']) // kalau belum pakai sanctum, boleh dihapus 
     
         Route::get('get/participants/status-counts', [ParticipantController::class, 'statusCounts']);
 
+        Route::get('get/participants/{eventParticipant}/biodata-pdf', [ParticipantController::class, 'biodataPdf'])
+            ->name('participants.biodata-pdf');
+
+
+        Route::get('participants/{participant}/verifications', [ParticipantVerificationController::class, 'index']);
+        Route::post('participants/{participant}/verifications', [ParticipantVerificationController::class, 'store']);
+        Route::get('participants/{participant}/verifications/{verification}', [ParticipantVerificationController::class, 'show']);
+    
+        Route::post(
+            'event-participants/{eventParticipant}/re-registration',
+            [EventParticipantReRegistrationController::class, 'store']
+        );
     });

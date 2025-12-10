@@ -14,79 +14,12 @@ const router = useRouter()
 // -----------------------------
 //  EVENT KEY & DETAIL EVENT
 // -----------------------------
-const loadingEvent = ref(true)
-
-// Ambil event_data dari localStorage / cookie
-const getEventDataFromStorage = () => {
-  loadingEvent.value = true
-  let raw = ''
-
-  // 1. Coba localStorage
-  try {
-    raw = localStorage.getItem('event_data') || ''
-  } catch (e) {}
-
-  // 2. Jika kosong → coba cookie
-  if (!raw) {
-    const cookie = document.cookie
-      .split('; ')
-      .find(row => row.startsWith('event_data='))
-    if (cookie) {
-      raw = decodeURIComponent(cookie.split('=')[1])
-    }
-  } 
-  
-  if (raw) {
-    try {
-      authUserStore.eventData = JSON.parse(raw)
-    } catch (e) {
-      console.error('Gagal parse event_data dari storage/cookie:', e)
-      authUserStore.eventData = null
-    }
-  } else {
-    authUserStore.eventData = null
-  }
-
-  loadingEvent.value = false
-}
-
-// Ambil event_key dari localStorage / cookie / eventData
-const getEventKeyFromStorage = () => {
-  let key = ''
-
-  // 1. Coba localStorage
-  try {
-    key = localStorage.getItem('event_key') || ''
-  } catch (e) {}
-
-  // 2. Jika kosong → coba cookie
-  if (!key) {
-    const cookie = document.cookie
-      .split('; ')
-      .find(row => row.startsWith('event_key='))
-    if (cookie) {
-      key = decodeURIComponent(cookie.split('=')[1])
-    }
-  }
-
-  // 3. Jika masih kosong tapi sudah punya eventData → ambil dari sana
-  if (!key && authUserStore.eventData.value?.event_key) {
-    key = authUserStore.eventData.value.event_key
-  }
-
-  authUserStore.selectedEventKey = key
-  
-}
+const loadingEvent = ref(false) // langsung false, tidak ambil dari storage
 
 // Poster kiri (bisa diganti file Anda sendiri)
 const posterSrc = computed(() => {
-  // kalau backend/landing sudah simpan poster_url di event_data
   if (authUserStore.eventData?.poster_url) return authUserStore.eventData.poster_url
-
-  // kalau logo_event ingin dipakai sebagai poster
   if (authUserStore.eventData?.logo_event) return authUserStore.eventData.logo_event
-
-  // fallback poster statis
   return 'https://res.cloudinary.com/dezj1x6xp/image/upload/v1763442267/PandanViewMandeh/uaccfb20uvhpvjyafdoj.png'
 })
 
@@ -112,10 +45,6 @@ const headerLogoSponsor3 = computed(() => {
 })
 
 onMounted(() => {
-  // urutan: ambil event_data dulu, lalu event_key
-  getEventDataFromStorage()
-  getEventKeyFromStorage()
-
   window.addEventListener('pageshow', onPageShow)
 })
 
@@ -165,7 +94,7 @@ const handleSubmit = async () => {
   //   return
   // }
 
-  if (!authUserStore.selectedEventKey) {
+   if (!authUserStore.selectedEventKey) {
     errorMessage.value = 'Event belum dipilih. Silakan kembali ke halaman landing.'
     return
   }
@@ -184,9 +113,6 @@ const handleSubmit = async () => {
     await masterDataStore.getDoctypeList()
     await authUserStore.getMyDocuments()
 
-    authUserStore.eventKey = authUserStore.selectedEventKey
-    authUserStore.selectedEventKey = authUserStore.selectedEventKey
-
     authUserStore.isAuthenticated = true
     authUserStore.activeLayout = 'admin'
 
@@ -204,7 +130,6 @@ const handleSubmit = async () => {
 
     errorMessage.value = msg
   } finally {
-    // await resetTurnstile()
     setTimeout(() => (loading.value = false), 400)
   }
 }
@@ -272,13 +197,13 @@ const handleSubmit = async () => {
             </div>
 
             <h1 class="mtq-login-title">
-              {{ authUserStore.eventData?.nama_aplikasi || 'e-MTQ' }}
+              {{ authUserStore.eventData?.app_name || 'e-MTQ' }}
             </h1>
             <p class="mtq-login-subtitle">
-              {{ authUserStore.eventData?.nama_event || 'Portal MTQ Digital' }}
+              {{ authUserStore.eventData?.event_name || 'Portal MTQ Digital' }}
             </p>
             <p class="mtq-login-tagline">
-              {{ authUserStore.eventData?.tagline || 'Pendaftaran peserta MTQ' }}
+              {{ authUserStore.eventData?.event_tagline || 'Pendaftaran peserta MTQ' }}
             </p>
           </div>
 

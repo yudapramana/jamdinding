@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 // use Illuminate\Database\Console\Seeds\WithoutModelEvents;
+
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -27,7 +28,6 @@ class DatabaseSeeder extends Seeder
         DB::statement('SET FOREIGN_KEY_CHECKS=0');
 
         $this->call(UsersTableSeeder::class);
-        $this->call(EventSeeder::class);
 
 
         // DB::statement('SET FOREIGN_KEY_CHECKS=1');
@@ -40,12 +40,37 @@ class DatabaseSeeder extends Seeder
         $this->call(DocTypesTableSeeder::class);
         $this->call(RoleSeeder::class);
         $this->call(AdminSeeder::class);
-        $this->call(StageSeeder::class);
-        $this->call(MasterCompetitionGroupSeeder::class);
-        $this->call(MasterCompetitionCategorySeeder::class);
-        $this->call(MasterCompetitionBranchSeeder::class);
-        $this->call(RolePermissionSeeder::class);
         $this->call(IndonesiaLocationSeeder::class);
-        $this->call(ParticipantsFromExcelSeeder::class);
+        $this->call(__BranchSeeder::class);
+        $this->call(__GroupSeeder::class);
+        $this->call(__CategorySeeder::class);
+        $this->call(__ListFieldSeeder::class);
+        $this->call(__EventSeeder::class);
+        $this->call(__StageSeeder::class);
+        $this->call(__EventStageSeeder::class);
+        $this->call(__MasterBranchSeeder::class);
+        $this->call(__MasterGroupSeeder::class);
+        $this->call(__MasterCategorySeeder::class);
+        $this->call(__MasterFieldComponentsSeeder::class);
+        $this->call(__RoundSeeder::class);
+
+
+        $this->call(_EventBranchSeeder::class);
+        $this->call(_EventGroupSeeder::class);
+        $this->call(_EventCategorySeeder::class);
+        $this->call(_EventFieldComponentsSeeder::class);
+        $this->call(_EventParticipantsSeeder::class);
+
+
+
+
+
+        // $this->call(AssessmentFieldSeeder::class);
+        // $this->call(MasterCompetitionGroupSeeder::class);
+        // $this->call(MasterCompetitionCategorySeeder::class);
+        // $this->call(MasterCompetitionBranchSeeder::class);
+        // $this->call(RolePermissionSeeder::class);
+        // $this->call(IndonesiaLocationSeeder::class);
+        // $this->call(ParticipantsFromExcelSeeder::class);
     }
 }

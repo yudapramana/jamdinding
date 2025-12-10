@@ -476,35 +476,6 @@ const categoryOptions = ref([])
 
 
 
-// Helpers ambil event_data dari storage/cookie
-const getEventInfoFromStorage = () => {
-  let raw = ''
-
-  try {
-    raw = localStorage.getItem('event_data') || ''
-  } catch (e) {}
-
-  if (!raw) {
-    const cookie = document.cookie
-      .split('; ')
-      .find(row => row.startsWith('event_data='))
-    if (cookie) {
-      raw = decodeURIComponent(cookie.split('=')[1])
-    }
-  }
-
-  if (raw) {
-    try {
-      eventInfo.value = JSON.parse(raw)
-      eventId.value = eventInfo.value.id || null
-    } catch (e) {
-      console.error('Gagal parse event_data:', e)
-      eventInfo.value = null
-      eventId.value = null
-    }
-  }
-}
-
 
 const generateFromMaster = async () => {
   if (!eventId.value) {
@@ -726,7 +697,8 @@ watch(
 )
 
 onMounted(async () => {
-    getEventInfoFromStorage()
+    eventInfo.value = authUserStore.eventData
+    eventId.value = authUserStore.eventData.id
     await fetchOptions()
     fetchBranches()
 })

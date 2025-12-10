@@ -35,6 +35,10 @@ return new class extends Migration
             // Nama gabungan (group + category + type)
             $table->string('name');
 
+             // Override fields
+            $table->string('name_override')->nullable();  // boleh beda dari master
+            $table->string('code_override')->nullable();  // opsional
+
             // Maksimal Umur
             $table->integer('max_age')->default(0);
 
@@ -42,7 +46,18 @@ return new class extends Migration
 
             $table->text('description')->nullable();
 
+            $table->integer('require_judges')->default(3);
+            $table->integer('min_judges')->default(2);
+            $table->integer('max_judges')->default(5);
+
             $table->boolean('is_active')->default(true);
+
+            // Placeholder kolom tambahan
+            $table->unsignedInteger('quota')->nullable();             // contoh
+
+            $table->string('lokasi_majelis')->nullable();             // contoh
+            
+            $table->string('hari')->nullable();                       // contoh
 
             $table->timestamps();
 

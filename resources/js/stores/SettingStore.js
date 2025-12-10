@@ -11,16 +11,36 @@ export const useSettingStore = defineStore('SettingStore', () => {
         pagination_limit: 10,
         maintenance: null,
     });
-    const theme = useStorage('SettingStore:theme', ref('light'));
-    const toggle = useStorage('SettingStore:toggle', ref('expanded'));
+
+
+    // ⚠️ tidak perlu ref() di default
+    const theme = useStorage('SettingStore:theme', 'light');
+
+    // state sidebar (collapsed / expanded)
+    const sidebarCollapsed = useStorage('SettingStore:sidebarCollapsed', false);
 
     const changeTheme = () => {
         theme.value = theme.value === 'light' ? 'dark' : 'light';
     };
 
-    const toggleMenuIcon = () => {
-        toggle.value = toggle.value === 'collapsed' ? 'sidebar-collapse' : '';
+    const applySidebarClass = (collapsed) => {
+        const body = document.body;
+        if (!body) return;
+
+        if (collapsed) {
+        body.classList.add('sidebar-collapse');
+        } else {
+        body.classList.remove('sidebar-collapse');
+        }
     };
+
+    const toggleMenuIcon = () => {
+        sidebarCollapsed.value = !sidebarCollapsed.value;
+        applySidebarClass(sidebarCollapsed.value);
+    };
+
+    // Saat store pertama kali dipakai, sinkronkan class body dengan value dari localStorage
+    applySidebarClass(sidebarCollapsed.value);
 
     const getSetting = async () => {
         // console.log('setting.value.app_name');
@@ -60,5 +80,20 @@ export const useSettingStore = defineStore('SettingStore', () => {
         return Boolean(setting.value.maintenance) && role !== 'SUPERADMIN';
     });
 
-    return { setting, getSetting, theme, changeTheme, toggleMenuIcon, resetMaintenance, showMaintenanceBadge };
+    // return { setting, getSetting, theme, changeTheme, toggleMenuIcon, resetMaintenance, showMaintenanceBadge };
+
+    return {
+        setting,
+        getSetting,
+
+        theme,
+        changeTheme,
+
+        sidebarCollapsed,
+        toggleMenuIcon,
+        applySidebarClass,
+
+        resetMaintenance,
+        showMaintenanceBadge,
+    };
 });

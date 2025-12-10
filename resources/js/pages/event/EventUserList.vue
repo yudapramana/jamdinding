@@ -458,33 +458,6 @@ const canGenerateUsers = computed(() => {
   return level === 'provinsi' || level === 'kabupaten_kota'
 })
 
-const getEventInfoFromStorage = () => {
-  let raw = ''
-
-  try {
-    raw = localStorage.getItem('event_data') || ''
-  } catch (e) {}
-
-  if (!raw) {
-    const cookie = document.cookie
-      .split('; ')
-      .find(row => row.startsWith('event_data='))
-    if (cookie) {
-      raw = decodeURIComponent(cookie.split('=')[1])
-    }
-  }
-
-  if (raw) {
-    try {
-      eventInfo.value = JSON.parse(raw)
-      eventId.value = eventInfo.value.id || null
-    } catch (e) {
-      console.error('Gagal parse event_data:', e)
-      eventInfo.value = null
-      eventId.value = null
-    }
-  }
-}
 
 const fetchRoles = async () => {
   try {
@@ -680,7 +653,8 @@ watch(
 )
 
 onMounted(() => {
-  getEventInfoFromStorage()
+  eventInfo.value = authUserStore.eventData
+    eventId.value = authUserStore.eventData.id
   fetchRoles()
   fetchUsers()
 })

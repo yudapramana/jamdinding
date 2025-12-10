@@ -14,7 +14,7 @@ use Auth;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\DB;
-
+use Illuminate\Support\Str; // Import the Str facade
 
 
 class ParticipantController extends Controller
@@ -64,6 +64,7 @@ class ParticipantController extends Controller
             'participant.district',
             'participant.village',
             'competitionBranch',
+            'verifications'
         ]);
 
         $p = $ep->participant;
@@ -71,6 +72,7 @@ class ParticipantController extends Controller
         return [
             // ID utama sekarang ID event_participants
             'id'                       => $ep->id,
+            'event_participant_id'     => $ep->id,
             'event_id'                 => $ep->event_id,
             'event_competition_branch_id' => $ep->event_competition_branch_id,
             'age_year'                 => $ep->age_year,
@@ -83,6 +85,10 @@ class ParticipantController extends Controller
             'verified_at'              => $ep->verified_at,
             'created_at'               => $ep->created_at,
             'updated_at'               => $ep->updated_at,
+            'verifications'            => $ep->verifications,
+            'status_daftar_ulang'      => $ep->status_daftar_ulang,
+            'daftar_ulang_at'      => $ep->daftar_ulang_at,
+            'daftar_ulang_by'      => $ep->daftar_ulang_by,
 
             // data bank-data peserta
             'participant_id'           => $p->id,
@@ -133,6 +139,7 @@ class ParticipantController extends Controller
         $perPage  = (int) $request->get('per_page', 10);
         $eventId  = $request->get('event_id', $user->event_id ?? null);
         $status   = $request->get('status_pendaftaran'); // ⬅ status filter
+        $statusDaftarUlang   = $request->get('status_daftar_ulang'); // ⬅ status filter
 
         $query = EventParticipant::query()
             ->with([
@@ -173,6 +180,10 @@ class ParticipantController extends Controller
         // filter status_pendaftaran jika dikirim
         if ($status && in_array($status, ['proses', 'diterima', 'perbaiki', 'mundur', 'tolak', 'bankdata'])) {
             $query->where('event_participants.status_pendaftaran', $status);
+        }
+
+        if ($statusDaftarUlang && in_array($statusDaftarUlang, ['belum', 'terverifikasi', 'gagal'])) {
+            $query->where('event_participants.status_daftar_ulang', $statusDaftarUlang);
         }
 
         // search by nama / nik / phone
@@ -938,5 +949,55 @@ class ParticipantController extends Controller
     }
 
 
+    public function biodataPdf(EventParticipant $eventParticipant)
+    {
+        $user     = auth()->user();
+        $roleSlug = optional($user->role)->slug ?? null;
+
+        // security check dasar: hanya boleh lihat kalau event sama atau superadmin
+        if ($roleSlug !== 'superadmin' && $user->event_id && $user->event_id !== $eventParticipant->event_id) {
+            abort(403, 'You are not allowed to view this participant.');
+        }
+
+        $eventParticipant->loadMissing([
+            'participant.province',
+            'participant.regency',
+            'participant.district',
+            'participant.village',
+            'competitionBranch',
+            'event',
+        ]);
+
+        $participant = $eventParticipant->participant;
+        $event       = $eventParticipant->event;
+
+        // fallback umur kalau belum diisi
+        $ageYear  = $eventParticipant->age_year;
+        $ageMonth = $eventParticipant->age_month;
+        $ageDay   = $eventParticipant->age_day;
+
+        if ($participant->date_of_birth && $event) {
+            if ($ageYear === null || $ageMonth === null || $ageDay === null) {
+                [$ageYear, $ageMonth, $ageDay] = $this->calculateAgeComponents(
+                    $participant->date_of_birth->format('Y-m-d'),
+                    $event
+                );
+            }
+        }
+
+        $pdf = \PDF::loadView('pdf.participant-biodata', [
+            'eventParticipant' => $eventParticipant,
+            'participant'      => $participant,
+            'event'            => $event,
+            'ageYear'          => $ageYear,
+            'ageMonth'         => $ageMonth,
+            'ageDay'           => $ageDay,
+            'printedAt'        => now(),
+        ])->setPaper('A4', 'portrait');
+
+        $filename = 'Biodata_' . Str::slug($participant->full_name, '_') . '.pdf';
+
+        return $pdf->stream($filename);
+    }
 
 }

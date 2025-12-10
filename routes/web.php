@@ -30,6 +30,7 @@ use SebastianBergmann\CodeCoverage\Report\Html\Dashboard;
 use Illuminate\Support\Facades\Storage;
 use Yaza\LaravelGoogleDriveStorage\Gdrive;
 use App\Http\Controllers\Auth\PasswordResetWhatsappController;
+use App\Models\Event;
 use App\Models\VervalLog;
 use Illuminate\Http\Request;
 
@@ -1099,17 +1100,27 @@ Route::get('/privacy-policy', function () {
 });
 
 Route::get('/landing', function () {
-    return view('landing2');
-});
+    if (Auth::check()) {
+        return redirect('/admin/dashboard');
+    }
+
+    $events = Event::where('is_active', true)->get();
+
+    return view('admin.layouts.landing', [
+        'events' => $events,
+    ]);
+})->name('landing');
 
 Route::get('/', function () {
     // ambil semua event aktif (atau semua, kalau mau tampilkan juga yg nonaktif)
-    $events = \App\Models\Event::where('is_active', true)
-        ->with('province', 'regency', 'district')
-        ->orderBy('tanggal_mulai', 'desc')
-        ->get();
+    // $events = \App\Models\Event::where('is_active', true)
+    //     ->with('province', 'regency', 'district')
+    //     ->orderBy('tanggal_mulai', 'desc')
+    //     ->get();
 
-    return view('landing', compact('events'));
+    // return view('landing', compact('events'));
+
+    return redirect('landing');
 });
 
 

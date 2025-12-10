@@ -22,8 +22,13 @@ class RolePermissionSeeder extends Seeder
             ['name' => 'Kelola Event',                  'slug' => 'event.manage'],
             ['name' => 'Kelola Event Tahapan',          'slug' => 'event.manage.stage'],
             ['name' => 'Kelola Event Golongan',         'slug' => 'event.manage.branch'],
+            ['name' => 'Kelola Event',                  'slug' => 'event.manage'],
             ['name' => 'Kelola Event User',             'slug' => 'event.manage.user'],
-            ['name' => 'Kelola Repositori Peserta',     'slug' => 'event.participant.repository'],
+
+            ['name' => 'Kelola Peserta',                'slug' => 'participant.manage'],
+            ['name' => 'Kelola Repositori Peserta',     'slug' => 'participant.manage.repository'],
+            ['name' => 'Kelola Pendaftaran Peserta',    'slug' => 'participant.manage.register'],
+            ['name' => 'Kelola Daftar Ulang Peserta',   'slug' => 'participant.manage.reregister'],
         ];
 
         // Simpan / ambil permissions, index by slug
@@ -67,7 +72,9 @@ class RolePermissionSeeder extends Seeder
             'event.manage.stage',
             'event.manage.branch',
             'event.manage.user',
-            'event.participant.repository'
+            'participant.manage',
+            'participant.manage.repository',
+            'participant.manage.register'
         ];
 
         $roleModels['admin_event']->permissions()->sync(
@@ -79,7 +86,9 @@ class RolePermissionSeeder extends Seeder
 
         // PENDAFTARAN: khusus peserta & mandat (diwakili event.manage.user)
         $pendaftaranSlugs = [
-            'event.participant.repository'
+            'participant.manage',
+            'participant.manage.repository',
+            'participant.manage.register'
         ];
 
         $roleModels['pendaftaran']->permissions()->sync(
@@ -91,7 +100,20 @@ class RolePermissionSeeder extends Seeder
 
         // VERIFIKATOR, DEWAN_HAKIM, PANITERA
         // sementara tanpa permission (bisa diisi kemudian kalau sudah ada slug spesifik)
-        $roleModels['verifikator']->permissions()->sync([]);
+        $verifikatorSlugs = [
+            'participant.manage',
+            'participant.manage.register',
+            'participant.manage.reregister'
+        ];
+
+        $roleModels['verifikator']->permissions()->sync(
+            collect($permissions)
+                ->whereIn('slug', $verifikatorSlugs)
+                ->pluck('id')
+                ->all()
+        );
+
+
         $roleModels['dewan_hakim']->permissions()->sync([]);
         $roleModels['panitera']->permissions()->sync([]);
     }

@@ -28,6 +28,10 @@ class EventParticipant extends Pivot
         'moved_by',
         'verified_by',
         'verified_at',
+        'status_daftar_ulang',
+        'daftar_ulang_at',
+        'daftar_ulang_by'
+
     ];
 
     protected $casts = [
@@ -73,9 +77,9 @@ class EventParticipant extends Pivot
         return $this->belongsTo(Participant::class);
     }
 
-    public function competitionBranch()
+    public function scoresheets()
     {
-        return $this->belongsTo(EventCompetitionBranch::class, 'event_competition_branch_id');
+        return $this->hasMany(EventScoresheet::class);
     }
 
     public function mover()
@@ -120,4 +124,17 @@ class EventParticipant extends Pivot
         $this->verified_at        = now();
         $this->save();
     }
+
+    // use App\Models\ParticipantVerification;
+
+    public function verifications()
+    {
+        return $this->hasMany(ParticipantVerification::class, 'event_participant_id');
+    }
+
+    public function assessmentHeaders()
+    {
+        return $this->hasMany(EventAssessmentHeader::class, 'event_participant_id');
+    }
+
 }

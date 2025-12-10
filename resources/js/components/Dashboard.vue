@@ -43,14 +43,8 @@ const authUserStore = useAuthUserStore();
                                     <!-- <p class="text-muted text-sm"><b>NIP: </b> {{ authUserStore.user.username }} </p> -->
                                     <ul class="ml-5 mb-0 fa-ul text-muted">
                                         <li class="small"><span class="fa-li"><i class="far fa-id-card"></i></span> {{ authUserStore.user.username }}</li>
-                                        <li class="small"><span class="fa-li"><i
-                                                    class="fas fa-lg fa-building"></i></span> {{ authUserStore.user?.employee?.work_unit?.unit_name }}</li>
                                     </ul>
                                 </div>
-                                <!-- <div class="col-2 text-center">
-                                    <img :src="authUserStore.user.avatar" alt="user-avatar"
-                                        class="img-circle img-fluid">
-                                </div> -->
                             </div>
                         </div>
                         <div class="card-footer b-0 p-0">

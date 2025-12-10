@@ -31,7 +31,7 @@
             placeholder="Cari nama event, aplikasi, atau lokasi..."
           />
           <span v-if="!isSuperadmin && authUserStore.eventData" class="text-muted text-sm">
-            Event aktif: <strong>{{ authUserStore.eventData.nama_event }}</strong>
+            Event aktif: <strong>{{ authUserStore.eventData.event_name }}</strong>
           </span>
         </div>
 
@@ -59,21 +59,21 @@
               <tr v-for="(event, index) in events" :key="event.id">
                 <td>{{ index + 1 + (meta.current_page - 1) * meta.per_page }}</td>
                 <td>
-                  <strong>{{ event.nama_event }}</strong>
+                  <strong>{{ event.event_name }}</strong>
                   <div class="text-xs text-muted">
                     key: <code>{{ event.event_key }}</code>
                   </div>
                 </td>
-                <td>{{ event.nama_aplikasi }}</td>
-                <td>{{ event.lokasi_event || '-' }}</td>
+                <td>{{ event.app_name }}</td>
+                <td>{{ event.event_location || '-' }}</td>
                 <td>
-                  {{ formatDate(event.tanggal_mulai) }}
+                  {{ formatDate(event.start_date) }}
                   &ndash;
-                  {{ formatDate(event.tanggal_selesai) }}
+                  {{ formatDate(event.end_date) }}
                 </td>
                 <td>
                   <span class="badge badge-info text-uppercase">
-                    {{ event.tingkat_event }}
+                    {{ event.event_level }}
                   </span>
                 </td>
                 <td>
@@ -178,7 +178,7 @@
                   <div class="form-group mb-2">
                     <label class="mb-1">Nama Event</label>
                     <input
-                      v-model="form.nama_event"
+                      v-model="form.event_name"
                       class="form-control form-control-sm"
                       required
                     />
@@ -186,7 +186,7 @@
                   <div class="form-group mb-2">
                     <label class="mb-1">Nama Aplikasi</label>
                     <input
-                      v-model="form.nama_aplikasi"
+                      v-model="form.app_name"
                       class="form-control form-control-sm"
                       required
                       placeholder="Contoh: e-MTQ Pesisir Selatan"
@@ -195,15 +195,15 @@
                   <div class="form-group mb-2">
                     <label class="mb-1">Lokasi Event</label>
                     <input
-                      v-model="form.lokasi_event"
+                      v-model="form.event_location"
                       class="form-control form-control-sm"
                       placeholder="Contoh: Painan, Kab. Pesisir Selatan"
                     />
                   </div>
                   <div class="form-group mb-2">
-                    <label class="mb-1">Tagline</label>
+                    <label class="mb-1">tagline</label>
                     <input
-                      v-model="form.tagline"
+                      v-model="form.event_tagline"
                       class="form-control form-control-sm"
                       placeholder="Contoh: Merajut Ukhuwah dengan Kalam Ilahi"
                     />
@@ -211,7 +211,7 @@
                   <div class="form-group mb-2">
                     <label class="mb-1">Token Hasil Penilaian</label>
                     <input
-                      v-model="form.token_hasil_penilaian"
+                      v-model="form.assessment_token"
                       class="form-control form-control-sm"
                       placeholder="Opsional: token untuk publikasi hasil"
                     />
@@ -222,7 +222,7 @@
                   <div class="form-group mb-2">
                     <label class="mb-1">Tanggal Mulai</label>
                     <input
-                      v-model="form.tanggal_mulai"
+                      v-model="form.start_date"
                       type="date"
                       class="form-control form-control-sm"
                       required
@@ -231,7 +231,7 @@
                   <div class="form-group mb-2">
                     <label class="mb-1">Tanggal Selesai</label>
                     <input
-                      v-model="form.tanggal_selesai"
+                      v-model="form.end_date"
                       type="date"
                       class="form-control form-control-sm"
                       required
@@ -240,7 +240,7 @@
                   <div class="form-group mb-2">
                     <label class="mb-1">Tanggal Batas Umur Peserta</label>
                     <input
-                      v-model="form.tanggal_batas_umur"
+                      v-model="form.age_limit_date"
                       type="date"
                       class="form-control form-control-sm"
                     />
@@ -249,26 +249,26 @@
                   <div class="form-group mb-2">
                     <label class="mb-1">Tingkat Event</label>
                     <select
-                      v-model="form.tingkat_event"
+                      v-model="form.event_level"
                       class="form-control form-control-sm"
                       required
                     >
-                      <option value="nasional">Nasional</option>
-                      <option value="provinsi">Provinsi</option>
-                      <option value="kabupaten_kota">Kabupaten/Kota</option>
-                      <option value="kecamatan">Kecamatan</option>
+                      <option value="national">national</option>
+                      <option value="province">province</option>
+                      <option value="regency">Kabupaten/Kota</option>
+                      <option value="district">Kecamatan</option>
                     </select>
                   </div>
 
                   <!-- WILAYAH EVENT SESUAI SKEMA -->
                   <div class="form-group mb-2">
-                    <label class="mb-1">Provinsi Event</label>
+                    <label class="mb-1">province Event</label>
                     <select
                       v-model="form.province_id"
                       class="form-control form-control-sm"
-                      :disabled="form.tingkat_event === 'nasional'"
+                      :disabled="form.event_level === 'national'"
                     >
-                      <option :value="''">-- Pilih Provinsi --</option>
+                      <option :value="''">-- Pilih province --</option>
                       <option
                         v-for="p in provinceOptions"
                         :key="p.id"
@@ -285,8 +285,8 @@
                       v-model="form.regency_id"
                       class="form-control form-control-sm"
                       :disabled="
-                        form.tingkat_event === 'nasional' ||
-                        form.tingkat_event === 'provinsi' ||
+                        form.event_level === 'national' ||
+                        form.event_level === 'province' ||
                         !form.province_id ||
                         isLoadingRegencies
                       "
@@ -310,9 +310,9 @@
                       v-model="form.district_id"
                       class="form-control form-control-sm"
                       :disabled="
-                        form.tingkat_event === 'nasional' ||
-                        form.tingkat_event === 'provinsi' ||
-                        form.tingkat_event === 'kabupaten_kota' ||
+                        form.event_level === 'national' ||
+                        form.event_level === 'province' ||
+                        form.event_level === 'regency' ||
                         !form.regency_id ||
                         isLoadingDistricts
                       "
@@ -432,19 +432,19 @@ const isSubmitting = ref(false)
 const form = ref({
   id: null,
   event_key: '',
-  nama_event: '',
-  nama_aplikasi: '',
-  lokasi_event: '',
-  tagline: '',
-  token_hasil_penilaian: '',
-  tanggal_mulai: '',
-  tanggal_selesai: '',
-  tanggal_batas_umur: '',
+  event_name: '',
+  app_name: '',
+  event_location: '',
+  event_tagline: '',
+  assessment_token: '',
+  start_date: '',
+  end_date: '',
+  age_limit_date: '',
   logo_event: '',
   logo_sponsor_1: '',
   logo_sponsor_2: '',
   logo_sponsor_3: '',
-  tingkat_event: 'kabupaten_kota',
+  event_level: 'regency',
   province_id: '',
   regency_id: '',
   district_id: '',
@@ -478,7 +478,7 @@ const fetchProvinceOptions = async () => {
     const res = await axios.get('/api/v1/get/provinces')
     provinceOptions.value = res.data.data || res.data || []
   } catch (e) {
-    console.error('Gagal memuat daftar provinsi:', e)
+    console.error('Gagal memuat daftar province:', e)
   }
 }
 
@@ -592,19 +592,19 @@ const resetForm = () => {
   form.value = {
     id: null,
     event_key: '',
-    nama_event: '',
-    nama_aplikasi: '',
-    lokasi_event: '',
-    tagline: '',
-    token_hasil_penilaian: '',
-    tanggal_mulai: '',
-    tanggal_selesai: '',
-    tanggal_batas_umur: '',
+    event_name: '',
+    app_name: '',
+    event_location: '',
+    event_tagline: '',
+    assessment_token: '',
+    start_date: '',
+    end_date: '',
+    age_limit_date: '',
     logo_event: '',
     logo_sponsor_1: '',
     logo_sponsor_2: '',
     logo_sponsor_3: '',
-    tingkat_event: 'kabupaten_kota',
+    event_level: 'regency',
     province_id: '',
     regency_id: '',
     district_id: '',
@@ -630,19 +630,19 @@ const openEditModal = async (event) => {
   form.value = {
     id: event.id,
     event_key: event.event_key,
-    nama_event: event.nama_event,
-    nama_aplikasi: event.nama_aplikasi,
-    lokasi_event: event.lokasi_event,
-    tagline: event.tagline,
-    token_hasil_penilaian: event.token_hasil_penilaian,
-    tanggal_mulai: toDateInput(event.tanggal_mulai),
-    tanggal_selesai: toDateInput(event.tanggal_selesai),
-    tanggal_batas_umur: toDateInput(event.tanggal_batas_umur),
+    event_name: event.event_name,
+    app_name: event.app_name,
+    event_location: event.event_location,
+    event_tagline: event.event_tagline,
+    assessment_token: event.assessment_token,
+    start_date: toDateInput(event.start_date),
+    end_date: toDateInput(event.end_date),
+    age_limit_date: toDateInput(event.age_limit_date),
     logo_event: event.logo_event,
     logo_sponsor_1: event.logo_sponsor_1,
     logo_sponsor_2: event.logo_sponsor_2,
     logo_sponsor_3: event.logo_sponsor_3,
-    tingkat_event: event.tingkat_event || 'kabupaten_kota',
+    event_level: event.event_level || 'regency',
     province_id: event.province_id || '',
     regency_id: event.regency_id || '',
     district_id: event.district_id || '',
@@ -674,19 +674,19 @@ const submitForm = async () => {
 
   const payload = {
     event_key: form.value.event_key,
-    nama_event: form.value.nama_event,
-    nama_aplikasi: form.value.nama_aplikasi,
-    lokasi_event: form.value.lokasi_event,
-    tagline: form.value.tagline,
-    token_hasil_penilaian: form.value.token_hasil_penilaian,
-    tanggal_mulai: form.value.tanggal_mulai || null,
-    tanggal_selesai: form.value.tanggal_selesai || null,
-    tanggal_batas_umur: form.value.tanggal_batas_umur || null,
+    event_name: form.value.event_name,
+    app_name: form.value.app_name,
+    event_location: form.value.event_location,
+    event_tagline: form.value.event_tagline,
+    assessment_token: form.value.assessment_token,
+    start_date: form.value.start_date || null,
+    end_date: form.value.end_date || null,
+    age_limit_date: form.value.age_limit_date || null,
     logo_event: form.value.logo_event,
     logo_sponsor_1: form.value.logo_sponsor_1,
     logo_sponsor_2: form.value.logo_sponsor_2,
     logo_sponsor_3: form.value.logo_sponsor_3,
-    tingkat_event: form.value.tingkat_event,
+    event_level: form.value.event_level,
     province_id: form.value.province_id || null,
     regency_id: form.value.regency_id || null,
     district_id: form.value.district_id || null,
@@ -711,7 +711,7 @@ const submitForm = async () => {
 }
 
 const deleteEvent = async (event) => {
-  if (!confirm(`Yakin ingin menghapus event "${event.nama_event}"?`)) {
+  if (!confirm(`Yakin ingin menghapus event "${event.event_name}"?`)) {
     return
   }
 

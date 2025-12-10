@@ -232,4 +232,30 @@ class User extends Authenticatable
     {
         return $this->belongsTo(Village::class);
     }
+
+    public function participantVerifications()
+    {
+        return $this->hasMany(ParticipantVerification::class, 'verified_by');
+    }
+
+    public function branchJudgeAssignments()
+    {
+        return $this->hasMany(EventBranchJudge::class, 'user_id');
+    }
+
+    public function judgeBranches()
+    {
+        return $this->belongsToMany(
+            EventCompetitionBranch::class,
+            'event_branch_judges',
+            'user_id',
+            'event_competition_branch_id'
+        )->withPivot(['role_in_panel', 'order_no', 'is_chief'])
+        ->withTimestamps();
+    }
+
+    public function judgeAssessments()
+    {
+        return $this->hasMany(EventAssessmentHeader::class, 'judge_id');
+    }
 }

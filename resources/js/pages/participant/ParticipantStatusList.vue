@@ -3,7 +3,7 @@
       <div class="container-fluid">
         <div class="d-flex justify-content-between align-items-center">
           <div>
-            <h1 class="mb-1">Bank Data Peserta per Status</h1>
+            <h1 class="mb-1">Status Pendaftaran Peserta</h1>
             <p class="mb-0 text-muted text-sm">
               Event:
               <strong>{{ eventInfo?.nama_event || '-' }}</strong>
@@ -21,14 +21,14 @@
       <div class="container-fluid">
         <div class="row">
           <!-- SIDEBAR STATUS -->
-          <div class="col-md-3">
+          <div class="col-md-2">
             <div class="card card-outline card-primary">
               <div class="card-header py-2">
                 <h3 class="card-title text-sm mb-0">
                   <i class="fas fa-filter mr-1"></i> Status Pendaftaran
                 </h3>
               </div>
-              <div class="list-group list-group-flush">
+              <div class="list-group list-group-flush text-sm">
                 <button
                   v-for="s in statusList"
                   :key="s.key"
@@ -38,7 +38,7 @@
                   @click="changeStatus(s.key)"
                 >
                   <span class="text-capitalize">
-                    <i :class="s.icon" class="mr-1"></i>
+                    <!-- <i :class="s.icon" class="mr-1"></i> -->
                     {{ s.label }}
                   </span>
                   <span
@@ -53,7 +53,7 @@
           </div>
 
           <!-- MAIN TABLE -->
-          <div class="col-md-9">
+          <div class="col-md-10">
             <div class="card">
               <!-- HEADER: perPage + search -->
               <div class="card-header">
@@ -169,8 +169,27 @@
                           >
                             <i class="fas fa-eye"></i>
                           </button>
+
+                          <!-- CETAK / LIHAT BIODATA PDF -->
+                          <button
+                            class="btn btn-outline-danger btn-xs"
+                            title="Cetak Biodata (PDF)"
+                            @click="openBiodataPdf(p)"
+                          >
+                            <i class="far fa-file-pdf"></i>
+                          </button>
+
+                          <button
+                            v-if="!['diterima', 'tolak', 'mundur'].includes(p.status_pendaftaran)"
+                            class="btn btn-outline-success btn-xs"
+                            title="Verifikasi Peserta"
+                            @click="openVerification(p)"
+                          >
+                            <i class="fas fa-clipboard-check"></i>
+                          </button>
                         </div>
                       </td>
+
                     </tr>
                   </tbody>
                 </table>
@@ -367,6 +386,48 @@
                     </div>
                   </div>
 
+                  <!-- RIWAYAT VERIFIKASI (HANYA YANG REJECTED) -->
+                  <div
+                    class="card shadow-sm border mt-3"
+                    v-if="rejectedVerifications.length != 0 && selectedParticipant.status_pendaftaran != 'diterima'"
+                  >
+                    <div class="card-header border-0 d-flex justify-content-between align-items-center py-2">
+                      <span class="font-weight-bold">
+                        Riwayat Verifikasi (Ditolak)
+                      </span>
+                      <span class="badge badge-warning text-uppercase">
+                        Status Pendaftaran: {{ selectedParticipant.status_pendaftaran || '-' }}
+                      </span>
+                    </div>
+
+                    <div class="card-body p-0">
+                      <ul class="list-group list-group-flush mb-0">
+                        <li
+                          v-for="(verif, index) in rejectedVerifications"
+                          :key="verif.id || index"
+                          class="list-group-item"
+                        >
+                          <div class="d-flex justify-content-between align-items-center mb-1">
+                            <div>
+                              <span class="badge badge-danger mr-2">DITOLAK</span>
+                              <small class="text-muted">
+                                #{{ index + 1 }}
+                              </small>
+                            </div>
+                            <small class="text-muted">
+                              {{ formatDateTime(verif.created_at) }}
+                            </small>
+                          </div>
+
+                          <p class="mb-0 text-sm">
+                            {{ verif.notes || 'Catatan verifikasi belum diisi. Silakan hubungi verifikator atau cek hasil verifikasi lebih lanjut.' }}
+                          </p>
+                        </li>
+                      </ul>
+                    </div>
+                  </div>
+
+
                   
                 </div>
 
@@ -511,50 +572,1439 @@
           </div>
         </div>
       </div>
+
+      <!-- MODAL VERIFIKASI PESERTA -->
+      <div class="modal fade" id="showVerificationModal" tabindex="-1" role="dialog">
+        <div class="modal-dialog modal-xl">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h5 class="modal-title">
+                Verifikasi Data & Dokumen Peserta
+              </h5>
+              <button type="button" class="close" data-dismiss="modal">
+                <span>&times;</span>
+              </button>
+            </div>
+
+            <div class="modal-body" v-if="selectedParticipant">
+              <!-- Info singkat peserta -->
+              <div class="mb-3">
+                <h6 class="mb-1">
+                  {{ selectedParticipant.full_name || selectedParticipant.nama_lengkap }}
+                </h6>
+                <p class="mb-0 text-muted text-sm">
+                  NIK: {{ selectedParticipant.nik || '-' }}<br>
+                  Cabang: {{ selectedParticipant.branch_name || selectedParticipant.cabang_lomba || '-' }}
+                </p>
+              </div>
+
+              <hr>
+
+              <!-- STATUS VERIFIKASI -->
+              <div class="form-group">
+                <label class="d-block mb-1"><strong>Status Verifikasi Sesi Ini</strong></label>
+                <div class="form-check form-check-inline">
+                  <input
+                    class="form-check-input"
+                    type="radio"
+                    id="statusVerified"
+                    value="verified"
+                    v-model="verificationForm.status"
+                  >
+                  <label class="form-check-label" for="statusVerified">
+                    Terverifikasi
+                  </label>
+                </div>
+                <div class="form-check form-check-inline">
+                  <input
+                    class="form-check-input"
+                    type="radio"
+                    id="statusRejected"
+                    value="rejected"
+                    v-model="verificationForm.status"
+                  >
+                  <label class="form-check-label" for="statusRejected">
+                    Ditolak
+                  </label>
+                </div>
+              </div>
+
+              <!-- KEPUTUSAN TERHADAP PENDAFTARAN (EVENT_PARTICIPANTS.status_pendaftaran) -->
+              <div class="form-group">
+                <label class="d-block mb-1">
+                  <strong>Keputusan Terhadap Pendaftaran</strong>
+                </label>
+
+                <div class="row">
+                  <div class="col-md-6">
+                    <select
+                      class="form-control"
+                      v-model="verificationForm.status_pendaftaran"
+                    >
+                      <option value="bankdata">Bank data (data awal / belum diproses)</option>
+                      <option value="proses">Proses (sedang diverifikasi / menunggu keputusan)</option>
+                      <option value="diterima">Diterima (lolos verifikasi)</option>
+                      <option value="perbaiki">Perbaiki (butuh perbaikan data/dokumen)</option>
+                      <option value="mundur">Mundur (peserta mengundurkan diri)</option>
+                      <option value="tolak">Tolak (tidak memenuhi syarat)</option>
+                    </select>
+                  </div>
+                  <div class="col-md-6">
+                    <small class="form-text text-muted">
+                      Status ini akan mengubah kolom <code>status_pendaftaran</code> pada tabel
+                      <code>event_participants</code> (berdasarkan <code>event_participant_id</code>).
+                      <br>
+                      Disarankan:
+                      <ul class="mb-0 pl-3">
+                        <li><code>diterima</code> untuk peserta yang lulus verifikasi</li>
+                        <li><code>perbaiki</code> jika masih ada kekurangan</li>
+                        <li><code>tolak</code> bila tidak memenuhi syarat</li>
+                      </ul>
+                    </small>
+                  </div>
+                </div>
+              </div>
+
+
+              <!-- ====================== -->
+              <!-- BAGIAN: DOKUMEN UNGGAHAN (VERSI COMPACT) -->
+              <!-- ====================== -->
+              <div class="card mb-3">
+                <div class="card-header py-2">
+                  <strong>1. Dokumen Unggahan Peserta</strong>
+                  <div class="small text-muted">
+                    PDF ditampilkan langsung di panel, gambar tampil sebagai preview di sebelah kanan.
+                  </div>
+                </div>
+                <div class="card-body p-2">
+
+                  <!-- Foto Peserta -->
+                  <div class="mb-3" v-if="selectedParticipant.photo_url">
+                    <div class="d-flex flex-wrap">
+                      <!-- KONTROL KIRI -->
+                      <div class="mb-2 mr-md-3" style="min-width: 240px; max-width: 260px;">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                          <strong>Foto Peserta</strong>
+                        </div>
+                        <div class="form-group mb-1">
+                          <div class="form-check">
+                            <input
+                              type="checkbox"
+                              class="form-check-input"
+                              id="chkPhoto"
+                              v-model="verificationForm.checked_photo"
+                            >
+                            <label class="form-check-label" for="chkPhoto">
+                              Sudah dicek
+                            </label>
+                          </div>
+                        </div>
+                        <div class="form-group mb-0">
+                          <label class="small mb-1">Hasil kesesuaian</label>
+                          <select
+                            class="form-control form-control-sm"
+                            v-model="verificationForm.field_matches.documents.photo_url"
+                          >
+                            <option :value="null">Belum dinilai</option>
+                            <option :value="true">Sesuai</option>
+                            <option :value="false">Tidak sesuai</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      <!-- VIEWER KANAN -->
+                      <div class="flex-grow-1">
+                        <template v-if="selectedParticipant.photo_url.toLowerCase().endsWith('.pdf')">
+                          <div style="height: 360px; border: 1px solid #dee2e6;" class="mb-1">
+                            <iframe
+                              :src="selectedParticipant.photo_url"
+                              style="width: 100%; height: 100%; border: 0;"
+                            ></iframe>
+                          </div>
+                          <a
+                            :href="selectedParticipant.photo_url"
+                            target="_blank"
+                            class="btn btn-xs btn-outline-primary"
+                          >
+                            <i class="fas fa-external-link-alt mr-1"></i> Buka di Tab Baru
+                          </a>
+                        </template>
+                        <template v-else>
+                          <img
+                            :src="selectedParticipant.photo_url"
+                            alt="Foto Peserta"
+                            class="img-fluid img-thumbnail mb-1"
+                            style="max-height: 360px;"
+                          >
+                          <div>
+                            <a
+                              :href="selectedParticipant.photo_url"
+                              target="_blank"
+                              class="btn btn-xs btn-outline-primary"
+                            >
+                              <i class="fas fa-external-link-alt mr-1"></i> Buka di Tab Baru
+                            </a>
+                          </div>
+                        </template>
+                      </div>
+                    </div>
+                    <hr class="my-2" v-if="selectedParticipant.id_card_url || selectedParticipant.family_card_url || selectedParticipant.bank_book_url || selectedParticipant.certificate_url || selectedParticipant.other_url">
+                  </div>
+
+                  <!-- KTP / KIA -->
+                  <div class="mb-3" v-if="selectedParticipant.id_card_url">
+                    <div class="d-flex flex-wrap">
+                      <div class="mb-2 mr-md-3" style="min-width: 240px; max-width: 260px;">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                          <strong>KTP / KIA</strong>
+                        </div>
+                        <div class="form-group mb-1">
+                          <div class="form-check">
+                            <input
+                              type="checkbox"
+                              class="form-check-input"
+                              id="chkIdCard"
+                              v-model="verificationForm.checked_id_card"
+                            >
+                            <label class="form-check-label" for="chkIdCard">
+                              Sudah dicek
+                            </label>
+                          </div>
+                        </div>
+                        <div class="form-group mb-0">
+                          <label class="small mb-1">Hasil kesesuaian</label>
+                          <select
+                            class="form-control form-control-sm"
+                            v-model="verificationForm.field_matches.documents.id_card_url"
+                          >
+                            <option :value="null">Belum dinilai</option>
+                            <option :value="true">Sesuai</option>
+                            <option :value="false">Tidak sesuai</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      <div class="flex-grow-1">
+                        <template v-if="selectedParticipant.id_card_url.toLowerCase().endsWith('.pdf')">
+                          <div style="height: 360px; border: 1px solid #dee2e6;" class="mb-1">
+                            <iframe
+                              :src="selectedParticipant.id_card_url"
+                              style="width: 100%; height: 100%; border: 0;"
+                            ></iframe>
+                          </div>
+                          <a
+                            :href="selectedParticipant.id_card_url"
+                            target="_blank"
+                            class="btn btn-xs btn-outline-primary"
+                          >
+                            <i class="fas fa-external-link-alt mr-1"></i> Buka di Tab Baru
+                          </a>
+                        </template>
+                        <template v-else>
+                          <img
+                            :src="selectedParticipant.id_card_url"
+                            alt="KTP / KIA"
+                            class="img-fluid img-thumbnail mb-1"
+                            style="max-height: 360px;"
+                          >
+                          <div>
+                            <a
+                              :href="selectedParticipant.id_card_url"
+                              target="_blank"
+                              class="btn btn-xs btn-outline-primary"
+                            >
+                              <i class="fas fa-external-link-alt mr-1"></i> Buka di Tab Baru
+                            </a>
+                          </div>
+                        </template>
+                      </div>
+                    </div>
+                    <hr class="my-2" v-if="selectedParticipant.family_card_url || selectedParticipant.bank_book_url || selectedParticipant.certificate_url || selectedParticipant.other_url">
+                  </div>
+
+                  <!-- Kartu Keluarga -->
+                  <div class="mb-3" v-if="selectedParticipant.family_card_url">
+                    <div class="d-flex flex-wrap">
+                      <div class="mb-2 mr-md-3" style="min-width: 240px; max-width: 260px;">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                          <strong>Kartu Keluarga</strong>
+                        </div>
+                        <div class="form-group mb-1">
+                          <div class="form-check">
+                            <input
+                              type="checkbox"
+                              class="form-check-input"
+                              id="chkFamilyCard"
+                              v-model="verificationForm.checked_family_card"
+                            >
+                            <label class="form-check-label" for="chkFamilyCard">
+                              Sudah dicek
+                            </label>
+                          </div>
+                        </div>
+                        <div class="form-group mb-0">
+                          <label class="small mb-1">Hasil kesesuaian</label>
+                          <select
+                            class="form-control form-control-sm"
+                            v-model="verificationForm.field_matches.documents.family_card_url"
+                          >
+                            <option :value="null">Belum dinilai</option>
+                            <option :value="true">Sesuai</option>
+                            <option :value="false">Tidak sesuai</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      <div class="flex-grow-1">
+                        <template v-if="selectedParticipant.family_card_url.toLowerCase().endsWith('.pdf')">
+                          <div style="height: 360px; border: 1px solid #dee2e6;" class="mb-1">
+                            <iframe
+                              :src="selectedParticipant.family_card_url"
+                              style="width: 100%; height: 100%; border: 0;"
+                            ></iframe>
+                          </div>
+                          <a
+                            :href="selectedParticipant.family_card_url"
+                            target="_blank"
+                            class="btn btn-xs btn-outline-primary"
+                          >
+                            <i class="fas fa-external-link-alt mr-1"></i> Buka di Tab Baru
+                          </a>
+                        </template>
+                        <template v-else>
+                          <img
+                            :src="selectedParticipant.family_card_url"
+                            alt="Kartu Keluarga"
+                            class="img-fluid img-thumbnail mb-1"
+                            style="max-height: 360px;"
+                          >
+                          <div>
+                            <a
+                              :href="selectedParticipant.family_card_url"
+                              target="_blank"
+                              class="btn btn-xs btn-outline-primary"
+                            >
+                              <i class="fas fa-external-link-alt mr-1"></i> Buka di Tab Baru
+                            </a>
+                          </div>
+                        </template>
+                      </div>
+                    </div>
+                    <hr class="my-2" v-if="selectedParticipant.bank_book_url || selectedParticipant.certificate_url || selectedParticipant.other_url">
+                  </div>
+
+                  <!-- Buku Rekening -->
+                  <div class="mb-3" v-if="selectedParticipant.bank_book_url">
+                    <div class="d-flex flex-wrap">
+                      <div class="mb-2 mr-md-3" style="min-width: 240px; max-width: 260px;">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                          <strong>Buku Rekening</strong>
+                        </div>
+                        <div class="form-group mb-1">
+                          <div class="form-check">
+                            <input
+                              type="checkbox"
+                              class="form-check-input"
+                              id="chkBankBook"
+                              v-model="verificationForm.checked_bank_book"
+                            >
+                            <label class="form-check-label" for="chkBankBook">
+                              Sudah dicek
+                            </label>
+                          </div>
+                        </div>
+                        <div class="form-group mb-0">
+                          <label class="small mb-1">Hasil kesesuaian</label>
+                          <select
+                            class="form-control form-control-sm"
+                            v-model="verificationForm.field_matches.documents.bank_book_url"
+                          >
+                            <option :value="null">Belum dinilai</option>
+                            <option :value="true">Sesuai</option>
+                            <option :value="false">Tidak sesuai</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      <div class="flex-grow-1">
+                        <template v-if="selectedParticipant.bank_book_url.toLowerCase().endsWith('.pdf')">
+                          <div style="height: 360px; border: 1px solid #dee2e6;" class="mb-1">
+                            <iframe
+                              :src="selectedParticipant.bank_book_url"
+                              style="width: 100%; height: 100%; border: 0;"
+                            ></iframe>
+                          </div>
+                          <a
+                            :href="selectedParticipant.bank_book_url"
+                            target="_blank"
+                            class="btn btn-xs btn-outline-primary"
+                          >
+                            <i class="fas fa-external-link-alt mr-1"></i> Buka di Tab Baru
+                          </a>
+                        </template>
+                        <template v-else>
+                          <img
+                            :src="selectedParticipant.bank_book_url"
+                            alt="Buku Rekening"
+                            class="img-fluid img-thumbnail mb-1"
+                            style="max-height: 360px;"
+                          >
+                          <div>
+                            <a
+                              :href="selectedParticipant.bank_book_url"
+                              target="_blank"
+                              class="btn btn-xs btn-outline-primary"
+                            >
+                              <i class="fas fa-external-link-alt mr-1"></i> Buka di Tab Baru
+                            </a>
+                          </div>
+                        </template>
+                      </div>
+                    </div>
+                    <hr class="my-2" v-if="selectedParticipant.certificate_url || selectedParticipant.other_url">
+                  </div>
+
+                  <!-- Sertifikat Pendukung -->
+                  <div class="mb-3" v-if="selectedParticipant.certificate_url">
+                    <div class="d-flex flex-wrap">
+                      <div class="mb-2 mr-md-3" style="min-width: 240px; max-width: 260px;">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                          <strong>Sertifikat Pendukung</strong>
+                        </div>
+                        <div class="form-group mb-1">
+                          <div class="form-check">
+                            <input
+                              type="checkbox"
+                              class="form-check-input"
+                              id="chkCertificate"
+                              v-model="verificationForm.checked_certificate"
+                            >
+                            <label class="form-check-label" for="chkCertificate">
+                              Sudah dicek
+                            </label>
+                          </div>
+                        </div>
+                        <div class="form-group mb-0">
+                          <label class="small mb-1">Hasil kesesuaian</label>
+                          <select
+                            class="form-control form-control-sm"
+                            v-model="verificationForm.field_matches.documents.certificate_url"
+                          >
+                            <option :value="null">Belum dinilai</option>
+                            <option :value="true">Sesuai</option>
+                            <option :value="false">Tidak sesuai</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      <div class="flex-grow-1">
+                        <template v-if="selectedParticipant.certificate_url.toLowerCase().endsWith('.pdf')">
+                          <div style="height: 360px; border: 1px solid #dee2e6;" class="mb-1">
+                            <iframe
+                              :src="selectedParticipant.certificate_url"
+                              style="width: 100%; height: 100%; border: 0;"
+                            ></iframe>
+                          </div>
+                          <a
+                            :href="selectedParticipant.certificate_url"
+                            target="_blank"
+                            class="btn btn-xs btn-outline-primary"
+                          >
+                            <i class="fas fa-external-link-alt mr-1"></i> Buka di Tab Baru
+                          </a>
+                        </template>
+                        <template v-else>
+                          <img
+                            :src="selectedParticipant.certificate_url"
+                            alt="Sertifikat Pendukung"
+                            class="img-fluid img-thumbnail mb-1"
+                            style="max-height: 360px;"
+                          >
+                          <div>
+                            <a
+                              :href="selectedParticipant.certificate_url"
+                              target="_blank"
+                              class="btn btn-xs btn-outline-primary"
+                            >
+                              <i class="fas fa-external-link-alt mr-1"></i> Buka di Tab Baru
+                            </a>
+                          </div>
+                        </template>
+                      </div>
+                    </div>
+                    <hr class="my-2" v-if="selectedParticipant.other_url">
+                  </div>
+
+                  <!-- Dokumen Lainnya -->
+                  <div class="mb-0" v-if="selectedParticipant.other_url">
+                    <div class="d-flex flex-wrap">
+                      <div class="mb-2 mr-md-3" style="min-width: 240px; max-width: 260px;">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                          <strong>Dokumen Lainnya</strong>
+                        </div>
+                        <div class="form-group mb-1">
+                          <div class="form-check">
+                            <input
+                              type="checkbox"
+                              class="form-check-input"
+                              id="chkOther"
+                              v-model="verificationForm.checked_other"
+                            >
+                            <label class="form-check-label" for="chkOther">
+                              Sudah dicek
+                            </label>
+                          </div>
+                        </div>
+                        <div class="form-group mb-0">
+                          <label class="small mb-1">Hasil kesesuaian</label>
+                          <select
+                            class="form-control form-control-sm"
+                            v-model="verificationForm.field_matches.documents.other_url"
+                          >
+                            <option :value="null">Belum dinilai</option>
+                            <option :value="true">Sesuai</option>
+                            <option :value="false">Tidak sesuai</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      <div class="flex-grow-1">
+                        <template v-if="selectedParticipant.other_url.toLowerCase().endsWith('.pdf')">
+                          <div style="height: 360px; border: 1px solid #dee2e6;" class="mb-1">
+                            <iframe
+                              :src="selectedParticipant.other_url"
+                              style="width: 100%; height: 100%; border: 0;"
+                            ></iframe>
+                          </div>
+                          <a
+                            :href="selectedParticipant.other_url"
+                            target="_blank"
+                            class="btn btn-xs btn-outline-primary"
+                          >
+                            <i class="fas fa-external-link-alt mr-1"></i> Buka di Tab Baru
+                          </a>
+                        </template>
+                        <template v-else>
+                          <img
+                            :src="selectedParticipant.other_url"
+                            alt="Dokumen Lainnya"
+                            class="img-fluid img-thumbnail mb-1"
+                            style="max-height: 360px;"
+                          >
+                          <div>
+                            <a
+                              :href="selectedParticipant.other_url"
+                              target="_blank"
+                              class="btn btn-xs btn-outline-primary"
+                            >
+                              <i class="fas fa-external-link-alt mr-1"></i> Buka di Tab Baru
+                            </a>
+                          </div>
+                        </template>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Jika tidak ada dokumen sama sekali -->
+                  <div
+                    v-if="!selectedParticipant.photo_url
+                      && !selectedParticipant.id_card_url
+                      && !selectedParticipant.family_card_url
+                      && !selectedParticipant.bank_book_url
+                      && !selectedParticipant.certificate_url
+                      && !selectedParticipant.other_url"
+                    class="text-center text-muted"
+                  >
+                    Tidak ada dokumen yang diunggah oleh peserta ini.
+                  </div>
+
+                </div>
+              </div>
+
+
+              <!-- ==================== -->
+              <!-- BAGIAN: DATA PESERTA -->
+              <!-- ==================== -->
+              <div class="card mb-3">
+                <div class="card-header py-2">
+                  <strong>2. Data Peserta (Untuk Dicocokkan Dengan Dokumen di Atas)</strong>
+                  <div class="small text-muted">
+                    Cocokkan NIK, nama, tanggal lahir, jenis kelamin, pendidikan, alamat, tanggal terbit KTP/KK,
+                    serta data rekening dengan dokumen yang tampil di panel.
+                  </div>
+                </div>
+                <div class="card-body p-2">
+                  <div class="row">
+                    <!-- IDENTITAS -->
+                    <div class="col-md-6 mb-2">
+                      <h6 class="mb-1 d-flex justify-content-between align-items-center">
+                        <span>2.1 Identitas</span>
+                        <small>
+                          <label class="mb-0">
+                            <input
+                              type="checkbox"
+                              class="form-check-input mr-1"
+                              v-model="verificationForm.checked_identity"
+                            >
+                            <span class="align-middle">Sudah dicek</span>
+                          </label>
+                        </small>
+                      </h6>
+                      <table class="table table-sm table-borderless mb-1">
+                        <tbody>
+                          <tr>
+                            <th class="p-1 align-middle">NIK</th>
+                            <td class="p-1 align-middle">
+                              {{ selectedParticipant.nik || '-' }}
+                            </td>
+                            <td class="p-1 align-middle" style="width: 110px;">
+                              <select
+                                class="form-control form-control-sm"
+                                v-model="verificationForm.field_matches.identity.nik"
+                              >
+                                <option :value="null">Belum dinilai</option>
+                                <option :value="true">Sesuai</option>
+                                <option :value="false">Tidak sesuai</option>
+                              </select>
+                            </td>
+                          </tr>
+                          <tr>
+                            <th class="p-1 align-middle">Nama</th>
+                            <td class="p-1 align-middle">
+                              {{ selectedParticipant.full_name || selectedParticipant.nama_lengkap || '-' }}
+                            </td>
+                            <td class="p-1 align-middle">
+                              <select
+                                class="form-control form-control-sm"
+                                v-model="verificationForm.field_matches.identity.full_name"
+                              >
+                                <option :value="null">Belum dinilai</option>
+                                <option :value="true">Sesuai</option>
+                                <option :value="false">Tidak sesuai</option>
+                              </select>
+                            </td>
+                          </tr>
+                          <tr>
+                            <th class="p-1 align-middle">Tempat / Tgl Lahir</th>
+                            <td class="p-1 align-middle">
+                              {{ selectedParticipant.place_of_birth || '-' }},
+                              {{ selectedParticipant.date_of_birth || '-' }}
+                            </td>
+                            <td class="p-1 align-middle">
+                              <div class="d-flex flex-column">
+                                <select
+                                  class="form-control form-control-sm mb-1"
+                                  v-model="verificationForm.field_matches.identity.place_of_birth"
+                                >
+                                  <option :value="null">Tmpt: -</option>
+                                  <option :value="true">Sesuai</option>
+                                  <option :value="false">Tidak sesuai</option>
+                                </select>
+                                <select
+                                  class="form-control form-control-sm"
+                                  v-model="verificationForm.field_matches.identity.date_of_birth"
+                                >
+                                  <option :value="null">Tgl: -</option>
+                                  <option :value="true">Sesuai</option>
+                                  <option :value="false">Tidak sesuai</option>
+                                </select>
+                              </div>
+                            </td>
+                          </tr>
+                          <tr>
+                            <th class="p-1 align-middle">Jenis Kelamin</th>
+                            <td class="p-1 align-middle">
+                              {{ selectedParticipant.gender || '-' }}
+                            </td>
+                            <td class="p-1 align-middle">
+                              <select
+                                class="form-control form-control-sm"
+                                v-model="verificationForm.field_matches.identity.gender"
+                              >
+                                <option :value="null">Belum dinilai</option>
+                                <option :value="true">Sesuai</option>
+                                <option :value="false">Tidak sesuai</option>
+                              </select>
+                            </td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+
+                    <!-- KONTAK & DOMISILI -->
+                    <div class="col-md-6 mb-2">
+                      <h6 class="mb-1 d-flex justify-content-between align-items-center">
+                        <span>2.2 Kontak</span>
+                        <small>
+                          <label class="mb-0">
+                            <input
+                              type="checkbox"
+                              class="form-check-input mr-1"
+                              v-model="verificationForm.checked_contact"
+                            >
+                            <span class="align-middle">Sudah dicek</span>
+                          </label>
+                        </small>
+                      </h6>
+                      <table class="table table-sm table-borderless mb-2">
+                        <tbody>
+                          <tr>
+                            <th class="p-1 align-middle">No. HP</th>
+                            <td class="p-1 align-middle">
+                              {{ selectedParticipant.phone_number || '-' }}
+                            </td>
+                            <td class="p-1 align-middle" style="width: 110px;">
+                              <select
+                                class="form-control form-control-sm"
+                                v-model="verificationForm.field_matches.contact.phone_number"
+                              >
+                                <option :value="null">Belum dinilai</option>
+                                <option :value="true">Sesuai</option>
+                                <option :value="false">Tidak sesuai</option>
+                              </select>
+                            </td>
+                          </tr>
+                        </tbody>
+                      </table>
+
+                      <h6 class="mb-1 d-flex justify-content-between align-items-center">
+                        <span>2.3 Domisili</span>
+                        <small>
+                          <label class="mb-0">
+                            <input
+                              type="checkbox"
+                              class="form-check-input mr-1"
+                              v-model="verificationForm.checked_domicile"
+                            >
+                            <span class="align-middle">Sudah dicek</span>
+                          </label>
+                        </small>
+                      </h6>
+                      <table class="table table-sm table-borderless mb-1">
+                        <tbody>
+                          <tr>
+                            <th class="p-1 align-middle">Alamat</th>
+                            <td class="p-1 align-middle">
+                              {{ selectedParticipant.address || '-' }}
+                            </td>
+                            <td class="p-1 align-middle" style="width: 110px;">
+                              <select
+                                class="form-control form-control-sm"
+                                v-model="verificationForm.field_matches.domicile.address"
+                              >
+                                <option :value="null">Belum dinilai</option>
+                                <option :value="true">Sesuai</option>
+                                <option :value="false">Tidak sesuai</option>
+                              </select>
+                            </td>
+                          </tr>
+                          <!-- Bisa ditambah provinsi/kab/kec/kel kalau tersedia -->
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  <div class="row">
+                    <!-- PENDIDIKAN -->
+                    <div class="col-md-6 mb-2">
+                      <h6 class="mb-1 d-flex justify-content-between align-items-center">
+                        <span>2.4 Pendidikan</span>
+                        <small>
+                          <label class="mb-0">
+                            <input
+                              type="checkbox"
+                              class="form-check-input mr-1"
+                              v-model="verificationForm.checked_education"
+                            >
+                            <span class="align-middle">Sudah dicek</span>
+                          </label>
+                        </small>
+                      </h6>
+                      <table class="table table-sm table-borderless mb-1">
+                        <tbody>
+                          <tr>
+                            <th class="p-1 align-middle">Pendidikan</th>
+                            <td class="p-1 align-middle">
+                              {{ selectedParticipant.education || '-' }}
+                            </td>
+                            <td class="p-1 align-middle" style="width: 110px;">
+                              <select
+                                class="form-control form-control-sm"
+                                v-model="verificationForm.field_matches.education.education"
+                              >
+                                <option :value="null">Belum dinilai</option>
+                                <option :value="true">Sesuai</option>
+                                <option :value="false">Tidak sesuai</option>
+                              </select>
+                            </td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+
+                    <!-- REKENING & TANGGAL DOKUMEN -->
+                    <div class="col-md-6 mb-2">
+                      <h6 class="mb-1 d-flex justify-content-between align-items-center">
+                        <span>2.5 Rekening Bank</span>
+                        <small>
+                          <label class="mb-0">
+                            <input
+                              type="checkbox"
+                              class="form-check-input mr-1"
+                              v-model="verificationForm.checked_bank_account"
+                            >
+                            <span class="align-middle">Sudah dicek</span>
+                          </label>
+                        </small>
+                      </h6>
+                      <table class="table table-sm table-borderless mb-2">
+                        <tbody>
+                          <tr>
+                            <th class="p-1 align-middle">No. Rekening</th>
+                            <td class="p-1 align-middle">
+                              {{ selectedParticipant.bank_account_number || '-' }}
+                            </td>
+                            <td class="p-1 align-middle" style="width: 110px;">
+                              <select
+                                class="form-control form-control-sm"
+                                v-model="verificationForm.field_matches.bank_account.bank_account_number"
+                              >
+                                <option :value="null">Belum dinilai</option>
+                                <option :value="true">Sesuai</option>
+                                <option :value="false">Tidak sesuai</option>
+                              </select>
+                            </td>
+                          </tr>
+                          <tr>
+                            <th class="p-1 align-middle">Nama di Rekening</th>
+                            <td class="p-1 align-middle">
+                              {{ selectedParticipant.bank_account_name || '-' }}
+                            </td>
+                            <td class="p-1 align-middle">
+                              <select
+                                class="form-control form-control-sm"
+                                v-model="verificationForm.field_matches.bank_account.bank_account_name"
+                              >
+                                <option :value="null">Belum dinilai</option>
+                                <option :value="true">Sesuai</option>
+                                <option :value="false">Tidak sesuai</option>
+                              </select>
+                            </td>
+                          </tr>
+                          <tr>
+                            <th class="p-1 align-middle">Nama Bank</th>
+                            <td class="p-1 align-middle">
+                              {{ selectedParticipant.bank_name || '-' }}
+                            </td>
+                            <td class="p-1 align-middle">
+                              <select
+                                class="form-control form-control-sm"
+                                v-model="verificationForm.field_matches.bank_account.bank_name"
+                              >
+                                <option :value="null">Belum dinilai</option>
+                                <option :value="true">Sesuai</option>
+                                <option :value="false">Tidak sesuai</option>
+                              </select>
+                            </td>
+                          </tr>
+                        </tbody>
+                      </table>
+
+                      <h6 class="mb-1 d-flex justify-content-between align-items-center">
+                        <span>2.6 Tanggal Dokumen</span>
+                        <small>
+                          <label class="mb-0">
+                            <input
+                              type="checkbox"
+                              class="form-check-input mr-1"
+                              v-model="verificationForm.checked_document_dates"
+                            >
+                            <span class="align-middle">Sudah dicek</span>
+                          </label>
+                        </small>
+                      </h6>
+                      <table class="table table-sm table-borderless mb-1">
+                        <tbody>
+                          <tr>
+                            <th class="p-1 align-middle">Tgl Terbit KTP</th>
+                            <td class="p-1 align-middle">
+                              {{ selectedParticipant.tanggal_terbit_ktp || '-' }}
+                            </td>
+                            <td class="p-1 align-middle" style="width: 110px;">
+                              <select
+                                class="form-control form-control-sm"
+                                v-model="verificationForm.field_matches.document_dates.tanggal_terbit_ktp"
+                              >
+                                <option :value="null">Belum dinilai</option>
+                                <option :value="true">Sesuai</option>
+                                <option :value="false">Tidak sesuai</option>
+                              </select>
+                            </td>
+                          </tr>
+                          <tr>
+                            <th class="p-1 align-middle">Tgl Terbit KK</th>
+                            <td class="p-1 align-middle">
+                              {{ selectedParticipant.tanggal_terbit_kk || '-' }}
+                            </td>
+                            <td class="p-1 align-middle">
+                              <select
+                                class="form-control form-control-sm"
+                                v-model="verificationForm.field_matches.document_dates.tanggal_terbit_kk"
+                              >
+                                <option :value="null">Belum dinilai</option>
+                                <option :value="true">Sesuai</option>
+                                <option :value="false">Tidak sesuai</option>
+                              </select>
+                            </td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- CATATAN VERIFIKATOR -->
+              <div class="form-group mb-0">
+                <label for="verificationNotes"><strong>Catatan Verifikasi (opsional)</strong></label>
+                <textarea
+                  id="verificationNotes"
+                  rows="3"
+                  class="form-control"
+                  v-model="verificationForm.notes"
+                  placeholder="Tuliskan ringkasan hasil verifikasi, misalnya: data dan dokumen sesuai, atau jelaskan item yang tidak sesuai."
+                ></textarea>
+              </div>
+            </div>
+
+
+            <div class="modal-footer">
+              <button
+                type="button"
+                class="btn btn-secondary"
+                :disabled="savingVerification"
+                data-dismiss="modal"
+              >
+                Tutup
+              </button>
+              <button
+                type="button"
+                class="btn btn-primary"
+                @click="submitVerification"
+                :disabled="savingVerification"
+              >
+                <i
+                  v-if="savingVerification"
+                  class="fas fa-spinner fa-spin mr-1"
+                ></i>
+                Simpan Verifikasi
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+
     </section>
   </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, watch, reactive } from 'vue'
 import axios from 'axios'
 import { useDebounceFn } from '@vueuse/core'
 import { useAuthUserStore } from '../../stores/AuthUserStore'
+import Swal from 'sweetalert2';
+
+const props = defineProps({
+  status: {
+    type: String,
+    default: 'proses',
+  },
+})
 
 const selectedParticipant = ref(null)
+
+// 🔹 computed khusus verifikasi yang ditolak
+const rejectedVerifications = computed(() => {
+  const p = selectedParticipant.value
+  if (!p || !Array.isArray(p.verifications)) {
+    return []
+  }
+
+  return p.verifications.filter(v => v && v.status === 'rejected')
+})
+
+
 const authUserStore = useAuthUserStore()
+
+const verificationForm = reactive({
+  id: null,
+  status: 'verified', // 'verified' | 'rejected'
+
+  // dokumen dicek?
+  checked_photo: false,
+  checked_id_card: false,
+  checked_family_card: false,
+  checked_bank_book: false,
+  checked_certificate: false,
+  checked_other: false,
+
+  // kelompok data dicek?
+  checked_identity: false,
+  checked_contact: false,
+  checked_domicile: false,
+  checked_education: false,
+  checked_bank_account: false,
+  checked_document_dates: false,
+
+  // detail hasil cek per field
+  field_matches: {
+    identity: {
+      nik: null,
+      full_name: null,
+      place_of_birth: null,
+      date_of_birth: null,
+      gender: null,
+    },
+    contact: {
+      phone_number: null,
+    },
+    domicile: {
+      province_id: null,
+      regency_id: null,
+      district_id: null,
+      village_id: null,
+      address: null,
+    },
+    education: {
+      education: null,
+    },
+    bank_account: {
+      bank_account_number: null,
+      bank_account_name: null,
+      bank_name: null,
+    },
+    document_dates: {
+      tanggal_terbit_ktp: null,
+      tanggal_terbit_kk: null,
+    },
+    documents: {
+      photo_url: null,
+      id_card_url: null,
+      family_card_url: null,
+      bank_book_url: null,
+      certificate_url: null,
+      other_url: null,
+    },
+  },
+  status_pendaftaran: 'proses', // 🔹 default, silakan sesuaikan
+  notes: '',
+})
+
+const resetVerificationForm = () => {
+  verificationForm.id = null
+  verificationForm.status = 'verified'
+  verificationForm.status_pendaftaran = 'proses' // 🔹 reset
+
+  verificationForm.checked_photo = false
+  verificationForm.checked_id_card = false
+  verificationForm.checked_family_card = false
+  verificationForm.checked_bank_book = false
+  verificationForm.checked_certificate = false
+  verificationForm.checked_other = false
+
+  verificationForm.checked_identity = false
+  verificationForm.checked_contact = false
+  verificationForm.checked_domicile = false
+  verificationForm.checked_education = false
+  verificationForm.checked_bank_account = false
+  verificationForm.checked_document_dates = false
+
+  Object.assign(verificationForm.field_matches, {
+    identity: {
+      nik: null,
+      full_name: null,
+      place_of_birth: null,
+      date_of_birth: null,
+      gender: null,
+    },
+    contact: {
+      phone_number: null,
+    },
+    domicile: {
+      province_id: null,
+      regency_id: null,
+      district_id: null,
+      village_id: null,
+      address: null,
+    },
+    education: {
+      education: null,
+    },
+    bank_account: {
+      bank_account_number: null,
+      bank_account_name: null,
+      bank_name: null,
+    },
+    document_dates: {
+      tanggal_terbit_ktp: null,
+      tanggal_terbit_kk: null,
+    },
+    documents: {
+      photo_url: null,
+      id_card_url: null,
+      family_card_url: null,
+      bank_book_url: null,
+      certificate_url: null,
+      other_url: null,
+    },
+  })
+
+  verificationForm.notes = ''
+}
+
+const openVerification = (participant) => {
+  selectedParticipant.value = participant
+  resetVerificationForm()
+  console.log('selectedParticipant');
+  console.log(selectedParticipant);
+
+  // Jika sudah pernah diverifikasi, isi dari data yang ada
+  if (participant.verification) {
+    const v = participant.verification
+    verificationForm.id = v.id
+    verificationForm.status = v.status || 'verified'
+    // verificationForm.status_pendaftaran = participant.event_participant.status_pendaftaran || 'proses'
+    verificationForm.checked_photo = !!v.checked_photo
+    verificationForm.checked_id_card = !!v.checked_id_card
+    verificationForm.checked_family_card = !!v.checked_family_card
+    verificationForm.checked_bank_book = !!v.checked_bank_book
+    verificationForm.checked_certificate = !!v.checked_certificate
+    verificationForm.checked_other = !!v.checked_other
+    verificationForm.notes = v.notes || ''
+  }
+
+  $('#showVerificationModal').modal('show')
+}
+
+const validateVerificationDetails = () => {
+  const errors = []
+  const p = selectedParticipant.value
+  if (!p) {
+    errors.push('Peserta tidak ditemukan.')
+    return errors
+  }
+
+  const fm = verificationForm.field_matches || {}
+
+  // Helper kecil
+  const isUnset = (val) => val === null || typeof val === 'undefined'
+
+  // ==========================
+  // 1. Dokumen Unggahan (kalau ada filenya)
+  // ==========================
+  const docs = fm.documents || {}
+
+  if (p.photo_url) {
+    if (!verificationForm.checked_photo) {
+      errors.push('Foto peserta: checkbox "Sudah dicek" belum dicentang.')
+    }
+    if (isUnset(docs.photo_url)) {
+      errors.push('Foto peserta: hasil kesesuaian belum dipilih.')
+    }
+  }
+
+  if (p.id_card_url) {
+    if (!verificationForm.checked_id_card) {
+      errors.push('KTP/KIA: checkbox "Sudah dicek" belum dicentang.')
+    }
+    if (isUnset(docs.id_card_url)) {
+      errors.push('KTP/KIA: hasil kesesuaian belum dipilih.')
+    }
+  }
+
+  if (p.family_card_url) {
+    if (!verificationForm.checked_family_card) {
+      errors.push('Kartu Keluarga: checkbox "Sudah dicek" belum dicentang.')
+    }
+    if (isUnset(docs.family_card_url)) {
+      errors.push('Kartu Keluarga: hasil kesesuaian belum dipilih.')
+    }
+  }
+
+  if (p.bank_book_url) {
+    if (!verificationForm.checked_bank_book) {
+      errors.push('Buku Rekening: checkbox "Sudah dicek" belum dicentang.')
+    }
+    if (isUnset(docs.bank_book_url)) {
+      errors.push('Buku Rekening: hasil kesesuaian belum dipilih.')
+    }
+  }
+
+  if (p.certificate_url) {
+    if (!verificationForm.checked_certificate) {
+      errors.push('Sertifikat Pendukung: checkbox "Sudah dicek" belum dicentang.')
+    }
+    if (isUnset(docs.certificate_url)) {
+      errors.push('Sertifikat Pendukung: hasil kesesuaian belum dipilih.')
+    }
+  }
+
+  if (p.other_url) {
+    if (!verificationForm.checked_other) {
+      errors.push('Dokumen Lainnya: checkbox "Sudah dicek" belum dicentang.')
+    }
+    if (isUnset(docs.other_url)) {
+      errors.push('Dokumen Lainnya: hasil kesesuaian belum dipilih.')
+    }
+  }
+
+  // ==========================
+  // 2. Identitas
+  // ==========================
+  const identity = fm.identity || {}
+  if (!verificationForm.checked_identity) {
+    errors.push('Kelompok "Identitas" belum dicentang "Sudah dicek".')
+  }
+  if (isUnset(identity.nik)) {
+    errors.push('Identitas: hasil kesesuaian NIK belum dipilih.')
+  }
+  if (isUnset(identity.full_name)) {
+    errors.push('Identitas: hasil kesesuaian Nama belum dipilih.')
+  }
+  if (isUnset(identity.place_of_birth)) {
+    errors.push('Identitas: hasil kesesuaian Tempat Lahir belum dipilih.')
+  }
+  if (isUnset(identity.date_of_birth)) {
+    errors.push('Identitas: hasil kesesuaian Tanggal Lahir belum dipilih.')
+  }
+  if (isUnset(identity.gender)) {
+    errors.push('Identitas: hasil kesesuaian Jenis Kelamin belum dipilih.')
+  }
+
+  // ==========================
+  // 3. Kontak
+  // ==========================
+  const contact = fm.contact || {}
+  if (!verificationForm.checked_contact) {
+    errors.push('Kelompok "Kontak" belum dicentang "Sudah dicek".')
+  }
+  if (isUnset(contact.phone_number)) {
+    errors.push('Kontak: hasil kesesuaian No. HP belum dipilih.')
+  }
+
+  // ==========================
+  // 4. Domisili
+  // ==========================
+  const domicile = fm.domicile || {}
+  if (!verificationForm.checked_domicile) {
+    errors.push('Kelompok "Domisili" belum dicentang "Sudah dicek".')
+  }
+  if (isUnset(domicile.address)) {
+    errors.push('Domisili: hasil kesesuaian Alamat belum dipilih.')
+  }
+  // Kalau mau pakai provinsi/kab/kec/kel juga:
+  // ['province_id','regency_id','district_id','village_id'].forEach(field => { ... })
+
+  // ==========================
+  // 5. Pendidikan
+  // ==========================
+  const edu = fm.education || {}
+  if (!verificationForm.checked_education) {
+    errors.push('Kelompok "Pendidikan" belum dicentang "Sudah dicek".')
+  }
+  if (isUnset(edu.education)) {
+    errors.push('Pendidikan: hasil kesesuaian belum dipilih.')
+  }
+
+  // ==========================
+  // 6. Rekening Bank
+  // ==========================
+  const bank = fm.bank_account || {}
+  if (!verificationForm.checked_bank_account) {
+    errors.push('Kelompok "Rekening Bank" belum dicentang "Sudah dicek".')
+  }
+  if (isUnset(bank.bank_account_number)) {
+    errors.push('Rekening: hasil kesesuaian No. Rekening belum dipilih.')
+  }
+  if (isUnset(bank.bank_account_name)) {
+    errors.push('Rekening: hasil kesesuaian Nama di Rekening belum dipilih.')
+  }
+  if (isUnset(bank.bank_name)) {
+    errors.push('Rekening: hasil kesesuaian Nama Bank belum dipilih.')
+  }
+
+  // ==========================
+  // 7. Tanggal Dokumen
+  // ==========================
+  const docDates = fm.document_dates || {}
+  if (!verificationForm.checked_document_dates) {
+    errors.push('Kelompok "Tanggal Dokumen" belum dicentang "Sudah dicek".')
+  }
+  if (isUnset(docDates.tanggal_terbit_ktp)) {
+    errors.push('Tanggal Dokumen: hasil kesesuaian Tgl Terbit KTP belum dipilih.')
+  }
+  if (isUnset(docDates.tanggal_terbit_kk)) {
+    errors.push('Tanggal Dokumen: hasil kesesuaian Tgl Terbit KK belum dipilih.')
+  }
+
+  return errors
+}
+
+
+const savingVerification = ref(false)
+
+const submitVerification = async () => {
+  // pastikan ada peserta yang dipilih
+  if (!selectedParticipant.value) {
+    Swal.fire({
+      icon: 'warning',
+      title: 'Tidak ada peserta yang dipilih.',
+      text: 'Silakan pilih peserta terlebih dahulu.',
+    })
+    return
+  }
+
+  // validasi sederhana: status wajib ada
+  if (!verificationForm.status) {
+    Swal.fire({
+      icon: 'warning',
+      title: 'Status verifikasi belum dipilih.',
+      text: 'Silakan pilih status verifikasi (Terverifikasi / Ditolak).',
+    })
+    return
+  }
+
+  // 🔎 VALIDASI DETIL: semua checkbox & "Belum dinilai"
+  // const detailErrors = validateVerificationDetails()
+  // if (detailErrors.length) {
+  //   Swal.fire({
+  //     icon: 'warning',
+  //     title: 'Form verifikasi belum lengkap',
+  //     html: `
+  //       <p class="mb-2">Beberapa item belum dicek atau masih "Belum dinilai":</p>
+  //       <ul style="text-align:left; max-height:260px; overflow-y:auto; padding-left:18px;">
+  //         ${detailErrors.map(e => `<li>${e}</li>`).join('')}
+  //       </ul>
+  //     `,
+  //   })
+  //   return
+  // }
+
+  // (opsional) kalau ingin mewajibkan catatan kalau status = rejected
+  if (verificationForm.status === 'rejected' && !verificationForm.notes) {
+    const confirmWithoutNotes = await Swal.fire({
+      icon: 'warning',
+      title: 'Catatan verifikasi kosong.',
+      text: 'Peserta ditolak tanpa catatan. Lanjutkan tetap menyimpan?',
+      showCancelButton: true,
+      confirmButtonText: 'Ya, simpan',
+      cancelButtonText: 'Batal',
+    })
+
+    if (!confirmWithoutNotes.isConfirmed) {
+      return
+    }
+  } else {
+    // konfirmasi biasa
+    const confirmResult = await Swal.fire({
+      icon: 'question',
+      title: 'Simpan hasil verifikasi?',
+      text: 'Pastikan data dan dokumen sudah dicek sebelum disimpan.',
+      showCancelButton: true,
+      confirmButtonText: 'Ya, simpan',
+      cancelButtonText: 'Batal',
+    })
+
+    if (!confirmResult.isConfirmed) {
+      return
+    }
+  }
+
+  savingVerification.value = true
+
+  try {
+    const url = `/api/v1/participants/${selectedParticipant.value.id}/verifications`
+
+    const payload = {
+      status: verificationForm.status,
+
+      checked_photo: verificationForm.checked_photo,
+      checked_id_card: verificationForm.checked_id_card,
+      checked_family_card: verificationForm.checked_family_card,
+      checked_bank_book: verificationForm.checked_bank_book,
+      checked_certificate: verificationForm.checked_certificate,
+      checked_other: verificationForm.checked_other,
+
+      checked_identity: verificationForm.checked_identity,
+      checked_contact: verificationForm.checked_contact,
+      checked_domicile: verificationForm.checked_domicile,
+      checked_education: verificationForm.checked_education,
+      checked_bank_account: verificationForm.checked_bank_account,
+      checked_document_dates: verificationForm.checked_document_dates,
+
+      field_matches: verificationForm.field_matches,
+      notes: verificationForm.notes,
+
+      // 🔹 penting: untuk update event_participants
+      status_pendaftaran: verificationForm.status_pendaftaran,
+      event_id: selectedParticipant.value.event_id ?? null,              // kalau ada
+      event_participant_id: selectedParticipant.value.id ?? null, // kalau ada
+    }
+
+    await axios.post(url, payload)
+
+    // tutup modal
+    $('#showVerificationModal').modal('hide')
+    selectedParticipant.value = null
+
+    // notifikasi sukses
+    await Swal.fire({
+      icon: 'success',
+      title: 'Verifikasi peserta berhasil disimpan.',
+    })
+    fetchStatusCounts()
+
+    // reload list peserta
+    if (typeof fetchParticipants === 'function') {
+      // jika pakai pagination seperti contoh mutasi
+      await fetchParticipants(meta.value?.current_page || 1)
+    } else if (typeof loadData === 'function') {
+      // fallback kalau fungsi reload bernama lain
+      await loadData()
+    }
+  } catch (error) {
+    console.error('Gagal menyimpan verifikasi peserta:', error)
+
+    let msg =
+      error.response?.data?.message ||
+      'Gagal menyimpan hasil verifikasi peserta.'
+
+    // kalau ada errors dari validasi backend, ambil salah satu
+    if (error.response?.data?.errors) {
+      const firstErrorKey = Object.keys(error.response.data.errors)[0]
+      if (firstErrorKey) {
+        msg = error.response.data.errors[firstErrorKey][0] || msg
+      }
+    }
+
+    Swal.fire({
+      icon: 'error',
+      title: 'Error',
+      text: msg,
+    })
+  } finally {
+    savingVerification.value = false
+  }
+}
+
+
 
 // =========================
 // EVENT INFO (dari localStorage / cookie seperti sebelumnya)
 // =========================
 const eventInfo = ref(null)
 const eventId = ref(null)
-
-const getEventInfoFromStorage = () => {
-  let raw = ''
-  try {
-    raw = localStorage.getItem('event_data') || ''
-  } catch (e) {}
-
-  if (!raw) {
-    const cookie = document.cookie
-      .split('; ')
-      .find(row => row.startsWith('event_data='))
-    if (cookie) {
-      raw = decodeURIComponent(cookie.split('=')[1])
-    }
-  }
-
-  if (raw) {
-    try {
-      eventInfo.value = JSON.parse(raw)
-      eventId.value = eventInfo.value.id || null
-    } catch (e) {
-      console.error('Gagal parse event_data:', e)
-      eventInfo.value = null
-      eventId.value = null
-    }
-  }
-}
 
 const formatDate = (val) => {
   if (!val) return '-'
@@ -629,7 +2079,8 @@ const statusList = [
   },
 ]
 
-const activeStatus = ref('proses') // default tab
+// const activeStatus = ref('proses') // default tab
+const activeStatus = ref(props.status)
 const statusCounts = ref({
   proses: 0,
   diterima: 0,
@@ -655,6 +2106,15 @@ const statusBadgeClass = (status) => {
       return 'badge-light'
   }
 }
+
+const openBiodataPdf = (p) => {
+  if (!p || !p.id) return
+
+  // p.id = ID event_participants (sesuai transformEventParticipant)
+  const url = `/api/v1/get/participants/${p.id}/biodata-pdf`
+  window.open(url, '_blank')
+}
+
 
 // =========================
 // LIST & PAGINATION STATE
@@ -771,6 +2231,10 @@ const changeStatus = (key) => {
   activeStatus.value = key
   meta.value.current_page = 1
   fetchParticipants(1)
+
+
+  
+
 }
 
 
@@ -824,7 +2288,8 @@ watch(
 // MOUNTED
 // =========================
 onMounted(async () => {
-  getEventInfoFromStorage()
+  eventInfo.value = authUserStore.eventData
+  eventId.value = authUserStore.eventData.id
   await fetchStatusCounts()
   await fetchParticipants()
 })

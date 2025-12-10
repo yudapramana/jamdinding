@@ -2,19 +2,22 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class Village extends Model
 {
-    protected $table = 'villages';
+    use HasFactory;
 
-    protected $fillable = ['district_id', 'name'];
+    protected $guarded = [];
 
-    public $timestamps = false;
-
-    /** Relasi ke District */
     public function district()
     {
         return $this->belongsTo(District::class);
+    }
+
+    public function participants()
+    {
+        return $this->hasMany(Participant::class);
     }
 }

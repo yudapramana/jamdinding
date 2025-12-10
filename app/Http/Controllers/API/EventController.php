@@ -16,14 +16,14 @@ class EventController extends Controller
         $user    = $request->user();
 
         $query = Event::query()
-            ->orderByDesc('tanggal_mulai');
+            ->orderByDesc('start_date');
 
         // 🔍 filter search
         if ($search) {
             $query->where(function ($q) use ($search) {
-                $q->where('nama_event', 'like', "%{$search}%")
-                  ->orWhere('nama_aplikasi', 'like', "%{$search}%")
-                  ->orWhere('lokasi_event', 'like', "%{$search}%");
+                $q->where('event_name', 'like', "%{$search}%")
+                  ->orWhere('app_name', 'like', "%{$search}%")
+                  ->orWhere('event_location', 'like', "%{$search}%");
             });
         }
 
@@ -61,15 +61,15 @@ class EventController extends Controller
 
         $data = $request->validate([
             'event_key'             => ['required', 'string', 'max:100', 'unique:events,event_key'],
-            'nama_event'            => ['required', 'string', 'max:255'],
-            'nama_aplikasi'         => ['required', 'string', 'max:255'],
-            'lokasi_event'          => ['nullable', 'string', 'max:255'],
-            'tagline'               => ['nullable', 'string', 'max:255'],
-            'token_hasil_penilaian' => ['nullable', 'string', 'max:255'],
+            'event_name'            => ['required', 'string', 'max:255'],
+            'app_name'         => ['required', 'string', 'max:255'],
+            'event_location'          => ['nullable', 'string', 'max:255'],
+            'event_tagline'               => ['nullable', 'string', 'max:255'],
+            'assessment_token' => ['nullable', 'string', 'max:255'],
 
-            'tanggal_mulai'         => ['required', 'date'],
-            'tanggal_selesai'       => ['required', 'date', 'after_or_equal:tanggal_mulai'],
-            'tanggal_batas_umur'    => ['nullable', 'date'],
+            'start_date'         => ['required', 'date'],
+            'end_date'       => ['required', 'date', 'after_or_equal:start_date'],
+            'age_limit_date'    => ['nullable', 'date'],
 
             'logo_event'            => ['nullable', 'string', 'max:255'],
             'logo_sponsor_1'        => ['nullable', 'string', 'max:255'],
@@ -115,15 +115,15 @@ class EventController extends Controller
 
         $data = $request->validate([
             'event_key'             => ['sometimes', 'required', 'string', 'max:100', Rule::unique('events','event_key')->ignore($event->id)],
-            'nama_event'            => ['sometimes', 'required', 'string', 'max:255'],
-            'nama_aplikasi'         => ['sometimes', 'required', 'string', 'max:255'],
-            'lokasi_event'          => ['nullable', 'string', 'max:255'],
-            'tagline'               => ['nullable', 'string', 'max:255'],
-            'token_hasil_penilaian' => ['nullable', 'string', 'max:255'],
+            'event_name'            => ['sometimes', 'required', 'string', 'max:255'],
+            'app_name'         => ['sometimes', 'required', 'string', 'max:255'],
+            'event_location'          => ['nullable', 'string', 'max:255'],
+            'event_tagline'               => ['nullable', 'string', 'max:255'],
+            'assessment_token' => ['nullable', 'string', 'max:255'],
 
-            'tanggal_mulai'         => ['nullable', 'date'],
-            'tanggal_selesai'       => ['nullable', 'date', 'after_or_equal:tanggal_mulai'],
-            'tanggal_batas_umur'    => ['nullable', 'date'],
+            'start_date'         => ['nullable', 'date'],
+            'end_date'       => ['nullable', 'date', 'after_or_equal:start_date'],
+            'age_limit_date'    => ['nullable', 'date'],
 
             'logo_event'            => ['nullable', 'string', 'max:255'],
             'logo_sponsor_1'        => ['nullable', 'string', 'max:255'],

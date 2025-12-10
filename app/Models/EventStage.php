@@ -34,16 +34,14 @@ class EventStage extends Model
     |--------------------------------------------------------------------------
     */
 
-    // Relasi ke event induknya
     public function event()
     {
         return $this->belongsTo(Event::class);
     }
 
-    // Relasi ke master stage
-    public function masterStage()
+    public function stage()
     {
-        return $this->belongsTo(Stage::class, 'stage_id');
+        return $this->belongsTo(Stage::class);
     }
 
     /*

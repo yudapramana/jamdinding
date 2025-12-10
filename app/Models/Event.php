@@ -11,31 +11,12 @@ class Event extends Model
 
     protected $table = 'events';
 
-    protected $fillable = [
-        'event_key',
-        'nama_event',
-        'nama_aplikasi',
-        'lokasi_event',
-        'tagline',
-        'token_hasil_penilaian',
-        'tanggal_mulai',
-        'tanggal_selesai',
-        'tanggal_batas_umur',
-        'logo_event',
-        'logo_sponsor_1',
-        'logo_sponsor_2',
-        'logo_sponsor_3',
-        'tingkat_event',
-        'province_id',
-        'regency_id',
-        'district_id',
-        'is_active',
-    ];
+    protected $guarded = [];
 
     protected $casts = [
-        'tanggal_mulai'      => 'date:Y-m-d',
-        'tanggal_selesai'    => 'date:Y-m-d',
-        'tanggal_batas_umur' => 'date:Y-m-d',
+        'start_date'         => 'date:Y-m-d',
+        'end_date'           => 'date:Y-m-d',
+        'age_limit_date'     => 'date:Y-m-d',
         'is_active'          => 'boolean',
     ];
 
@@ -60,16 +41,52 @@ class Event extends Model
         return $this->belongsTo(District::class);
     }
 
-    // cabang lomba di event ini
-    public function competitionBranches()
+    public function stages()
     {
-        return $this->hasMany(EventCompetitionBranch::class);
+        return $this->belongsToMany(Stage::class, 'event_stages')
+            ->using(EventStage::class)
+            ->withPivot(['order_number', 'name', 'start_date', 'end_date', 'notes', 'is_active'])
+            ->withTimestamps();
     }
 
-    // pivot event_participants
+    public function eventStages()
+    {
+        return $this->hasMany(EventStage::class);
+    }
+
+    public function eventBranches()
+    {
+        return $this->hasMany(EventBranch::class);
+    }
+
+    public function eventGroups()
+    {
+        return $this->hasMany(EventGroup::class);
+    }
+
+    public function eventCategories()
+    {
+        return $this->hasMany(EventCategory::class);
+    }
+
     public function eventParticipants()
     {
         return $this->hasMany(EventParticipant::class);
+    }
+
+    public function eventCompetitions()
+    {
+        return $this->hasMany(EventCompetition::class);
+    }
+
+    public function medalStandings()
+    {
+        return $this->hasMany(MedalStanding::class);
+    }
+
+    public function eventContingents()
+    {
+        return $this->hasMany(EventContingent::class);
     }
 
     // many-to-many ke peserta
@@ -78,7 +95,7 @@ class Event extends Model
         return $this->belongsToMany(Participant::class, 'event_participants')
             ->using(EventParticipant::class)
             ->withPivot([
-                'event_competition_branch_id',
+                'event_group_id',
                 'age_year',
                 'age_month',
                 'age_day',
@@ -101,4 +118,12 @@ class Event extends Model
     {
         return $query->where('is_active', true);
     }
+
+    // use App\Models\ParticipantVerification;
+
+    public function participantVerifications()
+    {
+        return $this->hasMany(ParticipantVerification::class);
+    }
+
 }

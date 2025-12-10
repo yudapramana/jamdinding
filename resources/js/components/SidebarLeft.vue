@@ -3,7 +3,7 @@ import { useRouter } from 'vue-router';
 import { useAuthUserStore } from '../stores/AuthUserStore';
 import { useSettingStore } from '../stores/SettingStore';
 import CloudImage from '../components/CloudImage.vue';
-import { getActivePinia } from "pinia"
+import { getActivePinia } from "pinia";
 
 const router = useRouter();
 const settingStore = useSettingStore();
@@ -38,11 +38,6 @@ const logout = () => {
                 </div>
             </div>
 
-
-            
-
-
-
             <nav class="mt-2">
                 <ul class="nav nav-pills nav-sidebar flex-column" data-widget="treeview" role="menu" data-accordion="false">
 
@@ -54,8 +49,38 @@ const logout = () => {
                         </router-link>
                     </li>
 
-                    <template v-if="authUserStore.can('master.manage.stage')">
-                        <li class="nav-header">MASTER</li>
+                    <template v-if="authUserStore.can('master.manage')">
+                        <li class="nav-header">DATA INDUK</li>
+
+                        
+
+                        <!-- ===== MASTER BRANCHES • GROUPS • CATEGORIES ===== -->
+                        <!-- <li class="nav-item" v-if="authUserStore.can('master.manage.branches')"> -->
+                        <li class="nav-item" >
+                            <router-link
+                                to="/admin/master-branches-groups-categories"
+                                class="nav-link"
+                                active-class="active"
+                                :class="{ 'active': $route.path.startsWith('/admin/master-branches-groups-categories') }"
+                            >
+                                <i class="nav-icon fas fa-sitemap"></i>
+                                <p>Cabang</p>
+                            </router-link>
+                        </li>
+
+                        <!-- ===== MASTER LIST FIELDS ===== -->
+                        <!-- <li class="nav-item" v-if="authUserStore.can('master.manage.listfields')"> -->
+                        <li class="nav-item" >
+                            <router-link
+                                to="/admin/master-list-fields"
+                                class="nav-link"
+                                active-class="active"
+                                :class="{ 'active': $route.path.startsWith('/admin/master-list-fields') }"
+                            >
+                                <i class="nav-icon fas fa-list-alt"></i>
+                                <p>Bidang Penilaian</p>
+                            </router-link>
+                        </li>
 
                         <!-- Master Template Tahapan -->
                         <li class="nav-item" v-if="authUserStore.can('master.manage.stage')">
@@ -69,6 +94,119 @@ const logout = () => {
                                 <p>Tahapan</p>
                             </router-link>
                         </li>
+
+
+                        <li class="nav-header">TEMPLATE UTAMA</li>
+
+                        <li class="nav-item" v-if="authUserStore.can('master.manage.masterbranches')">
+                            <router-link
+                                to="/admin/master-branches"
+                                class="nav-link"
+                                active-class="active"
+                                :class="{ 'active': $route.path.startsWith('/admin/master-branches') }"
+                            >
+                                <i class="nav-icon fas fa-sitemap"></i>
+                                <p>Master Cabang</p>
+                            </router-link>
+                        </li>
+
+                        <li class="nav-item" v-if="authUserStore.can('master.manage.mastergroups')">
+                            <router-link
+                                to="/admin/master-groups"
+                                class="nav-link"
+                                active-class="active"
+                                :class="{ 'active': $route.path.startsWith('/admin/master-groups') }"
+                            >
+                                <i class="nav-icon fas fa-layer-group"></i>
+                                <p>Master Golongan</p>
+                            </router-link>
+                        </li>
+
+                        <li class="nav-item" v-if="authUserStore.can('master.manage.mastercategories')">
+                            <router-link
+                                to="/admin/master-categories"
+                                class="nav-link"
+                                active-class="active"
+                                :class="{ 'active': $route.path.startsWith('/admin/master-categories') }"
+                            >
+                                <i class="nav-icon fas fa-tags"></i>
+                                <p>Master Cabang Golongan</p>
+                            </router-link>
+                        </li>
+
+                        <li class="nav-item" v-if="authUserStore.can('master.manage.masterfieldcomponents')">
+                            <router-link
+                                to="/admin/master-field-components"
+                                class="nav-link"
+                                active-class="active"
+                                :class="{ 'active': $route.path.startsWith('/admin/master-field-components') }"
+                            >
+                                <i class="nav-icon fas fa-sliders-h"></i>
+                                <p>Master Bidang Penilaian</p>
+                            </router-link>
+                        </li>
+
+
+                        <li class="nav-header">ATUR EVENT</li>
+                        <li class="nav-item" v-if="authUserStore.can('event.manage.branches')">
+                            <router-link
+                                to="/admin/event-branches"
+                                class="nav-link"
+                                active-class="active"
+                                :class="{ 'active': $route.path.startsWith('/admin/event-branches') }"
+                            >
+                                <i class="nav-icon fas fa-code-branch"></i>
+                                <p>Cabang Event</p>
+                            </router-link>
+                        </li>
+
+                        <li class="nav-item" v-if="authUserStore.can('event.manage.groups')">
+                            <router-link
+                                to="/admin/event-groups"
+                                class="nav-link"
+                                active-class="active"
+                                :class="{ 'active': $route.path.startsWith('/admin/event-groups') }"
+                            >
+                                <i class="nav-icon fas fa-users"></i>
+                                <p>Golongan Event</p>
+                            </router-link>
+                        </li>
+
+                            <li class="nav-item" v-if="authUserStore.can('event.manage.categories')">
+                            <router-link
+                                to="/admin/event-categories"
+                                class="nav-link"
+                                active-class="active"
+                                :class="{ 'active': $route.path.startsWith('/admin/event-categories') }"
+                            >
+                                <i class="nav-icon fas fa-venus-mars"></i>
+                                <p>Kategori Event</p>
+                            </router-link>
+                        </li>
+
+                        <!-- ✅ MENU BARU: KOMONEN PENILAIAN EVENT -->
+                        <!-- <li
+                        class="nav-item"
+                        v-if="authUserStore.can('event.manage.field-components')"
+                        > -->
+                        <li
+                        class="nav-item"
+                        >
+                            <router-link
+                                to="/admin/event-field-components"
+                                class="nav-link"
+                                active-class="active"
+                                :class="{ 'active': $route.path.startsWith('/admin/event-field-components') }"
+                            >
+                                <i class="nav-icon fas fa-sliders-h"></i>
+                                <p>Bidang Penilaian Event</p>
+                            </router-link>
+                        </li>
+
+
+
+
+                        <li class="nav-header">LAIN - LAIN</li>
 
                         <li
                             class="nav-item menu-open"
@@ -145,90 +283,118 @@ const logout = () => {
                         </li>
                     </template>
 
+                    <template v-if="authUserStore.can('event.manage')">
 
-                    <li class="nav-header">MANAGE EVENT</li>
+                        <li class="nav-header">MANAGE EVENT</li>
 
-                    <!-- Data Event -->
-                    <li class="nav-item" v-if="authUserStore.can('event.manage')">
-                    <router-link
-                        to="/admin/events"
-                        class="nav-link"
-                        active-class="active"
-                        :class="{ 'active': $route.path.startsWith('/admin/events') }"
-                        v-if="
-                        authUserStore.user?.role?.slug === 'superadmin' ||
-                        authUserStore.user?.role?.slug === 'admin_event'
-                        "
-                    >
-                        <i class="nav-icon fas fa-calendar-alt"></i>
-                        <p>Data Event</p>
-                    </router-link>
-                    </li>
-
-                    <!-- Tahapan Event -->
-                    <li class="nav-item" v-if="authUserStore.can('event.manage.stage')">
+                        <!-- Data Event -->
+                        <li class="nav-item" v-if="authUserStore.can('event.manage')">
                         <router-link
-                            to="/admin/event-stage"
+                            to="/admin/events"
                             class="nav-link"
                             active-class="active"
-                            :class="{ 'active': $route.path.startsWith('/admin/event-stage') }"
+                            :class="{ 'active': $route.path.startsWith('/admin/events') }"
+                            v-if="
+                            authUserStore.user?.role?.slug === 'superadmin' ||
+                            authUserStore.user?.role?.slug === 'admin_event'
+                            "
                         >
-                            <i class="nav-icon fas fa-stream"></i>
-                            <p>Tahapan Event</p>
+                            <i class="nav-icon fas fa-calendar-alt"></i>
+                            <p>Data Event</p>
                         </router-link>
-                    </li>
+                        </li>
 
-                    <li class="nav-item" v-if="authUserStore.can('event.manage.branch')">
-                        <router-link
-                            to="/admin/event-competition-branch"
-                            class="nav-link"
-                            active-class="active"
-                            :class="{ 'active': $route.path.startsWith('/admin/event-competition-branch') }"
-                            
-                        >
-                            <i class="nav-icon fas fa-sitemap"></i>
-                            <p>Cabang / Golongan</p>
-                        </router-link>
-                    </li>
+                        <!-- Tahapan Event -->
+                        <li class="nav-item" v-if="authUserStore.can('event.manage.stage')">
+                            <router-link
+                                to="/admin/event-stage"
+                                class="nav-link"
+                                active-class="active"
+                                :class="{ 'active': $route.path.startsWith('/admin/event-stage') }"
+                            >
+                                <i class="nav-icon fas fa-stream"></i>
+                                <p>Tahapan Event</p>
+                            </router-link>
+                        </li>
 
-                    <li class="nav-item" v-if="authUserStore.can('event.manage.user')">
-                        <router-link
-                            to="/admin/event-users"
-                            class="nav-link"
-                            active-class="active"
-                            :class="{ 'active': $route.path.startsWith('/admin/event-users') }"
-                        >
-                            <i class="nav-icon fas fa-users-cog"></i>
-                            <p>User Event</p>
-                        </router-link>
-                    </li>
+                        <li class="nav-item" v-if="authUserStore.can('event.manage.branch')">
+                            <router-link
+                                to="/admin/event-competition-branch"
+                                class="nav-link"
+                                active-class="active"
+                                :class="{ 'active': $route.path.startsWith('/admin/event-competition-branch') }"
+                                
+                            >
+                                <i class="nav-icon fas fa-sitemap"></i>
+                                <p>Cabang / Golongan</p>
+                            </router-link>
+                        </li>
 
-                    <li class="nav-item" v-if="authUserStore.can('event.participant.repository')">
-                        <router-link
-                            to="/admin/participants"
-                            class="nav-link"
-                            active-class="active"
-                            :class="{ 'active': $route.path.startsWith('/admin/participants') }"
-                        >
-                            <i class="nav-icon fas fa-users"></i>
-                            <p>Repositori Peserta</p>
-                        </router-link>
-                    </li>
+                        <li class="nav-item" v-if="authUserStore.can('event.manage.user')">
+                            <router-link
+                                to="/admin/event-users"
+                                class="nav-link"
+                                active-class="active"
+                                :class="{ 'active': $route.path.startsWith('/admin/event-users') }"
+                            >
+                                <i class="nav-icon fas fa-users-cog"></i>
+                                <p>User Event</p>
+                            </router-link>
+                        </li>
+                    </template>
 
-                    <li
-                        class="nav-item"
-                        v-i="authUserStore.can('event.participant.repository')"
-                        >
-                        <router-link
-                            :to="{ name: 'admin.participants.status', params: { status: 'proses' } }"
-                            class="nav-link"
-                            active-class="active"
-                            :class="{ 'active': $route.name === 'participants.status' }"
-                        >
-                            <i class="nav-icon fas fa-users"></i>
-                            <p>Pendaftaran Peserta</p>
-                        </router-link>
-                    </li>
+
+
+                    <template v-if="authUserStore.can('participant.manage')">
+                        <li class="nav-header">PESERTA</li>
+
+                        <li class="nav-item" v-if="authUserStore.can('participant.manage.repository')">
+                            <router-link
+                                to="/admin/participants"
+                                class="nav-link"
+                                active-class="active"
+                                :class="{ 'active': $route.path.startsWith('/admin/participants') }"
+                            >
+                                <i class="nav-icon fas fa-database"></i>
+                                <p>Repositori</p>
+                            </router-link>
+                        </li>
+
+                        <li
+                            class="nav-item"
+                            v-if="authUserStore.can('participant.manage.register')"
+                            >
+                            <router-link
+                                :to="{ name: 'admin.participants.status', params: { status: 'proses' } }"
+                                class="nav-link"
+                                active-class="active"
+                                :class="{ 'active': $route.name === 'admin.participants.status' }"
+                            >
+                                <i class="nav-icon fas fa-user-plus"></i>
+                                <p v-if="authUserStore.user.role.name == 'VERIFIKATOR'">
+                                    Verifikasi
+                                </p>
+                                <p v-else>
+                                    Pendaftaran
+                                </p>
+                            </router-link>
+                        </li>
+
+                        <li
+                            class="nav-item"
+                            v-if="authUserStore.can('participant.manage.reregister')"
+                            >
+                            <router-link
+                                :to="{ name: 'admin.participants.reregister' }"
+                                class="nav-link"
+                                active-class="active"
+                                :class="{ 'active': $route.name === 'admin.participants.reregister' }"
+                            >
+                                <i class="nav-icon fas fa-user-check"></i>
+                                <p>Daftar Ulang</p>
+                            </router-link>
+                        </li>
+                    </template>
 
 
 

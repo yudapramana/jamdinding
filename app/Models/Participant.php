@@ -12,31 +12,7 @@ class Participant extends Model
 
     protected $table = 'participants';
 
-    protected $fillable = [
-        'nik',
-        'full_name',
-        'phone_number',
-        'place_of_birth',
-        'date_of_birth',
-        'gender',
-        'province_id',
-        'regency_id',
-        'district_id',
-        'village_id',
-        'address',
-        'education',
-        'bank_account_number',
-        'bank_account_name',
-        'bank_name',
-        'photo_url',
-        'id_card_url',
-        'family_card_url',
-        'bank_book_url',
-        'certificate_url',
-        'other_url',
-        'tanggal_terbit_ktp',
-        'tanggal_terbit_kk',
-    ];
+    protected $guarded = [];
 
     protected $casts = [
         'date_of_birth'       => 'date:Y-m-d',
@@ -187,5 +163,15 @@ class Participant extends Model
         }
 
         return (int) round(($filled / $total) * 100);
+    }
+
+    public function verifications()
+    {
+        return $this->hasMany(ParticipantVerification::class);
+    }
+
+    public function latestVerification()
+    {
+        return $this->hasOne(ParticipantVerification::class)->latestOfMany();
     }
 }

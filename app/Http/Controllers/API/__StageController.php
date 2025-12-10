@@ -6,7 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Stage;
 use Illuminate\Http\Request;
 
-class StageController extends Controller
+class __StageController extends Controller
 {
     /**
      * GET /api/v1/stages

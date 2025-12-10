@@ -45,37 +45,45 @@
     <div class="container-fluid">
       <div class="card">
         <div class="card-header">
-          <div class="row w-100">
-            
-            <!-- LEFT SIDE -->
-            <div class="col-md-6 d-flex align-items-center">
-              <label class="mb-0 mr-2 text-sm text-muted">Tampilkan</label>
+          <div class="d-flex flex-wrap justify-content-between align-items-center w-100">
 
-              <select
-                v-model.number="perPage"
-                class="form-control form-control-sm w-auto"
-              >
+            <!-- LEFT: perPage + Status -->
+            <div class="d-flex flex-wrap align-items-center">
+
+              <!-- perPage -->
+              <label class="mb-0 mr-1 text-sm text-muted">Tampilkan</label>
+              <select v-model.number="perPage" class="form-control form-control-sm w-auto mr-2">
                 <option :value="10">10</option>
                 <option :value="25">25</option>
                 <option :value="50">50</option>
                 <option :value="100">100</option>
               </select>
 
-              <span class="ml-2 text-sm text-muted">entri</span>
+              <!-- status -->
+              <label class="mb-0 mr-1 text-sm text-muted">Status</label>
+              <select v-model="filterStatus" class="form-control form-control-sm w-auto mr-3">
+                <option value="">Semua</option>
+                <option value="bankdata">Bank Data</option>
+                <option value="proses">Proses</option>
+                <option value="diterima">Diterima</option>
+                <option value="perbaiki">Perbaiki</option>
+                <option value="mundur">Mundur</option>
+                <option value="tolak">Tolak</option>
+              </select>
             </div>
 
-            <!-- RIGHT SIDE -->
-            <div class="col-md-6 d-flex justify-content-end">
-              <input
-                v-model="search"
-                type="text"
-                class="form-control form-control-sm w-75"
-                placeholder="Cari nama, NIK, atau nomor HP..."
-              />
-            </div>
+            <!-- RIGHT: Search -->
+            <input
+              v-model="search"
+              type="text"
+              class="form-control form-control-sm w-auto"
+              style="min-width: 200px"
+              placeholder="Cari nama / NIK / HP..."
+            />
 
           </div>
         </div>
+
 
 
 
@@ -89,8 +97,8 @@
                     type="checkbox"
                     :checked="isAllSelected"
                     @change="toggleSelectAll($event)"
-                    disabled
                   />
+                  <!-- disabled -->
                 </th>
                 <th style="width: 40px;">#</th>
                 <th>Nama Peserta</th>
@@ -119,8 +127,8 @@
                     type="checkbox"
                     :value="p.id"
                     v-model="selectedParticipantIds"
+                    :disabled="(p.status_pendaftaran || '').toLowerCase() !== 'bankdata' || p.lampiran_completion_percent < 80"
                   />
-                    <!-- :disabled="(p.status_pendaftaran || '').toLowerCase() !== 'bankdata' || p.lampiran_completion_percent < 80" -->
 
                 </td>
                 <td>{{ index + 1 + (meta.current_page - 1) * meta.per_page }}</td>
@@ -130,7 +138,7 @@
                     {{ p.gender === 'MALE' ? 'Laki-laki' : 'Perempuan' }},
                     lahir {{ p.place_of_birth }}
                   </div>
-                  <button class="btn btn-warning btn-xs">
+                  <button class="badge badge-sm" :class="statusBadgeClass(p.status_pendaftaran)">
                     {{ p.status_pendaftaran }}
                   </button>
 
@@ -181,32 +189,12 @@
                   </div>
                 </td>
 
-
-                <!-- <td class="text-center">
-                  <div class="btn-group btn-group-sm">
-                    <button
-                      class="btn btn-outline-warning btn-xs"
-                      title="Edit"
-                      @click="openEditModal(p)"
-                    >
-                      <i class="fas fa-edit"></i>
-                    </button>
-
-                    <button
-                      class="btn btn-outline-danger btn-xs"
-                      title="Hapus"
-                      @click="deleteParticipant(p)"
-                    >
-                      <i class="fas fa-trash-alt"></i>
-                    </button>
-                  </div>
-                </td> -->
-
                 <td class="text-center">
                   <div class="btn-group btn-group-sm">
 
-                    <!-- EDIT BIODATA -->
+                    <!-- EDIT BIODATA (hanya bankdata & perbaiki) -->
                     <button
+                      v-if="['bankdata', 'perbaiki'].includes(p.status_pendaftaran)"
                       class="btn btn-outline-warning btn-xs"
                       title="Edit Biodata"
                       @click="openEditModal(p)"
@@ -214,8 +202,9 @@
                       <i class="fas fa-user-edit"></i>
                     </button>
 
-                    <!-- EDIT LAMPIRAN -->
+                    <!-- EDIT LAMPIRAN (hanya bankdata & perbaiki) -->
                     <button
+                      v-if="['bankdata', 'perbaiki'].includes(p.status_pendaftaran)"
                       class="btn btn-outline-info btn-xs"
                       title="Edit Lampiran"
                       @click="openLampiranModal(p)"
@@ -223,7 +212,7 @@
                       <i class="fas fa-file-upload"></i>
                     </button>
 
-                    <!-- LIHAT DATA -->
+                    <!-- LIHAT DATA (selalu tampil) -->
                     <button
                       class="btn btn-outline-primary btn-xs"
                       title="Lihat Data Peserta"
@@ -232,8 +221,9 @@
                       <i class="fas fa-eye"></i>
                     </button>
 
-                    <!-- MUTASI PESERTA -->
+                    <!-- MUTASI PESERTA (hanya bankdata & perbaiki) -->
                     <button
+                      v-if="['bankdata', 'perbaiki'].includes(p.status_pendaftaran)"
                       class="btn btn-outline-success btn-xs"
                       title="Mutasi Peserta"
                       @click="openMutasiModal(p)"
@@ -243,6 +233,7 @@
 
                   </div>
                 </td>
+
 
 
               </tr>
@@ -1707,6 +1698,24 @@ import { useDebounceFn } from '@vueuse/core'
 import { useAuthUserStore } from '../../stores/AuthUserStore'
 import Swal from 'sweetalert2';
 
+// helper badge status di table
+const statusBadgeClass = (status) => {
+  switch (status) {
+    case 'proses':
+      return 'badge-warning'
+    case 'diterima':
+      return 'badge-success'
+    case 'perbaiki':
+      return 'badge-info'
+    case 'mundur':
+      return 'badge-secondary'
+    case 'tolak':
+      return 'badge-danger'
+    default:
+      return 'badge-light'
+  }
+}
+
 const selectedParticipant = ref(null)
 const authUserStore = useAuthUserStore()
 
@@ -1889,6 +1898,8 @@ const activeTab = ref('biodata')
 // LIST
 const participants = ref([])
 const perPage = ref(10)
+const filterStatus = ref('')
+
 const meta = ref({
   current_page: 1,
   per_page: 10,
@@ -2102,35 +2113,7 @@ const isInitLocation = ref(false)
 const isNikChecking = ref(false)
 
 
-// =======================================
-// HELPER EVENT
-// =======================================
-const getEventInfoFromStorage = () => {
-  let raw = ''
 
-  try {
-    raw = localStorage.getItem('event_data') || ''
-  } catch (e) {}
-
-  if (!raw) {
-    const cookie = document.cookie
-      .split('; ')
-      .find(row => row.startsWith('event_data='))
-    if (cookie) {
-      raw = decodeURIComponent(cookie.split('=')[1])
-    }
-  }
-
-  if (raw) {
-    try {
-      eventInfo.value = JSON.parse(raw)
-      eventId.value = eventInfo.value.id || null
-    } catch (e) {
-      console.error('Gagal parse event_data:', e)
-      eventInfo.value = null
-    }
-  }
-}
 
 const openFile = (field) => {
   let fileObj = files.value[field]
@@ -2204,6 +2187,7 @@ const fetchParticipants = async (page = 1) => {
         per_page: perPage.value,
         search: search.value,
         event_id: eventId.value,
+        status_pendaftaran: filterStatus.value || null,
       },
     })
 
@@ -3402,6 +3386,10 @@ watch(
   }
 )
 
+watch([perPage, filterStatus], () => {
+  fetchParticipants(1)
+})
+
 watch(
   () => search.value,
   useDebounceFn(() => fetchParticipants(1), 400)
@@ -3433,7 +3421,9 @@ watch(
 )
 
 onMounted(async () => {
-  getEventInfoFromStorage()
+  eventInfo.value = authUserStore.eventData
+  eventId.value = authUserStore.eventData.id
+
   await fetchProvinceOptions()
   await fetchBranchOptions()
   fetchParticipants()

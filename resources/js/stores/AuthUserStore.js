@@ -14,8 +14,8 @@ export const useAuthUserStore = defineStore('AuthUserStore', () => {
     const activeLayout = useStorage('AuthUserStore:activeLayout', ref('user'));
     const isLoading = useStorage('AuthUserStore:isLoading', ref(false));
     const isLoggingOut = useStorage('AuthUserStore:isLoggingOut', ref(false)); // 👈 optional, jika butuh pisah loading logout
-    const eventData = useStorage('AuthUserStore:eventData', ref({}));
-    const selectedEventKey = useStorage('AuthUserStore:selectedEventKey', ref(''));
+    const eventData = useStorage('AuthUserStore:eventData', {});
+    const selectedEventKey = useStorage('AuthUserStore:selectedEventKey', '');
 
     const user = useStorage('AuthUserStore:user', ref({
         name: '',
@@ -48,10 +48,21 @@ export const useAuthUserStore = defineStore('AuthUserStore', () => {
         permissions: [],
     }));
 
-    // const can =  (permission) => {
-    //     if (user.value.role.slug === 'superadmin') return true
-    //     return user.value.permissions.includes(permission)
-    // };
+    const preserveEventStorage = () => {
+        const savedEventData = localStorage.getItem('AuthUserStore:eventData')
+        const savedEventKey  = localStorage.getItem('AuthUserStore:selectedEventKey')
+
+        localStorage.clear()
+        sessionStorage.clear()
+
+        // Balikkan lagi yang penting
+        if (savedEventData !== null) {
+            localStorage.setItem('AuthUserStore:eventData', savedEventData)
+        }
+        if (savedEventKey !== null) {
+            localStorage.setItem('AuthUserStore:selectedEventKey', savedEventKey)
+        }
+    }
 
     const can = (permission) => {
         const u = user.value;
@@ -124,9 +135,7 @@ export const useAuthUserStore = defineStore('AuthUserStore', () => {
         } catch (error) {
             handleAuthError(error);
         }
-        // finally {
-        //     isLoading.value = false;
-        // }
+        
     };
 
     const getDocsUpdateState = async () => {
@@ -143,9 +152,7 @@ export const useAuthUserStore = defineStore('AuthUserStore', () => {
             handleAuthError(error);
             docsUpdateState.value = false;
         }
-        // finally {
-        //     isLoading.value = false;
-        // }
+        
     };
 
     const getAuthUser = async () => {
@@ -162,9 +169,7 @@ export const useAuthUserStore = defineStore('AuthUserStore', () => {
                 roles.includes('REVIEWER');
 
             isAuthenticated.value = true;
-            // docsProgressState.value = response.data.employee?.docs_progress_state;
-            // console.log('response.data.employee?.progress_dokumen:' + response.data.employee?.progress_dokumen);
-            // progressDokumen.value = response.data.employee?.progress_dokumen;
+            
         } catch (error) {
             handleAuthError(error);
         } finally {
@@ -184,8 +189,12 @@ export const useAuthUserStore = defineStore('AuthUserStore', () => {
             await axios.post('/logout');
 
             // Bersihkan data
-            localStorage.clear();
-            sessionStorage.clear();
+            // preserveEventStorage()
+
+            localStorage.clear()
+            sessionStorage.clear()
+            localStorage.clear()
+            sessionStorage.clear()
             document.cookie.split(";").forEach(cookie => {
                 const eqPos = cookie.indexOf("=");
                 const name = eqPos > -1 ? cookie.substr(0, eqPos) : cookie;
@@ -220,8 +229,7 @@ export const useAuthUserStore = defineStore('AuthUserStore', () => {
             docsUpdateState.value = true;
 
             // Bersihkan data
-            localStorage.clear();
-            sessionStorage.clear();
+            // preserveEventStorage();
             document.cookie.split(";").forEach(cookie => {
                 const eqPos = cookie.indexOf("=");
                 const name = eqPos > -1 ? cookie.substr(0, eqPos) : cookie;

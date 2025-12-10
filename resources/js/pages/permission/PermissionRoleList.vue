@@ -201,6 +201,43 @@
                 </div>
               </div>
 
+              <div v-if="groupedPermissions.participant && groupedPermissions.participant.permissions.length"
+                   class="card mb-3 border-0 shadow-sm">
+                <div class="card-header py-2 bg-danger text-white d-flex align-items-center">
+                  <div class="custom-control custom-checkbox mb-0">
+                    <input
+                      type="checkbox"
+                      class="custom-control-input"
+                      id="group-participant"
+                      :checked="isGroupFullyChecked('participant')"
+                      @change="toggleGroup('participant', $event.target.checked)"
+                    />
+                    <label class="custom-control-label font-weight-bold" for="group-participant">
+                      Kelola Peserta
+                    </label>
+                  </div>
+                </div>
+                <div class="card-body py-2">
+                  <div
+                    v-for="perm in groupedPermissions.participant.permissions"
+                    :key="perm.id"
+                    class="custom-control custom-checkbox mb-1"
+                  >
+                    <input
+                      type="checkbox"
+                      class="custom-control-input"
+                      :id="'perm-'+perm.id"
+                      :value="perm.id"
+                      v-model="selectedPermissionIds"
+                    />
+                    <label class="custom-control-label" :for="'perm-'+perm.id">
+                      {{ perm.name }}
+                      <small class="text-muted">({{ perm.slug }})</small>
+                    </label>
+                  </div>
+                </div>
+              </div>
+
               <!-- Group lain (opsional) -->
               <div
                 v-for="group in otherGroups"
@@ -342,10 +379,11 @@ const fetchPermissions = async () => {
 // ====== GROUPING PERMISSION BY PREFIX SLUG ======
 const groupedPermissions = computed(() => {
   const groups = {
-    dashboard: { key: 'dashboard', title: 'Beranda', permissions: [] },
-    master:    { key: 'master',    title: 'Master Data', permissions: [] },
-    event:     { key: 'event',     title: 'Master Acara / Event', permissions: [] },
-    other:     { key: 'other',     title: 'Lainnya', permissions: [] },
+    dashboard:        { key: 'dashboard',       title: 'Beranda', permissions: [] },
+    master:           { key: 'master',          title: 'Master Data', permissions: [] },
+    event:            { key: 'event',           title: 'Master Acara / Event', permissions: [] },
+    participant:      { key: 'participant',     title: 'Peserta', permissions: [] },
+    other:            { key: 'other',           title: 'Lainnya', permissions: [] },
   }
 
   allPermissions.value.forEach(p => {
@@ -357,6 +395,8 @@ const groupedPermissions = computed(() => {
       groups.event.permissions.push(p)
     } else if (prefix === 'dashboard') {
       groups.dashboard.permissions.push(p)
+    } else if (prefix === 'participant') {
+      groups.participant.permissions.push(p)
     } else {
       groups.other.permissions.push(p)
     }
