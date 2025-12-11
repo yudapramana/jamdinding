@@ -74,6 +74,11 @@ export default [
         name: 'admin.event.field-components',
         component: () => import('./pages/event/EventFieldComponents.vue'),
       },
+      {
+        path: 'event-participants',
+        name: 'admin.event.participants',
+        component: () => import('./pages/EventParticipants.vue'),
+      },
 
       {
         path: 'event-stage',

@@ -77,6 +77,21 @@ class EventParticipant extends Pivot
         return $this->belongsTo(Participant::class);
     }
 
+    public function eventBranch()
+    {
+        return $this->belongsTo(EventBranch::class, 'event_branch_id');
+    }
+
+    public function eventGroup()
+    {
+        return $this->belongsTo(EventGroup::class, 'event_group_id');
+    }
+
+    public function eventCategory()
+    {
+        return $this->belongsTo(EventCategory::class, 'event_category_id');
+    }
+
     public function scoresheets()
     {
         return $this->hasMany(EventScoresheet::class);

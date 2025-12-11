@@ -7,7 +7,7 @@ use App\Models\Event;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
-class EventController extends Controller
+class __EventController extends Controller
 {
     public function index(Request $request)
     {
@@ -76,7 +76,7 @@ class EventController extends Controller
             'logo_sponsor_2'        => ['nullable', 'string', 'max:255'],
             'logo_sponsor_3'        => ['nullable', 'string', 'max:255'],
 
-            'tingkat_event'         => ['required', Rule::in(['nasional', 'provinsi', 'kabupaten_kota', 'kecamatan'])],
+            'event_level'         => ['required', Rule::in(['national', 'province', 'regency', 'district'])],
 
             'province_id'           => ['nullable', 'exists:provinces,id'],
             'regency_id'            => ['nullable', 'exists:regencies,id'],
@@ -130,7 +130,8 @@ class EventController extends Controller
             'logo_sponsor_2'        => ['nullable', 'string', 'max:255'],
             'logo_sponsor_3'        => ['nullable', 'string', 'max:255'],
 
-            'tingkat_event'         => ['nullable', Rule::in(['nasional', 'provinsi', 'kabupaten_kota', 'kecamatan'])],
+                        'event_level'         => ['required', Rule::in(['national', 'province', 'regency', 'district'])],
+
 
             'province_id'           => ['nullable', 'exists:provinces,id'],
             'regency_id'            => ['nullable', 'exists:regencies,id'],

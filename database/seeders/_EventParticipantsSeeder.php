@@ -10,6 +10,7 @@ use App\Models\EventGroup;
 use App\Models\Province;
 use App\Models\Regency;
 use App\Models\District;
+use App\Models\EventBranch;
 use App\Models\Village;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
@@ -279,6 +280,19 @@ class _EventParticipantsSeeder extends Seeder
             return null;
         }
 
+        // 4) Cari event_branch berdasarkan branch_id yang sama
+        $eventBranch = EventBranch::where('event_id', $this->eventId)
+            ->where('branch_id', $eventCategory->branch_id)
+            ->first();
+
+        if (!$eventBranch) {
+            $this->command?->warn(
+                "Baris {$excelRowNumber}: EventBranch tidak ditemukan untuk ".
+                "branch_id={$eventCategory->branch_id}, group_id={$eventCategory->group_id}. Baris dilewati."
+            );
+            return null;
+        }
+
         // Normalisasi education
         $education = strtoupper($education ?: 'SMA');
         $allowedEdu = ['SD','SMP','SMA','D1','D2','D3','D4','S1','S2','S3'];
@@ -338,6 +352,7 @@ class _EventParticipantsSeeder extends Seeder
 
         $eventParticipantData = [
             'event_id'         => $this->eventId,
+            'event_branch_id'  => $eventBranch->id,
             'event_group_id'   => $eventGroup->id,
             'event_category_id'=> $eventCategory->id,
 

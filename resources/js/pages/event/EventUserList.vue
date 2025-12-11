@@ -4,18 +4,22 @@
       <div class="d-flex justify-content-between align-items-center">
         <div>
           <h1 class="mb-1">Daftar User Event</h1>
+
+          <!-- Info event -->
           <p class="text-sm text-muted mb-0" v-if="eventInfo">
             Event:
-            <strong>{{ eventInfo.nama_event || eventInfo.name }}</strong>
-            <span v-if="eventInfo.nama_aplikasi || eventInfo.app_name">
-              — {{ eventInfo.nama_aplikasi || eventInfo.app_name }}
+            <strong>{{ eventName }}</strong>
+            <span v-if="appName">
+              — {{ appName }}
             </span>
             <br />
             <span class="text-xs">
               Tingkat:
-              <strong>{{ eventInfo.tingkat_event || '-' }}</strong>
+              <strong>{{ eventLevelLabel }}</strong>
             </span>
           </p>
+
+          <!-- Jika event belum ada -->
           <p class="text-sm text-danger mb-0" v-else>
             Event belum dipilih. Silakan kembali ke landing dan pilih event terlebih dahulu.
           </p>
@@ -44,7 +48,6 @@
             Tambah User
           </button>
         </div>
-
       </div>
     </div>
   </section>
@@ -94,7 +97,7 @@
                 </td>
                 <td>
                   <span v-if="u.event">
-                    {{ u.event.nama_event || u.event.name || ('Event #' + u.event.id) }}
+                    {{ u.event.event_name || u.event.nama_event || u.event.name || ('Event #' + u.event.id) }}
                   </span>
                   <span v-else class="text-muted">Global</span>
                 </td>
@@ -238,7 +241,7 @@
                     <input
                       type="text"
                       class="form-control form-control-sm"
-                      :value="eventInfo ? (eventInfo.nama_event || ('Event #' + eventId)) : 'Global / Tidak terikat event'"
+                      :value="eventInfo ? eventName : 'Global / Tidak terikat event'"
                       readonly
                     />
                   </div>
@@ -273,7 +276,6 @@
       </div>
     </div>
 
-
     <!-- Modal Generate User -->
     <div class="modal fade" id="generateUserModal" tabindex="-1" role="dialog">
       <div class="modal-dialog" role="document">
@@ -291,16 +293,16 @@
           <div class="modal-body">
             <p class="text-sm mb-2" v-if="eventInfo">
               Event:
-              <strong>{{ eventInfo.nama_event || eventInfo.name }}</strong><br>
+              <strong>{{ eventName }}</strong><br>
               Tingkat:
-              <strong>{{ eventInfo.tingkat_event }}</strong>
+              <strong>{{ eventLevelLabel }}</strong>
             </p>
             <p class="text-xs text-muted mb-3">
               Sistem akan membuat user untuk
-              <span v-if="eventInfo && eventInfo.tingkat_event === 'provinsi'">
+              <span v-if="levelForLogic === 'province' || levelForLogic === 'provinsi'">
                 setiap <strong>kabupaten/kota</strong> pada provinsi ini.
               </span>
-              <span v-else-if="eventInfo && eventInfo.tingkat_event === 'kabupaten_kota'">
+              <span v-else-if="levelForLogic === 'regency' || levelForLogic === 'kabupaten_kota'">
                 setiap <strong>kecamatan</strong> pada kabupaten/kota ini.
               </span>
             </p>
@@ -394,7 +396,7 @@ import { ref, onMounted, watch, computed } from 'vue'
 import axios from 'axios'
 import { useDebounceFn } from '@vueuse/core'
 import { useAuthUserStore } from '../../stores/AuthUserStore'
-import Swal from 'sweetalert2';
+import Swal from 'sweetalert2'
 
 const authUserStore = useAuthUserStore()
 
@@ -415,7 +417,7 @@ const form = ref({})
 
 const roleOptions = ref([])
 
-// Event context dari localStorage / cookie
+// Event context dari AuthUserStore
 const eventInfo = ref(null)
 const eventId = ref(null)
 
@@ -428,6 +430,83 @@ const generateForm = ref({
   email_domain: '',
 })
 
+/**
+ * Computed untuk nama event (skema baru + fallback)
+ */
+const eventName = computed(() => {
+  if (!eventInfo.value) return ''
+  return (
+    eventInfo.value.event_name ||
+    eventInfo.value.nama_event ||
+    eventInfo.value.name ||
+    `Event #${eventInfo.value.id}`
+  )
+})
+
+/**
+ * Computed untuk nama aplikasi dari event (skema baru + fallback)
+ */
+const appName = computed(() => {
+  if (!eventInfo.value) return ''
+  return eventInfo.value.app_name || eventInfo.value.nama_aplikasi || ''
+})
+
+/**
+ * Level event untuk keperluan logika (gunakan event_level skema baru,
+ * fallback ke tingkat_event lama)
+ */
+const levelForLogic = computed(() => {
+  if (!eventInfo.value) return null
+  return eventInfo.value.event_level || eventInfo.value.tingkat_event || null
+})
+
+/**
+ * Label level event yang rapi untuk ditampilkan
+ */
+const eventLevelLabel = computed(() => {
+  const level = levelForLogic.value
+  switch (level) {
+    case 'national':
+    case 'nasional':
+      return 'Nasional'
+    case 'province':
+    case 'provinsi':
+      return 'Provinsi'
+    case 'regency':
+    case 'kabupaten_kota':
+      return 'Kabupaten/Kota'
+    case 'district':
+    case 'kecamatan':
+      return 'Kecamatan'
+    default:
+      return level || '-'
+  }
+})
+
+// bisa generate user kalau level provinsi/province atau kabupaten_kota/regency
+const canGenerateUsers = computed(() => {
+  const level = levelForLogic.value
+  if (!level) return false
+  return (
+    level === 'province' ||
+    level === 'provinsi' ||
+    level === 'regency' ||
+    level === 'kabupaten_kota'
+  )
+})
+
+// Sinkronisasi event context dari AuthUserStore agar aman jika eventData null
+const syncEventContext = () => {
+  const data = authUserStore.eventData
+  if (data && typeof data === 'object') {
+    eventInfo.value = data
+    eventId.value = data.id ?? null
+  } else {
+    eventInfo.value = null
+    eventId.value = null
+  }
+}
+
 const openGenerateModal = () => {
   if (!eventId.value || !eventInfo.value) {
     alert('Event belum terdeteksi. Tidak dapat generate user.')
@@ -435,7 +514,7 @@ const openGenerateModal = () => {
   }
 
   if (!canGenerateUsers.value) {
-    alert('Generate user hanya bisa untuk event tingkat provinsi atau kabupaten_kota.')
+    alert('Generate user hanya bisa untuk event tingkat provinsi/province atau kabupaten_kota/regency.')
     return
   }
 
@@ -448,16 +527,6 @@ const openGenerateModal = () => {
 
   $('#generateUserModal').modal('show')
 }
-
-
-
-// bisa generate user kalau tingkat_event provinsi atau kabupaten_kota
-const canGenerateUsers = computed(() => {
-  if (!eventInfo.value) return false
-  const level = eventInfo.value.tingkat_event
-  return level === 'provinsi' || level === 'kabupaten_kota'
-})
-
 
 const fetchRoles = async () => {
   try {
@@ -500,7 +569,7 @@ const fetchUsers = async (page = 1) => {
   }
 }
 
-// === GENERATE USER OTOMATIS BERDASARKAN tingkat_event ===
+// === GENERATE USER OTOMATIS BERDASARKAN event_level / tingkat_event ===
 const submitGenerateUsers = async () => {
   if (!eventId.value || !eventInfo.value) return
 
@@ -509,15 +578,15 @@ const submitGenerateUsers = async () => {
     return
   }
 
-  const level = eventInfo.value.tingkat_event
+  const level = levelForLogic.value
   let msg = 'Generate user otomatis untuk event ini?'
 
-  if (level === 'provinsi') {
+  if (level === 'province' || level === 'provinsi') {
     msg =
       'Generate user untuk SEMUA kabupaten/kota pada provinsi ini?\n' +
       'Nama & username user akan dibentuk dari: KODE_EVENT + nama kab/kota.\n' +
       'Password & domain email mengikuti pengaturan di form.'
-  } else if (level === 'kabupaten_kota') {
+  } else if (level === 'regency' || level === 'kabupaten_kota') {
     msg =
       'Generate user untuk SEMUA kecamatan pada kabupaten/kota ini?\n' +
       'Nama & username user akan dibentuk dari: KODE_EVENT + nama kecamatan.\n' +
@@ -544,14 +613,12 @@ const submitGenerateUsers = async () => {
     $('#generateUserModal').modal('hide')
 
     Swal.fire({
-            icon: 'success',
-            title: 'Generate User Berhasil',
-            showConfirmButton: false,
-            timer: 2000
-        });
+      icon: 'success',
+      title: 'Generate User Berhasil',
+      showConfirmButton: false,
+      timer: 2000,
+    })
 
-
-    // alert(res.data?.message || 'Generate user berhasil.')
     await fetchUsers(meta.value.current_page)
   } catch (error) {
     console.error('Gagal generate user:', error)
@@ -560,7 +627,6 @@ const submitGenerateUsers = async () => {
     isGenerating.value = false
   }
 }
-
 
 const openCreateModal = () => {
   if (!eventId.value) {
@@ -645,6 +711,7 @@ const deleteUser = async (u) => {
   }
 }
 
+// debounce pencarian
 watch(
   search,
   useDebounceFn(() => {
@@ -652,9 +719,18 @@ watch(
   }, 400)
 )
 
+// kalau eventData di AuthUserStore berubah (pilih event baru), sinkron & reload
+watch(
+  () => authUserStore.eventData,
+  () => {
+    syncEventContext()
+    fetchUsers(1)
+  },
+  { immediate: false }
+)
+
 onMounted(() => {
-  eventInfo.value = authUserStore.eventData
-    eventId.value = authUserStore.eventData.id
+  syncEventContext()
   fetchRoles()
   fetchUsers()
 })

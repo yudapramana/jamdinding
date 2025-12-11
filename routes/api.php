@@ -4,15 +4,21 @@ use App\Http\Controllers\Api\__BranchController;
 use App\Http\Controllers\Api\__CategoryController;
 use App\Http\Controllers\Api\__EventBranchController;
 use App\Http\Controllers\Api\__EventCategoryController;
+use App\Http\Controllers\API\__EventController;
 use App\Http\Controllers\API\__EventFieldComponentController;
 use App\Http\Controllers\Api\__EventGroupController;
+use App\Http\Controllers\API\__EventParticipantController;
+use App\Http\Controllers\API\__EventStageController;
 use App\Http\Controllers\Api\__GroupController;
 use App\Http\Controllers\Api\__ListFieldController;
 use App\Http\Controllers\Api\__MasterBranchController;
 use App\Http\Controllers\Api\__MasterCategoryController;
 use App\Http\Controllers\Api\__MasterFieldComponentController;
 use App\Http\Controllers\API\__MasterGroupController;
+use App\Http\Controllers\API\__ParticipantController;
 use App\Http\Controllers\API\__StageController;
+use App\Http\Controllers\API\__UserController;
+
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\API\StageController;
@@ -22,7 +28,6 @@ use App\Http\Controllers\API\MasterCompetitionCategoryController;
 use App\Http\Controllers\API\MasterCompetitionBranchController;
 use App\Http\Controllers\API\EventCompetitionBranchController;
 use App\Http\Controllers\API\RoleController;
-use App\Http\Controllers\API\UserController;
 use App\Http\Controllers\API\PermissionRoleController;
 use App\Http\Controllers\API\SimpleRoleController;
 use App\Http\Controllers\API\SimplePermissionController;
@@ -74,102 +79,101 @@ Route::middleware(['auth:sanctum']) // kalau belum pakai sanctum, boleh dihapus 
     ->prefix('v1')
     ->group(function () {
 
-
-        
-        // MASTER CABANG GOLONGAN
+        /**
+         * REFERENCE DATA
+         * Data sebagai Referensi untuk master dan transactional data
+         */
+        // REFERENSI CABANG GOLONGAN
         Route::apiResource('branches', __BranchController::class)->except(['show']);
         Route::apiResource('groups', __GroupController::class)->except(['show']);
         Route::apiResource('categories', __CategoryController::class)->except(['show']);
 
-        // MASTER BIDANG PENILAIAN
+        // REFERENSI BIDANG PENILAIAN
         Route::apiResource('list-fields', __ListFieldController::class)->except(['show']);
         
-        // MASTER STAGES
+        // REFERENSI TAHAPAN
         Route::apiResource('stages', __StageController::class)->middleware('permission:master.manage.stage');
 
+        /**
+         * MASTER DATA
+         * Data jadi yang bisa digunakan untuk transactional data
+         */
+        // MASTER CABANG GOLONGAN
         Route::apiResource('master-branches', __MasterBranchController::class)->except(['show']);
-
-        Route::get('/master-groups', [__MasterGroupController::class, 'index']);
-        Route::post('/master-groups', [__MasterGroupController::class, 'store']);
-        Route::put('/master-groups/{id}', [__MasterGroupController::class, 'update']);
-        Route::delete('/master-groups/{id}', [__MasterGroupController::class, 'destroy']);
-
+        Route::apiResource('master-groups', __MasterGroupController::class)->except(['show']);
         Route::apiResource('master-categories', __MasterCategoryController::class)->except(['show']);
 
-        Route::apiResource('master-field-components', __MasterFieldComponentController::class)
-        ->except(['show']);
+        // MASTER KOMPONEN PENILAIAN
+        Route::apiResource('master-field-components', __MasterFieldComponentController::class)->except(['show']);
 
 
+        /**
+         * MANAGED DATA
+         * Data yang di manage / dikelola sebagai bagian transactional data
+         */
+        // EVENT - PENGATURAN DATA TRANSACTIONAL EVENT
+        Route::apiResource('events', __EventController::class);
+
+        // EVENT - PENGATURAN TAHAPAN EVENT
+        Route::apiResource('event-stages', __EventStageController::class)->except(['index']);
+        Route::get('events/{event}/stages', [__EventStageController::class, 'index'])->middleware('permission:event.manage.stage');
+        Route::post('events/{event}/stages/generate-default', [__EventStageController::class, 'generateFromMaster'])->middleware('permission:event.manage.stage');
+
+        // EVENT - PENGATURAN CABANG LOMBA
         Route::get('event-branches', [__EventBranchController::class, 'index']);
         Route::post('event-branches', [__EventBranchController::class, 'store']);
         Route::put('event-branches/{eventBranch}', [__EventBranchController::class, 'update']);
         Route::delete('event-branches/{eventBranch}', [__EventBranchController::class, 'destroy']);
+        Route::post('event-branches/generate-from-template', [__EventBranchController::class, 'generateFromTemplate']); // tombol "Generate dari Template"
 
-        // tombol "Generate dari Template"
-        Route::post('event-branches/generate-from-template', [__EventBranchController::class, 'generateFromTemplate']);
-
+        // EVENT - PENGATURAN GOLONGAN LOMBA
         Route::get('event-groups', [__EventGroupController::class, 'index']);
         Route::post('event-groups', [__EventGroupController::class, 'store']);
         Route::put('event-groups/{eventGroup}', [__EventGroupController::class, 'update']);
         Route::delete('event-groups/{eventGroup}', [__EventGroupController::class, 'destroy']);
-
-        // Generate dari master_groups
-        Route::post('event-groups/generate-from-template', [__EventGroupController::class, 'generateFromTemplate']);
+        Route::post('event-groups/generate-from-template', [__EventGroupController::class, 'generateFromTemplate']); // Generate dari master_groups
         
+        // EVENT - PENGATURAN CABANG GOLONGAN LOMBA
         Route::get('event-categories', [__EventCategoryController::class, 'index']);
         Route::post('event-categories', [__EventCategoryController::class, 'store']);
         Route::put('event-categories/{eventCategory}', [__EventCategoryController::class, 'update']);
         Route::delete('event-categories/{eventCategory}', [__EventCategoryController::class, 'destroy']);
-
         Route::post('event-categories/generate-from-template', [__EventCategoryController::class, 'generateFromTemplate']);
 
+        // EVENT - PENGATURAN KOMPONEN PENILAIAN LOMBA
         Route::get('event-field-components', [__EventFieldComponentController::class, 'index']);
         Route::post('event-field-components', [__EventFieldComponentController::class, 'store']);
         Route::put('event-field-components/{id}', [__EventFieldComponentController::class, 'update']);
         Route::delete('event-field-components/{id}', [__EventFieldComponentController::class, 'destroy']);
+        Route::post('event-field-components/generate-from-template', [__EventFieldComponentController::class, 'generateFromTemplate']);
 
-        Route::post(
-            'event-field-components/generate-from-template',
-            [__EventFieldComponentController::class, 'generateFromTemplate']
-        );
+        // Participants (bank data)
+        Route::get('/participants', [__ParticipantController::class, 'index']);
+        Route::get('/participants/search-by-nik', [__ParticipantController::class, 'searchByNik']);
+        Route::post('/participants', [__ParticipantController::class, 'store']);
+        Route::get('/participants/{participant}', [__ParticipantController::class, 'show']);
+        Route::put('/participants/{participant}', [__ParticipantController::class, 'update']);
+        Route::delete('/participants/{participant}', [__ParticipantController::class, 'destroy']);
 
+        // Event Participants
+        Route::get('/events/{event}/participants', [__EventParticipantController::class, 'index']);
+        Route::post('/events/{event}/participants', [__EventParticipantController::class, 'store']);
 
-        // EVENT STAGES
-        Route::get('events/{event}/stages', [EventStageController::class, 'index'])->middleware('permission:event.manage.stage');
-        Route::post('events/{event}/stages/generate-default', [EventStageController::class, 'generateFromMaster'])->middleware('permission:event.manage.stage');
+        Route::get('/events/{event}/simple', [__EventParticipantController::class, 'simple']);
 
-        // Kalau mau akses langsung by ID
-        Route::apiResource('event-stages', EventStageController::class)->except(['index']);
+        Route::post('/save-event-participants/', [__EventParticipantController::class, 'eventParticipant']);
 
-        Route::apiResource(
-            'master-competition-groups',
-            MasterCompetitionGroupController::class
-        );
+        Route::get('/event-participants/{eventParticipant}', [__EventParticipantController::class, 'show']);
+        Route::put('/event-participants/{eventParticipant}', [__EventParticipantController::class, 'update']);
+        Route::delete('/event-participants/{eventParticipant}', [__EventParticipantController::class, 'destroy']);
+        Route::post('event-participants/{eventParticipant}/mutasi-wilayah', [
+            __EventParticipantController::class, 'mutasiWilayah'
+        ]);
 
-        Route::apiResource(
-            'master-competition-categories',
-            MasterCompetitionCategoryController::class
-        );
-
-        Route::apiResource(
-            'master-competition-branches',
-            MasterCompetitionBranchController::class
-        );
-
-        Route::apiResource(
-            'event-competition-branches',
-            EventCompetitionBranchController::class
-        );
-
-        // 🔥 Generate event competition branches dari master untuk event tertentu
-        Route::post(
-            'events/{event}/competition-branches/generate-from-master',
-            [EventCompetitionBranchController::class, 'generateFromMaster']
-        );
 
         // CRUD Users (per event)
-        Route::apiResource('users', UserController::class);
-        Route::post('events/{event}/generate-users', [UserController::class, 'generateUsersByEvent']);
+        Route::apiResource('users', __UserController::class);
+        Route::post('events/{event}/generate-users', [__UserController::class, 'generateUsersByEvent']);
 
 
         // Optional: list roles untuk dropdown
@@ -182,13 +186,12 @@ Route::middleware(['auth:sanctum']) // kalau belum pakai sanctum, boleh dihapus 
         Route::get('roles-simple', [SimpleRoleController::class, 'index']);
         Route::get('permissions-simple', [SimplePermissionController::class, 'index']);
 
-        Route::apiResource('events', EventController::class);
 
-        // LIST / CREATE / UPDATE / DELETE EVENT_PARTICIPANTS
-        Route::get('participants', [ParticipantController::class, 'index']);
-        Route::post('participants', [ParticipantController::class, 'store']);
-        Route::get('participants/{eventParticipant}', [ParticipantController::class, 'show']);
-        Route::put('participants/{eventParticipant}', [ParticipantController::class, 'update']);
+        // // LIST / CREATE / UPDATE / DELETE EVENT_PARTICIPANTS
+        // Route::get('participants', [ParticipantController::class, 'index']);
+        // Route::post('participants', [ParticipantController::class, 'store']);
+        // Route::get('participants/{eventParticipant}', [ParticipantController::class, 'show']);
+        // Route::put('participants/{eventParticipant}', [ParticipantController::class, 'update']);
         Route::get('check-nik', [ParticipantController::class, 'checkNik']);
 
 

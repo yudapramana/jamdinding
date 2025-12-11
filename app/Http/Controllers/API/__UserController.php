@@ -13,7 +13,7 @@ use App\Models\Event;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
-class UserController extends Controller
+class __UserController extends Controller
 {
     public function index(Request $request)
 {
@@ -148,10 +148,10 @@ class UserController extends Controller
 
         $roleId = $validated['role_id'];
 
-        // hanya boleh untuk tingkat provinsi atau kabupaten_kota
-        if (!in_array($event->tingkat_event, ['provinsi', 'kabupaten_kota'])) {
+        // hanya boleh untuk tingkat province atau regency
+        if (!in_array($event->event_level, ['province', 'regency'])) {
             return response()->json([
-                'message' => 'Generate user hanya didukung untuk event tingkat provinsi atau kabupaten_kota.',
+                'message' => 'Generate user hanya didukung untuk event tingkat province atau regency.',
             ], 422);
         }
 
@@ -165,11 +165,11 @@ class UserController extends Controller
         $skippedCount    = 0;
         $role = Role::find($roleId);
 
-        if ($event->tingkat_event === 'provinsi') {
+        if ($event->event_level === 'province') {
             // Ambil semua kabupaten/kota di province_id event ini
             if (!$event->province_id) {
                 return response()->json([
-                    'message' => 'Event tingkat provinsi harus memiliki province_id.',
+                    'message' => 'Event tingkat province harus memiliki province_id.',
                 ], 422);
             }
 
@@ -218,12 +218,12 @@ class UserController extends Controller
                 $createdCount++;
             }
 
-        } elseif ($event->tingkat_event === 'kabupaten_kota') {
+        } elseif ($event->event_level === 'regency') {
 
             // Ambil semua kecamatan di regency_id event ini
             if (!$event->regency_id) {
                 return response()->json([
-                    'message' => 'Event tingkat kabupaten_kota harus memiliki regency_id.',
+                    'message' => 'Event tingkat regency harus memiliki regency_id.',
                 ], 422);
             }
 
@@ -273,7 +273,7 @@ class UserController extends Controller
         return response()->json([
             'message'              => 'Generate user selesai.',
             'event_id'             => $event->id,
-            'tingkat_event'        => $event->tingkat_event,
+            'event_level'        => $event->event_level,
             'created'              => $createdCount,
             'skipped'              => $skippedCount,
             'role_id_used'         => $roleId,

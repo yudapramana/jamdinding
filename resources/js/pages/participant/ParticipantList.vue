@@ -6,8 +6,8 @@
           <h1 class="mb-1">Bank Data Peserta</h1>
           <p class="mb-0 text-muted text-sm">
             Event:
-            <strong>{{ eventInfo?.nama_event || '-' }}</strong>
-            <span v-if="eventInfo?.lokasi_event"> • {{ eventInfo.lokasi_event }}</span>
+            <strong>{{ eventInfo?.event_name || '-' }}</strong>
+            <span v-if="eventInfo?.event_location"> • {{ eventInfo.event_location }}</span>
           </p>
         </div>
 
@@ -587,9 +587,9 @@
                         }"
                         :disabled="
                           !provinceOptions.length ||
-                          tingkatEvent === 'provinsi' ||
-                          tingkatEvent === 'kabupaten_kota' ||
-                          tingkatEvent === 'kecamatan'
+                          tingkatEvent === 'province' ||
+                          tingkatEvent === 'regency' ||
+                          tingkatEvent === 'district'
                         "
                         @blur="() => validateField('province_id')"
                       >
@@ -621,8 +621,8 @@
                         :disabled="
                           !form.province_id ||
                           isLoadingRegencies ||
-                          tingkatEvent === 'kabupaten_kota' ||
-                          tingkatEvent === 'kecamatan'
+                          tingkatEvent === 'regency' ||
+                          tingkatEvent === 'district'
                         "
                         @blur="() => validateField('regency_id')"
                       >
@@ -659,7 +659,7 @@
                         :disabled="
                           !form.regency_id ||
                           isLoadingDistricts ||
-                          tingkatEvent === 'kecamatan'
+                          tingkatEvent === 'district'
                         "
                         @blur="() => validateField('district_id')"
                       >
@@ -1696,27 +1696,8 @@ import { ref, onMounted, watch, computed } from 'vue'
 import axios from 'axios'
 import { useDebounceFn } from '@vueuse/core'
 import { useAuthUserStore } from '../../stores/AuthUserStore'
-import Swal from 'sweetalert2';
+import Swal from 'sweetalert2'
 
-// helper badge status di table
-const statusBadgeClass = (status) => {
-  switch (status) {
-    case 'proses':
-      return 'badge-warning'
-    case 'diterima':
-      return 'badge-success'
-    case 'perbaiki':
-      return 'badge-info'
-    case 'mundur':
-      return 'badge-secondary'
-    case 'tolak':
-      return 'badge-danger'
-    default:
-      return 'badge-light'
-  }
-}
-
-const selectedParticipant = ref(null)
 const authUserStore = useAuthUserStore()
 
 // user login sekarang
@@ -1728,7 +1709,54 @@ const isPrivileged = computed(() => {
   return roleName === 'SUPERADMIN' || roleName === 'ADMIN_EVENT'
 })
 
-// cek apakah sebuah field lampiran sudah terisi file / url
+// ==================================================
+// BADGE STATUS
+// ==================================================
+
+// backend: registration_status =
+// 'bank_data', 'process', 'verified', 'need_revision', 'rejected', 'disqualified'
+const statusBadgeClass = (status) => {
+  switch ((status || '').toLowerCase()) {
+    case 'bank_data':
+      return 'badge-secondary'
+    case 'process':
+      return 'badge-warning'
+    case 'verified':
+      return 'badge-success'
+    case 'need_revision':
+      return 'badge-info'
+    case 'rejected':
+      return 'badge-danger'
+    case 'disqualified':
+      return 'badge-dark'
+    default:
+      return 'badge-light'
+  }
+}
+
+// helper kalau nanti mau label teks Indonesia
+const statusLabel = (status) => {
+  switch ((status || '').toLowerCase()) {
+    case 'bank_data':
+      return 'BANKDATA'
+    case 'process':
+      return 'Proses'
+    case 'verified':
+      return 'Diverifikasi'
+    case 'need_revision':
+      return 'Perlu Perbaikan'
+    case 'rejected':
+      return 'Ditolak'
+    case 'disqualified':
+      return 'Diskualifikasi'
+    default:
+      return status || '-'
+  }
+}
+
+// ==================================================
+const selectedParticipant = ref(null)
+
 const hasFile = (field) => {
   return !!(files.value[field] || form.value[field])
 }
@@ -1743,7 +1771,6 @@ const openViewModal = (p) => {
   $('#viewParticipantModal').modal('show')
 }
 
-
 const openFileDetail = (field) => {
   if (!selectedParticipant.value) return
   const url = selectedParticipant.value[field]
@@ -1751,6 +1778,8 @@ const openFileDetail = (field) => {
   window.open(url, '_blank')
 }
 
+// ==================================================
+// SELECTION & BULK REGISTER
 // ==================================================
 
 const selectedParticipantIds = ref([])
@@ -1770,10 +1799,8 @@ const isAllSelected = computed(() => {
 const toggleSelectAll = (event) => {
   const checked = event.target.checked
   if (checked) {
-    // pilih semua peserta di halaman saat ini
     selectedParticipantIds.value = participants.value.map(p => p.id)
   } else {
-    // hapus semua id peserta yang ada di halaman ini dari selection
     const pageIds = participants.value.map(p => p.id)
     selectedParticipantIds.value = selectedParticipantIds.value.filter(
       id => !pageIds.includes(id)
@@ -1787,7 +1814,6 @@ const openRegisterModal = () => {
 }
 
 const submitRegisterParticipants = async () => {
-  // 1. Tidak ada peserta dipilih
   if (!selectedParticipantIds.value.length || !eventId.value) {
     Swal.fire({
       icon: 'warning',
@@ -1797,20 +1823,18 @@ const submitRegisterParticipants = async () => {
     return
   }
 
-  // 2. Ambil peserta terpilih dari computed selectedParticipants
   const selected = selectedParticipants.value
 
-  // Peserta yang status_pendaftaran-nya BUKAN bankdata
+  // peserta yang BUKAN bank_data
   const invalidSelected = selected.filter(
-    p => (p.status_pendaftaran || '').toLowerCase() !== 'bankdata'
+    p => (p.registration_status || '').toLowerCase() !== 'bank_data'
   )
 
-  // Peserta yang boleh didaftarkan
+  // peserta yang boleh didaftarkan (bank_data)
   const bankdataParticipants = selected.filter(
-    p => (p.status_pendaftaran || '').toLowerCase() === 'bankdata'
+    p => (p.registration_status || '').toLowerCase() === 'bank_data'
   )
 
-  // 3. Kalau tidak ada yang berstatus bankdata → warning
   if (!bankdataParticipants.length) {
     Swal.fire({
       icon: 'warning',
@@ -1820,11 +1844,10 @@ const submitRegisterParticipants = async () => {
     return
   }
 
-  // 4. Kalau ada kombinasi (ada bankdata + ada selain bankdata) → warning detail
   if (invalidSelected.length) {
     const names = invalidSelected
       .slice(0, 5)
-      .map(p => `- ${p.full_name} (${p.status_pendaftaran || '-'})`)
+      .map(p => `- ${p.full_name} (${statusLabel(p.registration_status)})`)
       .join('\n')
 
     Swal.fire({
@@ -1833,16 +1856,14 @@ const submitRegisterParticipants = async () => {
       text: 'Hanya peserta dengan status "bankdata" yang akan diproses. Periksa kembali daftar peserta.',
       footer: `<pre style="text-align:left;margin:0;">${names}${invalidSelected.length > 5 ? '\n... dan lainnya' : ''}</pre>`,
     })
-    // lanjut tetap boleh, tapi hanya kirim yang bankdata
   }
 
   const idsToRegister = bankdataParticipants.map(p => p.id)
 
-  // 5. Konfirmasi terakhir (opsional, karena kamu sudah punya modal list)
   const confirmResult = await Swal.fire({
     icon: 'question',
     title: `Daftarkan ${idsToRegister.length} peserta?`,
-    text: 'Status pendaftaran akan diubah menjadi "proses".',
+    text: 'Status pendaftaran akan diubah menjadi "process".',
     showCancelButton: true,
     confirmButtonText: 'Ya, daftarkan',
     cancelButtonText: 'Batal',
@@ -1858,26 +1879,21 @@ const submitRegisterParticipants = async () => {
     await axios.post('/api/v1/participants/bulk-register', {
       ids: idsToRegister,
       event_id: eventId.value,
-      status_pendaftaran: 'proses',
+      registration_status: 'process', // ⬅ backend field baru
     })
 
     $('#registerParticipantsModal').modal('hide')
-
-    // bersihkan selection setelah berhasil
     selectedParticipantIds.value = []
-
-    // reload list peserta
     await fetchParticipants(meta.value.current_page)
 
     Swal.fire({
       icon: 'success',
       title: 'Pendaftaran berhasil',
-      text: `Sebanyak ${idsToRegister.length} peserta berstatus BANKDATA berhasil didaftarkan ke status "proses".`,
+      text: `Sebanyak ${idsToRegister.length} peserta berstatus BANKDATA berhasil dipindahkan ke status "process".`,
     })
   } catch (error) {
     console.error('Gagal mendaftarkan peserta:', error)
     const msg = error.response?.data?.message || 'Gagal mendaftarkan peserta.'
-
     Swal.fire({
       icon: 'error',
       title: 'Gagal',
@@ -1888,17 +1904,15 @@ const submitRegisterParticipants = async () => {
   }
 }
 
-
-
+// ==================================================
+// TAB, LIST, FILTER
 // ==================================================
 
-// TAB aktif (biodata / lampiran)
 const activeTab = ref('biodata')
 
-// LIST
 const participants = ref([])
 const perPage = ref(10)
-const filterStatus = ref('')
+const filterStatus = ref('') // isi dengan kode registration_status
 
 const meta = ref({
   current_page: 1,
@@ -1911,17 +1925,19 @@ const meta = ref({
 const search = ref('')
 const isLoading = ref(false)
 
-
 // EVENT
 const eventInfo = ref(null)
 const eventId = ref(null)
-const tingkatEvent = computed(() => eventInfo.value?.tingkat_event || '')
+const tingkatEvent = computed(() => eventInfo.value?.event_level || '')
 
 // FORM / MODAL
 const isEdit = ref(false)
 const isSubmitting = ref(false)
+
 const form = ref({
   id: null,
+  // masih pakai satu field "event_competition_branch_id" di front-end,
+  // nanti saat submit kita pecah ke event_group_id + event_category_id
   event_competition_branch_id: '',
   nik: '',
   full_name: '',
@@ -1969,19 +1985,14 @@ const fieldErrors = ref({
 })
 
 const bankOptions = [
-  // BANK BUMN
   'BRI',
   'BNI',
   'MANDIRI',
   'BTN',
-
-  // BANK SYARIAH
   'BSI',
   'BRI SYARIAH',
   'BNI SYARIAH',
   'MANDIRI SYARIAH',
-
-  // BANK SWASTA NASIONAL
   'BCA',
   'CIMB NIAGA',
   'PERMATA',
@@ -1994,8 +2005,6 @@ const bankOptions = [
   'MAYBANK',
   'BTPN',
   'J TRUST BANK',
-
-  // BANK PEMBANGUNAN DAERAH
   'BANK DKI',
   'BANK BJB',
   'BANK BJB SYARIAH',
@@ -2018,10 +2027,14 @@ const bankOptions = [
   'BANK MALUKU MALUT',
 ]
 
+// ==================================================
+// Validasi umur vs max_age cabang (branchOptions)
+// ==================================================
 
-// Validasi umur vs max_age cabang
 const ageStatus = ref(null) // 'valid' | 'invalid' | null
 const ageMessage = ref('')
+
+const branchOptions = ref([]) // dari API, tiap item diasumsikan punya id, event_group_id, event_category_id, max_age
 
 const validateAgeForBranch = () => {
   ageStatus.value = null
@@ -2032,14 +2045,14 @@ const validateAgeForBranch = () => {
 
   if (!dobStr || !branchId) return
 
-  const branch = branchOptions.value.find(b => b.id === branchId)
+  const branch = branchOptions.value.find(b => String(b.id) === String(branchId))
   if (!branch || !branch.max_age) return
 
   const dob = new Date(dobStr)
   if (isNaN(dob.getTime())) return
 
-  // pakai tanggal batas umur event kalau ada, fallback ke hari ini
-  const refStr = eventInfo.value?.tanggal_batas_umur || null
+  // pakai age_limit_date event kalau ada, fallback ke hari ini
+  const refStr = eventInfo.value?.age_limit_date || null
   const refDate = refStr ? new Date(refStr) : new Date()
   if (isNaN(refDate.getTime())) return
 
@@ -2054,11 +2067,9 @@ const validateAgeForBranch = () => {
     ageMessage.value = `Umur memenuhi untuk mendaftar di cabang ini (${branch.max_age}T). Umur Peserta ${age}T`
   } else {
     ageStatus.value = 'invalid'
-    ageMessage.value = `Umur tidak memenuhi untuk mendaftar di cabang ini(${branch.max_age}T). Umur Peserta ${age}T`
+    ageMessage.value = `Umur tidak memenuhi untuk mendaftar di cabang ini (${branch.max_age}T). Umur Peserta ${age}T`
   }
 }
-
-
 
 // Lampiran: file & error per field
 const files = ref({
@@ -2081,23 +2092,22 @@ const fileErrors = ref({
 
 // Helper asal wilayah
 const getAsalWilayah = (p) => {
-  const te = eventInfo.value?.tingkat_event
+  const te = eventInfo.value?.event_level
   if (!p) return '-'
 
-  if (te === 'provinsi') {
+  if (te === 'province') {
     return p.regency?.name || '-'
   }
-  if (te === 'kabupaten_kota') {
+  if (te === 'regency') {
     return p.district?.name || '-'
   }
-  if (te === 'kecamatan') {
+  if (te === 'district') {
     return p.village?.name || p.district?.name || '-'
   }
   return p.province?.name || '-'
 }
 
-// OPTIONS
-const branchOptions = ref([])
+// OPTIONS WILAYAH
 const provinceOptions = ref([])
 const regencyOptions = ref([])
 const districtOptions = ref([])
@@ -2112,18 +2122,17 @@ const nikError = ref('')
 const isInitLocation = ref(false)
 const isNikChecking = ref(false)
 
-
-
+// ==================================================
+// FILE VIEW
+// ==================================================
 
 const openFile = (field) => {
   let fileObj = files.value[field]
   let url = ''
 
   if (fileObj) {
-    // file baru diupload → buat blob URL
     url = URL.createObjectURL(fileObj)
   } else if (form.value[field]) {
-    // file lama dari server
     url = form.value[field]
   }
 
@@ -2131,6 +2140,10 @@ const openFile = (field) => {
     window.open(url, '_blank')
   }
 }
+
+// ==================================================
+// FORMATTER DATE
+// ==================================================
 
 const formatDate = (val) => {
   if (!val) return '-'
@@ -2162,16 +2175,16 @@ const formatDateTime = (value) => {
   return `${day}-${month}-${year} ${hour}:${minute}:${second}`
 }
 
-
 const toDateInput = (val) => {
   if (!val) return ''
   if (/^\d{4}-\d{2}-\d{2}$/.test(val)) return val
   return String(val).substring(0, 10)
 }
 
-// =======================================
+// ==================================================
 // FETCH LIST PESERTA
-// =======================================
+// ==================================================
+
 const fetchParticipants = async (page = 1) => {
   if (!eventId.value) {
     participants.value = []
@@ -2187,6 +2200,7 @@ const fetchParticipants = async (page = 1) => {
         per_page: perPage.value,
         search: search.value,
         event_id: eventId.value,
+        // backend index() support both registration_status & status_pendaftaran
         status_pendaftaran: filterStatus.value || null,
       },
     })
@@ -2201,7 +2215,6 @@ const fetchParticipants = async (page = 1) => {
       last_page: res.data.last_page,
     }
 
-    // 🔹 reset checklist ketika data halaman berubah
     selectedParticipantIds.value = []
   } catch (error) {
     console.error('Gagal memuat peserta:', error)
@@ -2218,12 +2231,11 @@ const changePage = (page) => {
   fetchParticipants(page)
 }
 
-// =======================================
+// ==================================================
 // WILAYAH: FETCH MASTER
-// =======================================
+// ==================================================
 
 const fetchProvinceOptions = async () => {
-  // role non-privileged: pakai wilayah user
   if (!isPrivileged.value) {
     provinceOptions.value = []
     const u = currentUser.value
@@ -2244,7 +2256,6 @@ const fetchProvinceOptions = async () => {
     return
   }
 
-  // privileged: load semua
   try {
     const res = await axios.get('/api/v1/get/provinces')
     provinceOptions.value = res.data.data || res.data || []
@@ -2395,11 +2406,17 @@ const fetchVillageOptions = async (preserveSelection = false) => {
   }
 }
 
+// ==================================================
+// FETCH BRANCH (event_group + event_category)
+// ==================================================
+
 const fetchBranchOptions = async () => {
   if (!eventId.value) return
   if (branchOptions.value.length > 0) return
 
   try {
+    // asumsi endpoint tetap sama, tapi response sudah mengandung
+    // id, name, max_age, event_group_id, event_category_id
     const res = await axios.get('/api/v1/get/event-competition-branches', {
       params: { event_id: eventId.value },
     })
@@ -2409,17 +2426,17 @@ const fetchBranchOptions = async () => {
   }
 }
 
-// =======================================
-// APPLY WILAYAH BERDASARKAN TINGKAT_EVENT
-// =======================================
+// ==================================================
+// APPLY WILAYAH BERDASARKAN event_level
+// ==================================================
 
 const applyEventRegionToForm = async (row = null) => {
   if (!eventInfo.value) return
 
-  const te = eventInfo.value.tingkat_event
+  const te = eventInfo.value.event_level
   const rowData = row || {}
 
-  if (te === 'provinsi') {
+  if (te === 'province') {
     if (eventInfo.value.province_id) {
       form.value.province_id = eventInfo.value.province_id
       await fetchRegencyOptions(true)
@@ -2438,7 +2455,7 @@ const applyEventRegionToForm = async (row = null) => {
     return
   }
 
-  if (te === 'kabupaten_kota') {
+  if (te === 'regency') {
     if (eventInfo.value.province_id) {
       form.value.province_id = eventInfo.value.province_id
       await fetchRegencyOptions(true)
@@ -2457,7 +2474,7 @@ const applyEventRegionToForm = async (row = null) => {
     return
   }
 
-  if (te === 'kecamatan') {
+  if (te === 'district') {
     if (eventInfo.value.province_id) {
       form.value.province_id = eventInfo.value.province_id
       await fetchRegencyOptions(true)
@@ -2476,7 +2493,7 @@ const applyEventRegionToForm = async (row = null) => {
     return
   }
 
-  // nasional / default
+  // national / default
   if (rowData.province_id) {
     form.value.province_id = rowData.province_id
     await fetchRegencyOptions(true)
@@ -2494,9 +2511,9 @@ const applyEventRegionToForm = async (row = null) => {
   }
 }
 
-// =======================================
+// ==================================================
 // MODAL CREATE / EDIT
-// =======================================
+// ==================================================
 
 const resetForm = () => {
   form.value = {
@@ -2566,6 +2583,7 @@ const resetForm = () => {
   }
 }
 
+// requiredFields tetap pakai aturan bisnis lama
 const requiredFields = [
   'nik',
   'full_name',
@@ -2596,12 +2614,11 @@ const validateField = (field) => {
     }
   }
 
-  // khusus NIK → ikut pesan dari validateNik
   if (field === 'nik' && !msg && nikError.value) {
     msg = nikError.value
   }
 
-   // ➕ VALIDASI TANGGAL OPSIONAL (jika diisi wajib valid)
+  // VALIDASI TANGGAL OPSIONAL (jika diisi wajib valid)
   if ((field === 'tanggal_terbit_ktp' || field === 'tanggal_terbit_kk') && val) {
     const valid = /^\d{4}-\d{2}-\d{2}$/.test(val)
     if (!valid) {
@@ -2609,7 +2626,7 @@ const validateField = (field) => {
     }
   }
 
-   // ➕ VALIDASI TELEPON
+  // VALIDASI TELEPON
   if (field === 'phone_number' && !msg) {
     const onlyNum = /^[0-9]+$/.test(val || '')
 
@@ -2633,7 +2650,6 @@ const validateAllFields = () => {
   })
   return ok
 }
-
 
 const openCreateModal = async () => {
   isEdit.value = false
@@ -2671,9 +2687,20 @@ const openEditModal = async (p) => {
     other_url: '',
   }
 
+  // cari cabang (branch option) yang matching event_group_id & event_category_id dari backend
+  let branchId = ''
+  const matchedBranch = branchOptions.value.find(
+    b =>
+      String(b.event_group_id) === String(p.event_group_id) &&
+      String(b.event_category_id) === String(p.event_category_id)
+  )
+  if (matchedBranch) {
+    branchId = matchedBranch.id
+  }
+
   form.value = {
     id: p.id,
-    event_competition_branch_id: p.event_competition_branch_id,
+    event_competition_branch_id: branchId,
     nik: p.nik,
     full_name: p.full_name,
     phone_number: p.phone_number,
@@ -2711,13 +2738,22 @@ const openEditModal = async (p) => {
 const openLampiranModal = async (p) => {
   isEdit.value = true
   nikError.value = ''
-  activeTab.value = 'lampiran'  // ⬅️ pindah tab
-
+  activeTab.value = 'lampiran'
   isInitLocation.value = true
+
+  let branchId = ''
+  const matchedBranch = branchOptions.value.find(
+    b =>
+      String(b.event_group_id) === String(p.event_group_id) &&
+      String(b.event_category_id) === String(p.event_category_id)
+  )
+  if (matchedBranch) {
+    branchId = matchedBranch.id
+  }
 
   form.value = {
     id: p.id,
-    event_competition_branch_id: p.event_competition_branch_id,
+    event_competition_branch_id: branchId,
     nik: p.nik,
     full_name: p.full_name,
     phone_number: p.phone_number,
@@ -2752,11 +2788,9 @@ const openLampiranModal = async (p) => {
   $('#participantModal').modal('show')
 }
 
-
-
-// =======================================
-// FILE HANDLER (PDF, max 1MB)
-// =======================================
+// ==================================================
+// FILE HANDLER
+// ==================================================
 
 const MAX_FILE_SIZE = 1024 * 1024 // 1 MB
 
@@ -2769,7 +2803,6 @@ const onFileChange = (event, field) => {
     return
   }
 
-  // Kalau field = photo_url → hanya boleh JPG/PNG
   if (field === 'photo_url') {
     const allowedImageTypes = ['image/jpeg', 'image/jpg', 'image/png']
     const fileType = file.type
@@ -2781,7 +2814,6 @@ const onFileChange = (event, field) => {
       return
     }
   } else {
-    // Selain photo_url → wajib PDF
     if (file.type !== 'application/pdf') {
       fileErrors.value[field] = 'Format file harus PDF.'
       event.target.value = ''
@@ -2790,7 +2822,6 @@ const onFileChange = (event, field) => {
     }
   }
 
-  // Cek ukuran (semua file maks 1 MB)
   if (file.size > MAX_FILE_SIZE) {
     fileErrors.value[field] = 'Ukuran file maksimal 1 MB.'
     event.target.value = ''
@@ -2798,14 +2829,12 @@ const onFileChange = (event, field) => {
     return
   }
 
-  // Kalau semua valid → simpan
   files.value[field] = file
 }
 
-
-// =======================================
-// NIK → tanggal lahir & gender + validasi
-// =======================================
+// ==================================================
+// NIK, PREFILL, CHECK
+// ==================================================
 
 const extractBirthdateFromNik = (nikRaw) => {
   const nik = String(nikRaw || '').replace(/\D/g, '')
@@ -2850,7 +2879,6 @@ const extractBirthdateFromNik = (nikRaw) => {
 const prefillFormFromParticipant = async (p) => {
   if (!p) return
 
-  // JANGAN set id → tetap record baru untuk event ini
   form.value.full_name = p.full_name || ''
   form.value.phone_number = p.phone_number || ''
   form.value.place_of_birth = p.place_of_birth || ''
@@ -2866,7 +2894,6 @@ const prefillFormFromParticipant = async (p) => {
   form.value.tanggal_terbit_ktp = toDateInput(p.tanggal_terbit_ktp)
   form.value.tanggal_terbit_kk = toDateInput(p.tanggal_terbit_kk)
 
-  // lampiran: pakai URL lama, nanti bisa di-replace kalau upload baru
   form.value.photo_url = p.photo_url || ''
   form.value.id_card_url = p.id_card_url || ''
   form.value.family_card_url = p.family_card_url || ''
@@ -2874,7 +2901,6 @@ const prefillFormFromParticipant = async (p) => {
   form.value.certificate_url = p.certificate_url || ''
   form.value.other_url = p.other_url || ''
 
-  // Atur wilayah sesuai tingkat event & data peserta lama
   isInitLocation.value = true
   try {
     await applyEventRegionToForm(p)
@@ -2884,7 +2910,7 @@ const prefillFormFromParticipant = async (p) => {
 }
 
 const searchExistingParticipantByNik = async () => {
-  if (isEdit.value) return // fitur ini khusus mode tambah
+  if (isEdit.value) return
 
   nikError.value = ''
   fieldErrors.value.nik = ''
@@ -2907,13 +2933,12 @@ const searchExistingParticipantByNik = async () => {
   try {
     isNikChecking.value = true
 
-    // *** ENDPOINT BARU YANG PERLU DIBUAT DI BACKEND ***
-    // Misal: return 200 + { data: participant } kalau ada, 404 kalau tidak
-    const res = await axios.get('/api/v1/get/participants/search-by-nik', {
+    // backend: GET /api/v1/participants/search-by-nik?nik=...
+    const res = await axios.get('/api/v1/participants/search-by-nik', {
       params: { nik },
     })
 
-    const p = res.data.data || res.data
+    const p = res.data.data
 
     if (p && p.id) {
       await prefillFormFromParticipant(p)
@@ -2931,38 +2956,20 @@ const searchExistingParticipantByNik = async () => {
       })
     }
   } catch (e) {
-    console.log('e')
-    console.log(e)
-    console.log('e.response')
-    console.log(e.response)
-    if (e.response && e.response.status === 404) {
-      // backend bisa sengaja balas 404 jika tidak ada
-      console.log('e.response')
-      console.log(e.response)
-      Swal.fire({
-        icon: 'info',
-        title: 'Tidak ditemukan',
-        text: 'NIK ini belum ada di bank data peserta. Silakan isi biodata secara manual.',
-      })
-    } else {
-      // console.error('Gagal mencari peserta by NIK:', e)
-      Swal.fire({
-        icon: 'error',
-        title: 'Error',
-        text: 'Gagal mencari peserta berdasarkan NIK.',
-      })
-    }
+    console.error('Gagal mencari peserta by NIK:', e)
+    Swal.fire({
+      icon: 'error',
+      title: 'Error',
+      text: 'Gagal mencari peserta berdasarkan NIK.',
+    })
   } finally {
     isNikChecking.value = false
   }
 }
 
 const onSearchNik = async () => {
-  // bisa dipanggil dari tombol "Cari"
   await searchExistingParticipantByNik()
 }
-
-
 
 const validateNik = async () => {
   nikError.value = ''
@@ -2975,16 +2982,11 @@ const validateNik = async () => {
     return false
   }
 
-  // if (nik.length !== 16) {
-  //   nikError.value = 'NIK harus terdiri dari 16 digit angka.'
-  //   return false
-  // }
-
   const result = extractBirthdateFromNik(nik)
   if (!result) {
     nikError.value =
       'NIK tidak valid atau tanggal lahir tidak dapat dibaca dari NIK.'
-      fieldErrors.value.nik = nikError.value
+    fieldErrors.value.nik = nikError.value
     return false
   }
 
@@ -3066,22 +3068,18 @@ const onNikBlur = async () => {
     debouncedNikCheck.cancel()
   }
 
-  // Validasi & cek konflik di event ini
   const okNik = await validateNik()
   if (!okNik) return
 
-  // Kalau mode tambah, coba cari di bank data untuk prefill
   if (!isEdit.value) {
     await searchExistingParticipantByNik()
   }
 }
 
+// ==================================================
+// MUTASI WILAYAH
+// ==================================================
 
-
-
-// =========================
-// MUTASI PESERTA
-// =========================
 const isMutasiSubmitting = ref(false)
 
 const mutasiForm = ref({
@@ -3103,7 +3101,6 @@ const mutasiDistrictOptions = ref([])
 
 const loadMutasiProvinces = async () => {
   try {
-    // pakai API master yang sama
     const res = await axios.get('/api/v1/get/provinces')
     mutasiProvinceOptions.value = res.data.data || res.data || []
   } catch (e) {
@@ -3147,7 +3144,6 @@ const loadMutasiDistricts = async () => {
   }
 }
 
-// handler change
 const onMutasiProvinceChange = () => {
   mutasiForm.value.regency_id = ''
   mutasiForm.value.district_id = ''
@@ -3163,7 +3159,6 @@ const onMutasiRegencyChange = () => {
 }
 
 const openMutasiModal = async (p) => {
-  // reset error
   mutasiErrors.value = {
     province_id: '',
     regency_id: '',
@@ -3191,7 +3186,6 @@ const submitMutasi = async () => {
     district_id: '',
   }
 
-  // simple front validation
   if (!mutasiForm.value.province_id) {
     mutasiErrors.value.province_id = 'Provinsi wajib dipilih.'
   }
@@ -3231,7 +3225,6 @@ const submitMutasi = async () => {
       title: 'Wilayah peserta berhasil dipindahkan.',
     })
 
-    // reload list
     fetchParticipants(meta.value.current_page)
   } catch (error) {
     console.error('Gagal mutasi peserta:', error)
@@ -3242,12 +3235,9 @@ const submitMutasi = async () => {
   }
 }
 
-
-
-
-// =======================================
-// SUBMIT & DELETE (pakai FormData)
-// =======================================
+// ==================================================
+// SUBMIT & DELETE
+// ==================================================
 
 const submitForm = async () => {
   if (!eventId.value) {
@@ -3255,7 +3245,6 @@ const submitForm = async () => {
     return
   }
 
-   // validasi semua field biodata dulu
   const okBasic = validateAllFields()
   if (!okBasic) {
     activeTab.value = 'biodata'
@@ -3267,14 +3256,12 @@ const submitForm = async () => {
     return
   }
 
-  // validasi khusus NIK (format + cek server)
   const okNik = await validateNik()
   if (!okNik) {
     activeTab.value = 'biodata'
     return
   }
 
-  // cek error lampiran seperti sebelumnya
   for (const key of Object.keys(fileErrors.value)) {
     if (fileErrors.value[key]) {
       activeTab.value = 'lampiran'
@@ -3287,13 +3274,34 @@ const submitForm = async () => {
     }
   }
 
+  // tentukan event_group_id & event_category_id dari pilihan branch
+  let eventGroupId = ''
+  let eventCategoryId = ''
+  if (form.value.event_competition_branch_id) {
+    const br = branchOptions.value.find(
+      b => String(b.id) === String(form.value.event_competition_branch_id)
+    )
+    if (br) {
+      eventGroupId = br.event_group_id
+      eventCategoryId = br.event_category_id
+    }
+  }
+
+  if (!eventGroupId || !eventCategoryId) {
+    fieldErrors.value.event_competition_branch_id =
+      'Cabang / golongan event wajib dipilih.'
+    activeTab.value = 'biodata'
+    return
+  }
+
   isSubmitting.value = true
 
   const fd = new FormData()
 
-  // field biasa
   fd.append('event_id', eventId.value)
-  fd.append('event_competition_branch_id', form.value.event_competition_branch_id || '')
+  fd.append('event_group_id', eventGroupId)
+  fd.append('event_category_id', eventCategoryId)
+
   fd.append('nik', form.value.nik || '')
   fd.append('full_name', form.value.full_name || '')
   fd.append('phone_number', form.value.phone_number || '')
@@ -3312,7 +3320,6 @@ const submitForm = async () => {
   fd.append('tanggal_terbit_ktp', form.value.tanggal_terbit_ktp || '')
   fd.append('tanggal_terbit_kk', form.value.tanggal_terbit_kk || '')
 
-  // lampiran: kalau ada file, kirim file; kalau tidak, kirim path lama (agar backend bisa tetap pakai)
   const attachmentFields = [
     'photo_url',
     'id_card_url',
@@ -3324,9 +3331,9 @@ const submitForm = async () => {
 
   attachmentFields.forEach((field) => {
     if (files.value[field]) {
-      fd.append(field, files.value[field]) // UploadedFile di backend
+      fd.append(field, files.value[field])
     } else if (form.value[field]) {
-      fd.append(field, form.value[field]) // path lama (optional)
+      fd.append(field, form.value[field])
     }
   })
 
@@ -3345,8 +3352,8 @@ const submitForm = async () => {
     $('#participantModal').modal('hide')
     Swal.fire({
       icon: 'success',
-      title: `Data ${form.value.full_name} berhasil disimpan.`
-    });
+      title: `Data ${form.value.full_name} berhasil disimpan.`,
+    })
     fetchParticipants(meta.value.current_page)
   } catch (error) {
     console.error('Gagal menyimpan peserta:', error)
@@ -3357,7 +3364,7 @@ const submitForm = async () => {
 }
 
 const deleteParticipant = async (p) => {
-  if (!confirm(`Yakin ingin menghapus peserta "${p.full_name}"?`)) return
+  if (!confirm(`Yakin ingin menghapus peserta "${p.full_name}" dari event ini?`)) return
 
   try {
     await axios.delete(`/api/v1/participants/${p.id}`)
@@ -3368,9 +3375,9 @@ const deleteParticipant = async (p) => {
   }
 }
 
-// =======================================
+// ==================================================
 // WATCHERS & MOUNTED
-// =======================================
+// ==================================================
 
 watch(
   () => [form.value.date_of_birth, form.value.event_competition_branch_id],
@@ -3406,7 +3413,6 @@ watch(
 watch(
   () => form.value.regency_id,
   () => {
-    console.log(isInitLocation.value)
     if (isInitLocation.value) return
     fetchDistrictOptions()
   }
@@ -3421,14 +3427,21 @@ watch(
 )
 
 onMounted(async () => {
-  eventInfo.value = authUserStore.eventData
-  eventId.value = authUserStore.eventData.id
+  const ev = authUserStore.eventData
+  if (!ev) {
+    console.warn('eventData belum tersedia di AuthUserStore')
+    return
+  }
+
+  eventInfo.value = ev
+  eventId.value = ev.id
 
   await fetchProvinceOptions()
   await fetchBranchOptions()
   fetchParticipants()
 })
 </script>
+
 
 <style scoped>
 .btn-xs {

@@ -163,10 +163,10 @@ class ParticipantController extends Controller
                 $user  = Auth::user();
 
                 if ($event) {
-                    if ($event->event_level === 'province') {
+                    if ($event->tingkat_event === 'provinsi') {
                         $query->where('p.province_id', $event->province_id)
                             ->where('p.regency_id', $user->regency_id);
-                    } elseif ($event->event_level === 'regency') {
+                    } elseif ($event->tingkat_event === 'kabupaten_kota') {
                         $query->where('p.province_id', $event->province_id)
                             ->where('p.regency_id', $event->regency_id)
                             ->where('p.district_id', $user->district_id);
@@ -637,19 +637,19 @@ class ParticipantController extends Controller
 
         $user   = Auth::user();
         $provId = $request->get('province_id');
-        $regId  = ($event->event_level == 'province')       ? $user->regency_id  : $request->get('regency_id');
-        $distId = ($event->event_level == 'regency') ? $user->district_id : $request->get('district_id');
-        $villId = ($event->event_level == 'district')      ? $user->village_id  : $request->get('village_id');
+        $regId  = ($event->tingkat_event == 'provinsi')       ? $user->regency_id  : $request->get('regency_id');
+        $distId = ($event->tingkat_event == 'kabupaten_kota') ? $user->district_id : $request->get('district_id');
+        $villId = ($event->tingkat_event == 'kecamatan')      ? $user->village_id  : $request->get('village_id');
 
         // level wilayah utama
-        switch ($event->event_level) {
-            case 'province':
+        switch ($event->tingkat_event) {
+            case 'provinsi':
                 $regionColumn = 'regency_id';
                 break;
-            case 'regency':
+            case 'kabupaten_kota':
                 $regionColumn = 'district_id';
                 break;
-            case 'district':
+            case 'kecamatan':
                 $regionColumn = 'village_id';
                 break;
             default:
@@ -671,6 +671,10 @@ class ParticipantController extends Controller
             ->whereHas('participant', function ($q) use ($nik) {
                 $q->where('nik', $nik);
             });
+
+        if ($rowId) {
+            $query->where('id', '!=', $rowId);
+        }
 
         $others = $query->with(['participant.regency', 'participant.district', 'participant.village'])->get();
 
@@ -752,15 +756,15 @@ class ParticipantController extends Controller
         ]);
 
         if ($event) {
-            switch ($event->event_level) {
-                case 'province':
+            switch ($event->tingkat_event) {
+                case 'provinsi':
                     $data['province_id'] = $event->province_id;
                     break;
-                case 'regency':
+                case 'kabupaten_kota':
                     $data['province_id'] = $event->province_id;
                     $data['regency_id']  = $event->regency_id;
                     break;
-                case 'district':
+                case 'kecamatan':
                     $data['province_id'] = $event->province_id;
                     $data['regency_id']  = $event->regency_id;
                     $data['district_id'] = $event->district_id;
@@ -906,15 +910,15 @@ class ParticipantController extends Controller
         if ($roleSlug !== 'superadmin') {
             $user = Auth::user();
 
-            if ($event->event_level === 'province') {
+            if ($event->tingkat_event === 'provinsi') {
                 $query->where('p.province_id', $event->province_id)
                     ->where('p.regency_id', $user->regency_id);
-            } elseif ($event->event_level === 'regency') {
+            } elseif ($event->tingkat_event === 'kabupaten_kota') {
                 $query->where('p.province_id', $event->province_id)
                     ->where('p.regency_id', $event->regency_id)
                     ->where('p.district_id', $user->district_id);
             }
-            // kalau tingkat lain (nasional, district) bisa disesuaikan jika ada aturan khusus
+            // kalau tingkat lain (nasional, kecamatan) bisa disesuaikan jika ada aturan khusus
         }
 
         // group by status_pendaftaran

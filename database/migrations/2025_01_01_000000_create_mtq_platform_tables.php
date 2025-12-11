@@ -394,6 +394,7 @@ return new class extends Migration
             $table->foreignId('participant_id')->constrained('participants')->cascadeOnDelete();
 
             // Cabang Lomba
+            $table->foreignId('event_branch_id')->constrained('event_branches')->cascadeOnDelete();
             $table->foreignId('event_group_id')->constrained('event_groups')->cascadeOnDelete();
             $table->foreignId('event_category_id')->constrained('event_categories')->cascadeOnDelete();
 
@@ -414,6 +415,7 @@ return new class extends Migration
                             'disqualified'      // didiskualifikasi
                         ])->default('bank_data');
             $table->text('registration_notes')->nullable();
+            $table->timestamp('register_at')->nullable();
 
             $table->foreignId('moved_by')
                 ->nullable()

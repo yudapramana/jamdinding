@@ -9,7 +9,7 @@ use App\Models\Stage;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
 
-class EventStageController extends Controller
+class __EventStageController extends Controller
 {
     /**
      * List tahapan untuk 1 event

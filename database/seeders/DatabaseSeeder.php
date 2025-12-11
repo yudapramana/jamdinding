@@ -60,6 +60,8 @@ class DatabaseSeeder extends Seeder
         $this->call(_EventCategorySeeder::class);
         $this->call(_EventFieldComponentsSeeder::class);
         $this->call(_EventParticipantsSeeder::class);
+        $this->call(_RolePermissionSeeder::class);
+
 
 
 
@@ -69,8 +71,6 @@ class DatabaseSeeder extends Seeder
         // $this->call(MasterCompetitionGroupSeeder::class);
         // $this->call(MasterCompetitionCategorySeeder::class);
         // $this->call(MasterCompetitionBranchSeeder::class);
-        // $this->call(RolePermissionSeeder::class);
-        // $this->call(IndonesiaLocationSeeder::class);
         // $this->call(ParticipantsFromExcelSeeder::class);
     }
 }
