@@ -169,6 +169,19 @@ Route::middleware(['auth:sanctum']) // kalau belum pakai sanctum, boleh dihapus 
         Route::post('event-participants/{eventParticipant}/mutasi-wilayah', [
             __EventParticipantController::class, 'mutasiWilayah'
         ]);
+        Route::post('event-participants/bulk-register', [__EventParticipantController::class, 'bulkRegister']);
+        Route::get('get/event-participants/status-counts', [__EventParticipantController::class, 'statusCounts']);
+        Route::get('get/event-participants/{eventParticipant}/biodata-pdf', [__EventParticipantController::class, 'biodataPdf'])
+            ->name('participants.biodata-pdf');
+
+        Route::get('participants/{participant}/verifications', [ParticipantVerificationController::class, 'index']);
+        Route::post('participants/{participant}/verifications', [ParticipantVerificationController::class, 'store']);
+        Route::get('participants/{participant}/verifications/{verification}', [ParticipantVerificationController::class, 'show']);
+    
+        Route::get('events/{event}/kafilah-pdf', [__EventParticipantController::class, 'kafilahPdf']);
+
+
+
 
 
         // CRUD Users (per event)
@@ -217,10 +230,7 @@ Route::middleware(['auth:sanctum']) // kalau belum pakai sanctum, boleh dihapus 
             ->name('participants.biodata-pdf');
 
 
-        Route::get('participants/{participant}/verifications', [ParticipantVerificationController::class, 'index']);
-        Route::post('participants/{participant}/verifications', [ParticipantVerificationController::class, 'store']);
-        Route::get('participants/{participant}/verifications/{verification}', [ParticipantVerificationController::class, 'show']);
-    
+        
         Route::post(
             'event-participants/{eventParticipant}/re-registration',
             [EventParticipantReRegistrationController::class, 'store']

@@ -10,25 +10,32 @@ class _RolePermissionSeeder extends Seeder
 {
     public function run(): void
     {
-        // 1. Definisi PERMISSIONS
+        // 1) Definisi PERMISSIONS
         $perms = [
-            ['name' => 'Kelola Master',                 'slug' => 'master.manage'],
-            ['name' => 'Kelola Master Tahapan',         'slug' => 'master.manage.stage'],
-            ['name' => 'Kelola Master Cabang',          'slug' => 'master.manage.group'],
-            ['name' => 'Kelola Master Kategori',        'slug' => 'master.manage.category'],
-            ['name' => 'Kelola Master Golongan',        'slug' => 'master.manage.branch'],
-            ['name' => 'Kelola Master Level',           'slug' => 'master.manage.level'],
+            ['name' => 'Manage Core',                               'slug' => 'master.core'],
+            ['name' => 'Manage Core Branch',                        'slug' => 'master.core.branches'],
+            ['name' => 'Manage Core Fields',                        'slug' => 'master.core.fields'],
+            ['name' => 'Manage Core Permission',                    'slug' => 'master.core.permissions'],
 
-            ['name' => 'Kelola Event',                  'slug' => 'event.manage'],
-            ['name' => 'Kelola Event Tahapan',          'slug' => 'event.manage.stage'],
-            ['name' => 'Kelola Event Golongan',         'slug' => 'event.manage.branch'],
-            ['name' => 'Kelola Event',                  'slug' => 'event.manage'],
-            ['name' => 'Kelola Event User',             'slug' => 'event.manage.user'],
+            ['name' => 'Manage Master Branch',                      'slug' => 'master.manage.branches'],
+            ['name' => 'Manage Master Group',                       'slug' => 'master.manage.groups'],
+            ['name' => 'Manage Master Category',                    'slug' => 'master.manage.categories'],
+            ['name' => 'Manage Master Field Component',             'slug' => 'master.manage.fields-components'],
+            ['name' => 'Manage Master Participant',                 'slug' => 'master.manage.participants'],
 
-            ['name' => 'Kelola Peserta',                'slug' => 'participant.manage'],
-            ['name' => 'Kelola Repositori Peserta',     'slug' => 'participant.manage.repository'],
-            ['name' => 'Kelola Pendaftaran Peserta',    'slug' => 'participant.manage.register'],
-            ['name' => 'Kelola Daftar Ulang Peserta',   'slug' => 'participant.manage.reregister'],
+            ['name' => 'Manage Event',                              'slug' => 'manage.event'],
+            ['name' => 'Manage Event Event',                        'slug' => 'manage.event.events'],
+            ['name' => 'Manage Event Stage',                        'slug' => 'manage.event.stages'],
+            ['name' => 'Manage Event Branch',                       'slug' => 'manage.event.branches'],
+            ['name' => 'Manage Event Group',                        'slug' => 'manage.event.groups'],
+            ['name' => 'Manage Event Category',                     'slug' => 'manage.event.categories'],
+            ['name' => 'Manage Event Field Components',             'slug' => 'manage.event.fields-components'],
+            ['name' => 'Manage Event User',                         'slug' => 'manage.event.user'],
+
+            ['name' => 'Manage Event Participant Bank Data',        'slug' => 'manage.event.participant.bank-data'],
+            ['name' => 'Manage Event Participant Registration',     'slug' => 'manage.event.participant.registration'],
+            ['name' => 'Manage Event Participant Reregistration',   'slug' => 'manage.event.participant.reregistration'],
+            ['name' => 'Manage Event Participant Final',            'slug' => 'manage.event.participant.final'],
         ];
 
         // Simpan / ambil permissions, index by slug
@@ -40,7 +47,7 @@ class _RolePermissionSeeder extends Seeder
             );
         }
 
-        // 2. Definisi ROLES
+        // 2) Definisi ROLES
         $roles = [
             'superadmin'  => ['name' => 'SUPERADMIN'],
             'admin_event' => ['name' => 'ADMIN_EVENT'],
@@ -58,37 +65,30 @@ class _RolePermissionSeeder extends Seeder
             );
         }
 
-        // 3. MAPPING PERMISSION PER ROLE
+        // helper
+        $allPermissionIds = collect($permissions)->pluck('id');
+
+        // 3) MAPPING PERMISSION PER ROLE
 
         // SUPERADMIN: semua permission
-        $roleModels['superadmin']->permissions()->sync(
-            collect($permissions)->pluck('id')->all()
-        );
+        $roleModels['superadmin']->permissions()->sync($allPermissionIds->all());
 
-        // ADMIN_EVENT: semua yang berkaitan dengan EVENT
-        // (kalau mau dia juga bisa kelola master, tinggal tambahkan 'master.*' ke array)
-        $adminEventSlugs = [
-            'event.manage',
-            'event.manage.stage',
-            'event.manage.branch',
-            'event.manage.user',
-            'participant.manage',
-            'participant.manage.repository',
-            'participant.manage.register'
-        ];
+        // ADMIN_EVENT: semua permission KECUALI master.core*
+        $adminEventIds = collect($permissions)
+            ->reject(function ($perm) {
+                // exclude: master.core, master.core.*
+                return $perm->slug === 'master.core' || str_starts_with($perm->slug, 'master.core.');
+            })
+            ->pluck('id')
+            ->all();
 
-        $roleModels['admin_event']->permissions()->sync(
-            collect($permissions)
-                ->whereIn('slug', $adminEventSlugs)
-                ->pluck('id')
-                ->all()
-        );
+        $roleModels['admin_event']->permissions()->sync($adminEventIds);
 
-        // PENDAFTARAN: khusus peserta & mandat (diwakili event.manage.user)
+        // PENDAFTARAN: hanya bank-data + registration
         $pendaftaranSlugs = [
-            'participant.manage',
-            'participant.manage.repository',
-            'participant.manage.register'
+            'manage.event.participant.bank-data',
+            'manage.event.participant.registration',
+            'manage.event.participant.final',
         ];
 
         $roleModels['pendaftaran']->permissions()->sync(
@@ -98,12 +98,11 @@ class _RolePermissionSeeder extends Seeder
                 ->all()
         );
 
-        // VERIFIKATOR, DEWAN_HAKIM, PANITERA
-        // sementara tanpa permission (bisa diisi kemudian kalau sudah ada slug spesifik)
+        // VERIFIKATOR: hanya registration + reregistration
         $verifikatorSlugs = [
-            'participant.manage',
-            'participant.manage.register',
-            'participant.manage.reregister'
+            'manage.event.participant.registration',
+            'manage.event.participant.reregistration',
+            'manage.event.participant.final',
         ];
 
         $roleModels['verifikator']->permissions()->sync(
@@ -113,7 +112,7 @@ class _RolePermissionSeeder extends Seeder
                 ->all()
         );
 
-
+        // Lainnya kosong
         $roleModels['dewan_hakim']->permissions()->sync([]);
         $roleModels['panitera']->permissions()->sync([]);
     }

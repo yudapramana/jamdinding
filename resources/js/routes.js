@@ -75,11 +75,40 @@ export default [
         component: () => import('./pages/event/EventFieldComponents.vue'),
       },
       {
-        path: 'event-participants',
-        name: 'admin.event.participants',
+        path: 'event-participants/bank-data',
+        name: 'admin.event.participants.bank-data',
         component: () => import('./pages/EventParticipants.vue'),
       },
+      {
+        path: '/event-participants/registration/:status',
+        name: 'admin.event.participants.registration',
+        component: () => import('./pages/EventParticipantsRegistration.vue'),
+        props: true, // kirim param status ke props
+      },
+      {
+        path: '/event-participants/reregistration',
+        name: 'admin.event.participants.reregistration',
+        component: () => import('./pages/EventParticipantsReregistration.vue'),
+      },
+      {
+        path: '/event-participants/final',
+        name: 'admin.event.participants.final',
+        component: () => import('./pages/EventParticipantsFinal.vue'),
+      },
 
+
+      // batas
+      {
+        path: '/participants/status/:status',
+        name: 'admin.participants.status',
+        component: () => import('./pages/participant/ParticipantStatusList.vue'),
+        props: true, // kirim param status ke props
+      },
+      {
+        path: 'event-participant-registrations',
+        name: 'admin.event.participant-registrations',
+        component: () => import('./pages/EventParticipantsRegistration.vue'),
+      },
       {
         path: 'event-stage',
         name: 'admin.eventstagelist',
@@ -129,12 +158,6 @@ export default [
         path: 'participants',
         name: 'admin.participants',
         component: () => import('./pages/participant/ParticipantList.vue'),
-      },
-      {
-        path: '/participants/status/:status',
-        name: 'admin.participants.status',
-        component: () => import('./pages/participant/ParticipantStatusList.vue'),
-        props: true, // kirim param status ke props
       },
       {
         path: '/participants/reregister',

@@ -19,9 +19,112 @@ use Illuminate\Validation\Rule;
 use Carbon\Carbon;
 use Auth;
 use Illuminate\Validation\ValidationException;
+use Illuminate\Support\Str;
+use Barryvdh\DomPDF\Facade\Pdf;
 
 class __EventParticipantController extends Controller
 {
+
+   
+
+    public function kafilahPdf(Request $request, Event $event)
+    {
+        $user     = $request->user();
+        $roleSlug = optional($user->role)->slug ?? null;
+
+        $search               = $request->get('search');
+        $registrationStatus   = $request->get('registration_status');
+        $reregistrationStatus = $request->get('reregistration_status');
+
+        $query = EventParticipant::query()
+            ->with(['participant', 'eventCategory'])
+            ->where('event_participants.event_id', $event->id)
+
+            // 🔗 join participant (untuk sorting nama)
+            ->join('participants as p', 'p.id', '=', 'event_participants.participant_id')
+
+            // 🔗 join event_categories (untuk sorting cabang)
+            ->join('event_categories as ec', 'ec.id', '=', 'event_participants.event_category_id')
+
+            ->select('event_participants.*')
+
+            // ✅ urutkan: CABANG → NAMA
+            ->orderBy('ec.id')
+            ->orderBy('p.full_name');
+
+        if ($registrationStatus) {
+            $query->where('event_participants.registration_status', $registrationStatus);
+        }
+
+        if ($reregistrationStatus) {
+            $query->where('event_participants.reregistration_status', $reregistrationStatus);
+        }
+
+        // filter wilayah non-superadmin
+        if ($roleSlug !== 'superadmin') {
+            $userAuth = Auth::user();
+
+            if ($event->event_level === 'province') {
+                $query->where('p.province_id', $event->province_id)
+                    ->where('p.regency_id', $userAuth->regency_id);
+
+            } elseif ($event->event_level === 'regency') {
+                $query->where('p.province_id', $event->province_id)
+                    ->where('p.regency_id', $event->regency_id)
+                    ->where('p.district_id', $userAuth->district_id);
+            }
+        }
+
+        if ($search) {
+            $query->where(function ($qq) use ($search) {
+                $qq->where('p.full_name', 'like', "%{$search}%")
+                ->orWhere('p.nik', 'like', "%{$search}%")
+                ->orWhere('event_participants.contingent', 'like', "%{$search}%");
+            });
+        }
+
+        $rows = $query->get();
+
+        // =========================
+        // JUDUL PDF
+        // =========================
+        // =========================
+        // TITLE 1: DAFTAR KAFILAH {LEVEL}
+        // =========================
+        $levelMap = [
+            'district'  => 'DESA',
+            'regency'   => 'KECAMATAN',
+            'province'  => 'KABUPATEN/KOTA',
+            'national'  => 'PROVINSI',
+        ];
+
+        $levelLabel = $levelMap[$event->event_level] ?? strtoupper($event->event_level ?? '');
+
+        // Ambil nama level yang paling relevan dari data (fallback aman)
+        $uniqueContingents = $rows->pluck('contingent')->filter()->unique()->values();
+        $levelName = $uniqueContingents->count() === 1 ? strtoupper($uniqueContingents->first()) : '';
+
+        $title1 = trim('DAFTAR KAFILAH ' . $levelLabel . ' ' . $levelName);
+
+        $title2Parts = array_filter([
+            $event->event_name,
+            $event->event_year ? (string) $event->event_year : null,
+            $event->event_location ? 'DI ' . strtoupper($event->event_location) : null,
+        ]);
+        $title2 = strtoupper(implode(' ', $title2Parts));
+
+        $pdf = Pdf::loadView('pdf.kafilah', [
+            'title1' => $title1,
+            'title2' => $title2,
+            'rows'   => $rows,
+        ])->setPaper('a4', 'portrait');
+
+        return $pdf->download('daftar-kafilah-' . $event->id . '.pdf');
+    }
+
+
+
+
     public function index(Request $request, Event $event)
     {
         $user     = $request->user();
@@ -31,10 +134,17 @@ class __EventParticipantController extends Controller
         $perPage               = (int) $request->get('per_page', 10);
         $registrationStatus    = $request->get('registration_status');
         $reregistrationStatus  = $request->get('reregistration_status');
+        $withVerifications = filter_var($request->get('withVerifications', false), FILTER_VALIDATE_BOOLEAN);
 
         $eventId = $event->id;
+         $with = ['participant', 'eventGroup', 'eventCategory', 'eventBranch'];
+
+        // ✅ load verifikasi jika diminta (sarankan latestVerification biar tidak berat)
+        if ($withVerifications) {
+        $with[] = 'latestVerification.verifier';
+        }
         $query = EventParticipant::query()
-            ->with(['participant', 'eventGroup', 'eventCategory', 'eventBranch'])
+            ->with($with)
             ->when($eventId, function ($q) use ($eventId) {
                 $q->where('event_id', $eventId);
             })
@@ -606,6 +716,14 @@ class __EventParticipantController extends Controller
         $event      = $eventParticipant->event ?? Event::find($eventParticipant->event_id);
         $participant = $eventParticipant->participant;
 
+        // CEK SUDAH PERNAH DIMUTASI BELUM
+        if ($roleSlug !== 'superadmin' && !is_null($eventParticipant->moved_by)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Peserta sudah pernah dimutasi. Mutasi hanya boleh dilakukan satu kali.',
+            ], 422); // boleh 409/400 juga, saya pakai 422 biar ketangkep di validasi frontend
+        }
+
         $data = $request->validate([
             'province_id' => ['required', 'exists:provinces,id'],
             'regency_id'  => ['required', 'exists:regencies,id'],
@@ -662,5 +780,145 @@ class __EventParticipantController extends Controller
         ]);
     }
 
+    public function bulkRegister(Request $request)
+    {
+        $data = $request->validate([
+            'ids' => ['required', 'array'],
+            'ids.*' => ['integer', 'exists:event_participants,id'],
+            'event_id' => ['required', 'exists:events,id'],
+            'registration_status' => ['nullable', Rule::in(['process', 'bank_data', 'verified', 'need_revision'])],
+        ]);
+
+        $status = $data['registration_status'] ?? 'proses';
+
+        EventParticipant::whereIn('id', $data['ids'])
+            ->where('event_id', $data['event_id'])
+            ->update(['registration_status' => $status]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Status pendaftaran peserta berhasil diubah menjadi ' . $status . '.',
+        ]);
+    }
+
+    public function statusCounts(Request $request)
+    {
+        $user     = $request->user();
+        $roleSlug = optional($user->role)->slug ?? null;
+
+        $eventId  = $request->get('event_id', $user->event_id ?? null);
+
+        if (!$eventId) {
+            return response()->json([
+                'message' => 'Event ID is required.',
+            ], 422);
+        }
+
+        $event = Event::find($eventId);
+        if (!$event) {
+            return response()->json([
+                'message' => 'Event not found.',
+            ], 404);
+        }
+
+        // base query
+        $query = EventParticipant::query()
+            ->join('participants as p', 'p.id', '=', 'event_participants.participant_id')
+            ->where('event_participants.event_id', $eventId);
+
+        // filter wilayah sama dengan index() untuk non-superadmin
+        if ($roleSlug !== 'superadmin') {
+            $user = Auth::user();
+
+            if ($event->event_level === 'province') {
+                $query->where('p.province_id', $event->province_id)
+                    ->where('p.regency_id', $user->regency_id);
+            } elseif ($event->event_level === 'regency') {
+                $query->where('p.province_id', $event->province_id)
+                    ->where('p.regency_id', $event->regency_id)
+                    ->where('p.district_id', $user->district_id);
+            }
+            // kalau tingkat lain (nasional, district) bisa disesuaikan jika ada aturan khusus
+        }
+
+        // group by status_pendaftaran
+        $rawCounts = $query
+            ->select(
+                'event_participants.registration_status',
+                DB::raw('COUNT(*) as total')
+            )
+            ->groupBy('event_participants.registration_status')
+            ->pluck('total', 'registration_status');
+
+        $allowedStatuses = ['process', 'verified', 'need_revision', 'rejected', 'disqualified'];
+
+        // inisialisasi 0 semua
+        $result = [];
+        foreach ($allowedStatuses as $st) {
+            $result[$st] = 0;
+        }
+
+        // isi dari hasil query
+        foreach ($rawCounts as $status => $total) {
+            if (in_array($status, $allowedStatuses, true)) {
+                $result[$status] = (int) $total;
+            }
+        }
+
+        return response()->json($result);
+    }
+
+    public function biodataPdf(EventParticipant $eventParticipant)
+    {
+        $user     = auth()->user();
+        $roleSlug = optional($user->role)->slug ?? null;
+
+        // security check dasar: hanya boleh lihat kalau event sama atau superadmin
+        if ($roleSlug !== 'superadmin' && $user->event_id && $user->event_id !== $eventParticipant->event_id) {
+            abort(403, 'You are not allowed to view this participant.');
+        }
+
+        $eventParticipant->loadMissing([
+            'participant.province',
+            'participant.regency',
+            'participant.district',
+            'participant.village',
+            'eventBranch',
+            'eventGroup',
+            'eventCategory',
+            'event',
+        ]);
+
+        $participant = $eventParticipant->participant;
+        $event       = $eventParticipant->event;
+
+        // fallback umur kalau belum diisi
+        $ageYear  = $eventParticipant->age_year;
+        $ageMonth = $eventParticipant->age_month;
+        $ageDay   = $eventParticipant->age_day;
+
+        if ($participant->date_of_birth && $event) {
+            if ($ageYear === null || $ageMonth === null || $ageDay === null) {
+                [$ageYear, $ageMonth, $ageDay] = $this->calculateAgeComponents(
+                    $participant->date_of_birth->format('Y-m-d'),
+                    $event
+                );
+            }
+        }
+
+        $pdf = \PDF::loadView('pdf.participant-biodata', [
+            'eventParticipant' => $eventParticipant,
+            'participant'      => $participant,
+            'event'            => $event,
+            'ageYear'          => $ageYear,
+            'ageMonth'         => $ageMonth,
+            'ageDay'           => $ageDay,
+            'printedAt'        => now(),
+        ])->setPaper('A4', 'portrait');
+
+        $filename = 'Biodata_' . Str::slug($participant->full_name, '_') . '.pdf';
+
+        return $pdf->stream($filename);
+    }
 
 }

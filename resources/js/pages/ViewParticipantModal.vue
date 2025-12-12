@@ -153,6 +153,23 @@
                       </tr>
                     </tbody>
                   </table>
+
+                  <!-- ✅ Catatan Daftar Ulang (muncul jika rejected) -->
+                  <div
+                    v-if="selectedParticipant?.reregistration_status === 'rejected'"
+                    class="p-3 border-top"
+                  >
+                    <div class="alert alert-danger mb-0">
+                      <div class="font-weight-bold mb-1">
+                        <i class="fas fa-exclamation-triangle mr-1"></i>
+                        Daftar Ulang Ditolak
+                      </div>
+
+                      <div class="text-sm">
+                        {{ selectedParticipant?.reregistration_notes || 'Tidak ada catatan penolakan.' }}
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -308,6 +325,114 @@
                 </div>
               </div>
 
+              <!-- VERIFIKASI PESERTA (participant_verifications) -->
+              <div class="card shadow-sm border mt-3" v-if="hasVerificationsLoaded">
+                <div class="card-header border-0 py-2 d-flex justify-content-between align-items-center">
+                  <span class="font-weight-bold">Riwayat Verifikasi</span>
+
+                  <span v-if="verificationEntries.length" class="badge badge-light border">
+                    {{ verificationEntries.length }} data
+                  </span>
+                </div>
+
+                <div class="card-body p-2">
+                  <!-- Jika relasi tidak di-load sama sekali -->
+                  <div v-if="!hasVerificationsLoaded" class="text-muted text-sm text-center py-2">
+                    Verifikasi belum dimuat (aktifkan <code>withVerifications</code> di list).
+                  </div>
+
+                  <!-- Jika relasi di-load tapi kosong -->
+                  <div v-else-if="verificationEntries.length === 0" class="text-muted text-sm text-center py-2">
+                    Belum ada catatan verifikasi.
+                  </div>
+
+                  <!-- Jika ada data -->
+                  <div v-else>
+                    <div
+                      v-for="(v, idx) in verificationEntries"
+                      :key="v.id || idx"
+                      class="border rounded p-2 mb-2"
+                    >
+                      <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                          <div class="font-weight-bold">
+                            <span class="badge" :class="verificationStatusClass(v.status)">
+                              {{ v.status || '-' }}
+                            </span>
+                            <span class="text-muted text-xs ml-2">
+                              #{{ v.id || '-' }}
+                            </span>
+                          </div>
+
+                          <div class="text-xs text-muted mt-1">
+                            Waktu:
+                            <strong>{{ formatDateTime(v.verified_at || v.created_at) }}</strong>
+                          </div>
+
+                          <div class="text-xs text-muted">
+                            Petugas:
+                            <strong>{{ v.verifier?.name || v.verified_by_name || v.verified_by || '-' }}</strong>
+                          </div>
+                        </div>
+
+                        <div class="text-right">
+                          <div class="text-xs text-muted">Checklist</div>
+                          <div class="font-weight-bold">
+                            {{ countChecked(v).checked }} / {{ countChecked(v).total }}
+                          </div>
+                        </div>
+                      </div>
+
+                      <!-- Badges ringkas -->
+                      <div class="mt-2 d-flex flex-wrap">
+                        <span class="badge badge-light border mr-1 mb-1" :class="v.checked_photo ? 'badge-success' : 'badge-secondary'">
+                          Foto
+                        </span>
+                        <span class="badge badge-light border mr-1 mb-1" :class="v.checked_id_card ? 'badge-success' : 'badge-secondary'">
+                          KTP
+                        </span>
+                        <span class="badge badge-light border mr-1 mb-1" :class="v.checked_family_card ? 'badge-success' : 'badge-secondary'">
+                          KK
+                        </span>
+                        <span class="badge badge-light border mr-1 mb-1" :class="v.checked_bank_book ? 'badge-success' : 'badge-secondary'">
+                          Tabungan
+                        </span>
+                        <span class="badge badge-light border mr-1 mb-1" :class="v.checked_certificate ? 'badge-success' : 'badge-secondary'">
+                          Sertifikat
+                        </span>
+                        <span class="badge badge-light border mr-1 mb-1" :class="v.checked_other ? 'badge-success' : 'badge-secondary'">
+                          Lainnya
+                        </span>
+                      </div>
+
+                      <div class="mt-1 d-flex flex-wrap">
+                        <span class="badge badge-info mr-1 mb-1" v-if="v.checked_identity">Identitas</span>
+                        <span class="badge badge-info mr-1 mb-1" v-if="v.checked_contact">Kontak</span>
+                        <span class="badge badge-info mr-1 mb-1" v-if="v.checked_domicile">Domisili</span>
+                        <span class="badge badge-info mr-1 mb-1" v-if="v.checked_education">Pendidikan</span>
+                        <span class="badge badge-info mr-1 mb-1" v-if="v.checked_bank_account">Rekening</span>
+                        <span class="badge badge-info mr-1 mb-1" v-if="v.checked_document_dates">Tgl Dokumen</span>
+                      </div>
+
+                      <!-- Notes -->
+                      <div v-if="v.notes" class="mt-2 text-sm">
+                        <div class="text-muted text-xs mb-1">Catatan:</div>
+                        <div class="border rounded p-2 bg-light">{{ v.notes }}</div>
+                      </div>
+
+                      <!-- field_matches (JSON) -->
+                      <details v-if="v.field_matches" class="mt-2">
+                        <summary class="text-xs text-muted" style="cursor:pointer;">
+                          Detail field_matches
+                        </summary>
+                        <pre class="mb-0 mt-2 p-2 bg-dark text-light rounded text-xs">{{ safeJson(v.field_matches) }}</pre>
+                      </details>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+
             </div>
           </div>
         </div>
@@ -323,26 +448,98 @@
 </template>
 
 <script setup>
-import { defineProps } from 'vue'
+import { defineProps, computed } from 'vue'
 import { formatDate, formatDateTime } from './EventParticipantHelpers'
 
 const props = defineProps({
-  // object eventparticipant lengkap (yang ada participant, event_group, dll)
-  selectedParticipant: {
-    type: Object,
-    default: null
-  }
+  selectedParticipant: { type: Object, default: null },
 })
 
 const hasFileDetail = (field) => {
-  if (!props.selectedParticipant || !props.selectedParticipant.participant) return false
+  if (!props.selectedParticipant?.participant) return false
   return !!props.selectedParticipant.participant[field]
 }
 
 const openFileDetail = (field) => {
-  if (!props.selectedParticipant || !props.selectedParticipant.participant) return
-  const url = props.selectedParticipant.participant[field]
+  const url = props.selectedParticipant?.participant?.[field]
   if (!url) return
   window.open(url, '_blank')
 }
+
+/** ✅ Normalisasi verifications: bisa dari latestVerification, latest_verification, atau array verifications */
+const verificationEntries = computed(() => {
+  const sp = props.selectedParticipant
+  if (!sp) return []
+
+  // kemungkinan bentuk relasi yang dipakai backend
+  const latest =
+    sp.latestVerification ||
+    sp.latest_verification ||
+    sp.latest_verification_data ||
+    null
+
+  const list =
+    sp.verifications ||
+    sp.participant_verifications ||
+    sp.verification_logs ||
+    null
+
+  if (Array.isArray(list) && list.length) return list
+  if (latest) return [latest]
+  return []
+})
+
+const hasVerificationsLoaded = computed(() => {
+  const sp = props.selectedParticipant
+  if (!sp) return false
+  // kalau salah satu key ada, berarti memang di-load (meski kosong)
+  return (
+    'verifications' in sp ||
+    'latestVerification' in sp ||
+    'latest_verification' in sp ||
+    'participant_verifications' in sp
+  )
+})
+
+/** ✅ Helper status badge */
+const verificationStatusClass = (status) => {
+  if (status === 'verified') return 'badge-success'
+  if (status === 'rejected') return 'badge-danger'
+  return 'badge-secondary'
+}
+
+/** ✅ Hitung checklist ringkas (berapa yang dicentang) */
+const countChecked = (v) => {
+  if (!v) return { checked: 0, total: 0 }
+
+  const keys = [
+    // dokumen
+    'checked_photo',
+    'checked_id_card',
+    'checked_family_card',
+    'checked_bank_book',
+    'checked_certificate',
+    'checked_other',
+    // kelompok data
+    'checked_identity',
+    'checked_contact',
+    'checked_domicile',
+    'checked_education',
+    'checked_bank_account',
+    'checked_document_dates',
+  ]
+
+  const total = keys.length
+  const checked = keys.reduce((sum, k) => sum + (v[k] ? 1 : 0), 0)
+  return { checked, total }
+}
+
+const safeJson = (obj) => {
+  try {
+    return obj ? JSON.stringify(obj, null, 2) : ''
+  } catch {
+    return ''
+  }
+}
 </script>
+

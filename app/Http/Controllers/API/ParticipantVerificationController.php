@@ -40,20 +40,17 @@ class ParticipantVerificationController extends Controller
         // $this->authorize('verify', $participant); // opsional, kalau pakai policy khusus
 
         $data = $request->validate([
-            // context event (opsional)
             'event_id' => ['nullable', 'exists:events,id'],
             'event_participant_id' => ['nullable', 'exists:event_participants,id'],
 
-            // status verifikasi (participant_verifications.status)
             'status' => ['required', 'in:verified,rejected'],
 
-            // 🔹 status pendaftaran (event_participants.status_pendaftaran)
-            'status_pendaftaran' => [
+            // ✅ sesuai migration event_participants.registration_status
+            'registration_status' => [
                 'required',
-                Rule::in(['bankdata', 'proses', 'diterima', 'perbaiki', 'mundur', 'tolak']),
+                Rule::in(['bank_data','process','verified','need_revision','rejected','disqualified']),
             ],
 
-            // dokumen dicek?
             'checked_photo' => ['boolean'],
             'checked_id_card' => ['boolean'],
             'checked_family_card' => ['boolean'],
@@ -61,7 +58,6 @@ class ParticipantVerificationController extends Controller
             'checked_certificate' => ['boolean'],
             'checked_other' => ['boolean'],
 
-            // kelompok data dicek?
             'checked_identity' => ['boolean'],
             'checked_contact' => ['boolean'],
             'checked_domicile' => ['boolean'],
@@ -69,41 +65,26 @@ class ParticipantVerificationController extends Controller
             'checked_bank_account' => ['boolean'],
             'checked_document_dates' => ['boolean'],
 
-            // detail hasil cek per field
             'field_matches' => ['nullable', 'array'],
-
-            // catatan
             'notes' => ['nullable', 'string'],
         ]);
 
 
         // set default false kalau tidak dikirim (supaya aman)
         $boolFields = [
-            'checked_photo',
-            'checked_id_card',
-            'checked_family_card',
-            'checked_bank_book',
-            'checked_certificate',
-            'checked_other',
+            'checked_photo','checked_id_card','checked_family_card','checked_bank_book','checked_certificate','checked_other',
+            'checked_identity','checked_contact','checked_domicile','checked_education','checked_bank_account','checked_document_dates',
+            ];
 
-            'checked_identity',
-            'checked_contact',
-            'checked_domicile',
-            'checked_education',
-            'checked_bank_account',
-            'checked_document_dates',
-        ];
+            foreach ($boolFields as $field) {
+            $data[$field] = (bool)($data[$field] ?? false);
+            }
 
-        foreach ($boolFields as $field) {
-            $data[$field] = (bool) ($data[$field] ?? false);
-        }
-
-        $verification = ParticipantVerification::create([
+            $verification = ParticipantVerification::create([
             'participant_id' => $participant->id,
             'event_id' => $data['event_id'] ?? null,
             'event_participant_id' => $data['event_participant_id'] ?? null,
             'verified_by' => Auth::id(),
-
             'status' => $data['status'],
 
             'checked_photo' => $data['checked_photo'],
@@ -122,26 +103,27 @@ class ParticipantVerificationController extends Controller
 
             'field_matches' => $data['field_matches'] ?? null,
             'notes' => $data['notes'] ?? null,
-        ]);
+            'verified_at' => now(),
+            ]);
 
-        // return [
-        //     'event_participant_id' => $data['event_participant_id'],
-        //     'status_pendaftaran' => $data['status_pendaftaran']
-        // ];
 
-        // 🔹 Update status_pendaftaran di event_participants (kalau ada event_participant_id)
-        if (!empty($data['event_participant_id']) && !empty($data['status_pendaftaran'])) {
+        if (!empty($data['event_participant_id'])) {
             EventParticipant::where('id', $data['event_participant_id'])
                 ->update([
-                    'status_pendaftaran' => $data['status_pendaftaran'],
+                    'registration_status' => $data['registration_status'],
+                    'verified_by' => Auth::id(),
+                    'verified_at' => now(),
                 ]);
         } elseif (!empty($data['event_id'])) {
             EventParticipant::where('event_id', $data['event_id'])
                 ->where('participant_id', $participant->id)
                 ->update([
-                    'status_pendaftaran' => $data['status_pendaftaran'],
+                    'registration_status' => $data['registration_status'],
+                    'verified_by' => Auth::id(),
+                    'verified_at' => now(),
                 ]);
         }
+
 
 
 

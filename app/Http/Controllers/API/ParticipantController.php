@@ -920,13 +920,13 @@ class ParticipantController extends Controller
         // group by status_pendaftaran
         $rawCounts = $query
             ->select(
-                'event_participants.status_pendaftaran',
+                'event_participants.registration_status',
                 DB::raw('COUNT(*) as total')
             )
-            ->groupBy('event_participants.status_pendaftaran')
-            ->pluck('total', 'status_pendaftaran');
+            ->groupBy('event_participants.registration_status')
+            ->pluck('total', 'registration_status');
 
-        $allowedStatuses = ['proses', 'diterima', 'perbaiki', 'mundur', 'tolak'];
+        $allowedStatuses = ['process', 'verified', 'need_revision', 'rejected', 'disqualified'];
 
         // inisialisasi 0 semua
         $result = [];

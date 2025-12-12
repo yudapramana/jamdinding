@@ -10,45 +10,65 @@ use Illuminate\Validation\Rule;
 
 class EventParticipantReRegistrationController extends Controller
 {
+    
+
     public function store(Request $request, EventParticipant $eventParticipant)
     {
-        // Optional: pakai policy kalau ada
+        // Optional: policy
         // $this->authorize('reRegister', $eventParticipant);
 
-        // Hanya boleh daftar ulang kalau sudah DITERIMA di pendaftaran awal
-        if ($eventParticipant->status_pendaftaran !== 'diterima') {
+        // Hanya boleh daftar ulang kalau pendaftaran awal SUDAH TERVERIFIKASI
+        if ($eventParticipant->registration_status !== 'verified') {
             return response()->json([
-                'message' => 'Peserta belum berstatus diterima. Tidak dapat diproses daftar ulang.',
+                'message' => 'Peserta belum terverifikasi pada pendaftaran awal. Tidak dapat diproses daftar ulang.',
             ], 422);
         }
 
         $data = $request->validate([
-            'status_daftar_ulang' => [
+            'reregistration_status' => [
                 'required',
-                Rule::in(['belum', 'terverifikasi', 'gagal']),
+                Rule::in(['not_yet', 'verified', 'rejected']),
             ],
-            'daftar_ulang_notes' => ['nullable', 'string'],
+            'reregistration_notes' => ['nullable', 'string'],
         ]);
 
-        $oldStatus = $eventParticipant->status_daftar_ulang;
+        // Jika ditolak, notes wajib
+        if ($data['reregistration_status'] === 'rejected' && empty(trim($data['reregistration_notes'] ?? ''))) {
+            return response()->json([
+                'message' => 'Catatan wajib diisi jika daftar ulang ditolak.',
+                'errors'  => ['reregistration_notes' => ['Catatan wajib diisi jika status rejected.']],
+            ], 422);
+        }
 
-        $eventParticipant->status_daftar_ulang = $data['status_daftar_ulang'];
-        $eventParticipant->daftar_ulang_notes = $data['daftar_ulang_notes'] ?? null;
+        // not_yet: biasanya hanya untuk reset (opsional). Jika kamu tidak mau reset, blok saja.
+        $eventParticipant->reregistration_status = $data['reregistration_status'];
+        $eventParticipant->reregistration_notes  = $data['reregistration_notes'] ?? null;
 
-        // Set metadata waktu & petugas ketika sudah ada interaksi
-        if (in_array($data['status_daftar_ulang'], ['proses', 'terverifikasi', 'gagal'], true)) {
-            // Kalau sebelumnya masih 'tidak_dibuka' / 'belum', set waktu pertama kali
-            if (empty($eventParticipant->daftar_ulang_at)) {
-                $eventParticipant->daftar_ulang_at = now();
-            }
-            $eventParticipant->daftar_ulang_by = Auth::id();
+        // Metadata: set saat ada keputusan (verified / rejected)
+        if (in_array($data['reregistration_status'], ['verified', 'rejected'], true)) {
+            $eventParticipant->reregistered_at = now();
+            $eventParticipant->reregistered_by = Auth::id();
+        }
+
+        // Kalau reset ke not_yet, bersihkan metadata (opsional)
+        if ($data['reregistration_status'] === 'not_yet') {
+            $eventParticipant->reregistered_at = null;
+            $eventParticipant->reregistered_by = null;
         }
 
         $eventParticipant->save();
 
         return response()->json([
             'message' => 'Status daftar ulang peserta berhasil diperbarui.',
-            'data'    => $eventParticipant->fresh('participant', 'event', 'competitionBranch'),
+            'data'    => $eventParticipant->fresh([
+                'participant',
+                'event',
+                'eventBranch',
+                'eventGroup',
+                'eventCategory',
+                'reregistrator', // kalau relasi user ada
+            ]),
         ]);
     }
+
 }

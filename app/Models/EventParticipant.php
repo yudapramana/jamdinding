@@ -5,151 +5,128 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Relations\Pivot;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class EventParticipant extends Pivot
 {
     use HasFactory, SoftDeletes;
 
     protected $table = 'event_participants';
-
-    // agar Laravel memperlakukan ini seperti model biasa
     public $incrementing = true;
     protected $keyType   = 'int';
 
     protected $fillable = [
         'event_id',
         'participant_id',
-        'event_competition_branch_id',
+
+        'event_branch_id',
+        'event_group_id',
+        'event_category_id',
+
         'age_year',
         'age_month',
         'age_day',
-        'status_pendaftaran',
+
+        'contingent',
+
+        'registration_status',
         'registration_notes',
+        'register_at',
+
         'moved_by',
         'verified_by',
         'verified_at',
-        'status_daftar_ulang',
-        'daftar_ulang_at',
-        'daftar_ulang_by'
 
+        'reregistration_status',
+        'reregistered_at',
+        'reregistered_by',
+        'reregistration_notes',
     ];
 
     protected $casts = [
-        'verified_at' => 'datetime',
+        'register_at'      => 'datetime',
+        'verified_at'      => 'datetime',
+        'reregistered_at'  => 'datetime',
     ];
 
-    /* ============================
-     *  CONSTANTS STATUS
-     * ============================
-     */
+    // ============================
+    // STATUS (sesuai migration)
+    // ============================
+    const REG_BANK_DATA     = 'bank_data';
+    const REG_PROCESS       = 'process';
+    const REG_VERIFIED      = 'verified';
+    const REG_NEED_REVISION = 'need_revision';
+    const REG_REJECTED      = 'rejected';
+    const REG_DISQUALIFIED  = 'disqualified';
 
-    const STATUS_BANKDATA = 'bankdata';
-    const STATUS_PROSES   = 'proses';
-    const STATUS_DITERIMA = 'diterima';
-    const STATUS_PERBAIKI = 'perbaiki';
-    const STATUS_MUNDUR   = 'mundur';
-    const STATUS_TOLAK    = 'tolak';
-
-    public static function statusOptions(): array
+    public static function registrationStatusOptions(): array
     {
         return [
-            self::STATUS_BANKDATA,
-            self::STATUS_PROSES,
-            self::STATUS_DITERIMA,
-            self::STATUS_PERBAIKI,
-            self::STATUS_MUNDUR,
-            self::STATUS_TOLAK,
+            self::REG_BANK_DATA,
+            self::REG_PROCESS,
+            self::REG_VERIFIED,
+            self::REG_NEED_REVISION,
+            self::REG_REJECTED,
+            self::REG_DISQUALIFIED,
         ];
     }
 
-    /* ============================
-     *  RELATIONSHIPS
-     * ============================
+    const REREG_NOT_YET  = 'not_yet';
+    const REREG_VERIFIED = 'verified';
+    const REREG_REJECTED = 'rejected';
+
+    public static function reregistrationStatusOptions(): array
+    {
+        return [self::REREG_NOT_YET, self::REREG_VERIFIED, self::REREG_REJECTED];
+    }
+
+    // ============================
+    // RELATIONSHIPS
+    // ============================
+    public function event() { return $this->belongsTo(Event::class); }
+    public function participant() { return $this->belongsTo(Participant::class); }
+
+    public function eventBranch() { return $this->belongsTo(EventBranch::class, 'event_branch_id'); }
+    public function eventGroup() { return $this->belongsTo(EventGroup::class, 'event_group_id'); }
+    public function eventCategory() { return $this->belongsTo(EventCategory::class, 'event_category_id'); }
+
+    public function mover() { return $this->belongsTo(User::class, 'moved_by'); }
+    public function verifier() { return $this->belongsTo(User::class, 'verified_by'); }
+    public function reregistrator() { return $this->belongsTo(User::class, 'reregistered_by'); }
+
+    /**
+     * Semua log verifikasi untuk event_participant ini.
+     * FK: participant_verifications.event_participant_id -> event_participants.id
      */
-
-    public function event()
+    public function verifications(): HasMany
     {
-        return $this->belongsTo(Event::class);
+        return $this->hasMany(ParticipantVerification::class, 'event_participant_id', 'id');
     }
 
-    public function participant()
-    {
-        return $this->belongsTo(Participant::class);
-    }
-
-    public function eventBranch()
-    {
-        return $this->belongsTo(EventBranch::class, 'event_branch_id');
-    }
-
-    public function eventGroup()
-    {
-        return $this->belongsTo(EventGroup::class, 'event_group_id');
-    }
-
-    public function eventCategory()
-    {
-        return $this->belongsTo(EventCategory::class, 'event_category_id');
-    }
-
-    public function scoresheets()
-    {
-        return $this->hasMany(EventScoresheet::class);
-    }
-
-    public function mover()
-    {
-        return $this->belongsTo(User::class, 'moved_by');
-    }
-
-    public function verifier()
-    {
-        return $this->belongsTo(User::class, 'verified_by');
-    }
-
-    /* ============================
-     *  SCOPES & HELPERS
-     * ============================
+    /**
+     * Verifikasi terakhir (paling baru).
      */
-
-    public function scopeForEvent($query, $eventId)
+    public function latestVerification(): HasOne
     {
-        return $query->where('event_id', $eventId);
+        // Laravel 8+ recommended
+        return $this->hasOne(ParticipantVerification::class, 'event_participant_id', 'id')
+            ->latestOfMany();
     }
 
-    public function scopeWithStatus($query, $status)
-    {
-        return $query->where('status_pendaftaran', $status);
-    }
-
+    // ============================
+    // HELPERS
+    // ============================
     public function getAgeTextAttribute()
     {
-        return sprintf(
-            '%dT %dB %dH',
-            $this->age_year,
-            $this->age_month,
-            $this->age_day
-        );
+        return sprintf('%dT %dB %dH', $this->age_year, $this->age_month, $this->age_day);
     }
 
     public function markVerified(User $user = null)
     {
-        $this->status_pendaftaran = self::STATUS_DITERIMA;
-        $this->verified_by        = $user ? $user->id : auth()->id();
-        $this->verified_at        = now();
+        $this->registration_status = self::REG_VERIFIED;
+        $this->verified_by = $user ? $user->id : auth()->id();
+        $this->verified_at = now();
         $this->save();
     }
-
-    // use App\Models\ParticipantVerification;
-
-    public function verifications()
-    {
-        return $this->hasMany(ParticipantVerification::class, 'event_participant_id');
-    }
-
-    public function assessmentHeaders()
-    {
-        return $this->hasMany(EventAssessmentHeader::class, 'event_participant_id');
-    }
-
 }

@@ -573,8 +573,6 @@ export const eventParticipantAttachmentFields = [
 
 export const createAttachmentHandlers = ({ files, fileErrors, form }) => {
   const onFileChange = (event, field) => {
-    // ... pindahkan isi fungsi onFileChange kamu di sini, tapi gunakan
-    // files.value & fileErrors.value yang dikirim dari luar
     fileErrors.value[field] = ''
     const file = event.target.files[0]
 
@@ -602,7 +600,7 @@ export const createAttachmentHandlers = ({ files, fileErrors, form }) => {
       }
     }
 
-    if (file.size > MAX_FILE_SIZE) {
+    if (file.size > MAX_EVENT_PARTICIPANT_FILE_SIZE) {
       fileErrors.value[field] = 'Ukuran file maksimal 1 MB.'
       event.target.value = ''
       files.value[field] = null
@@ -638,3 +636,4 @@ export const createAttachmentHandlers = ({ files, fileErrors, form }) => {
 
   return { onFileChange, openFile, hasFile, resetFiles }
 }
+

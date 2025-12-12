@@ -1876,20 +1876,20 @@ const submitVerification = async () => {
   }
 
   // 🔎 VALIDASI DETIL: semua checkbox & "Belum dinilai"
-  // const detailErrors = validateVerificationDetails()
-  // if (detailErrors.length) {
-  //   Swal.fire({
-  //     icon: 'warning',
-  //     title: 'Form verifikasi belum lengkap',
-  //     html: `
-  //       <p class="mb-2">Beberapa item belum dicek atau masih "Belum dinilai":</p>
-  //       <ul style="text-align:left; max-height:260px; overflow-y:auto; padding-left:18px;">
-  //         ${detailErrors.map(e => `<li>${e}</li>`).join('')}
-  //       </ul>
-  //     `,
-  //   })
-  //   return
-  // }
+  const detailErrors = validateVerificationDetails()
+  if (detailErrors.length) {
+    Swal.fire({
+      icon: 'warning',
+      title: 'Form verifikasi belum lengkap',
+      html: `
+        <p class="mb-2">Beberapa item belum dicek atau masih "Belum dinilai":</p>
+        <ul style="text-align:left; max-height:260px; overflow-y:auto; padding-left:18px;">
+          ${detailErrors.map(e => `<li>${e}</li>`).join('')}
+        </ul>
+      `,
+    })
+    return
+  }
 
   // (opsional) kalau ingin mewajibkan catatan kalau status = rejected
   if (verificationForm.status === 'rejected' && !verificationForm.notes) {

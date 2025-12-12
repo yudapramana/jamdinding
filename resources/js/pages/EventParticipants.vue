@@ -17,16 +17,30 @@
           </p>
         </div>
 
-        <div class="d-flex flex-column flex-sm-row gap-2">
+        <div class="btn-group btn-group-sm">
+          <button class="btn btn-outline-info btn-sm disabled">
+            Dipilih: <strong>{{ selectedParticipantIds.length }}</strong>
+          </button>
+
+          <button
+            class="btn btn-success btn-sm"
+            :disabled="!selectedParticipantIds.length || !eventId"
+            @click="openRegisterModal"
+          >
+            <i class="fas fa-check-double mr-1"></i>
+            Daftarkan Peserta
+          </button>
+
           <button
             class="btn btn-primary btn-sm"
             @click="openCreateModal"
             :disabled="!eventId"
           >
             <i class="fas fa-user-plus mr-1"></i>
-            Tambah Peserta Event
+            Tambah Peserta
           </button>
         </div>
+
       </div>
 
       <p v-if="!eventId" class="text-danger text-sm mt-2 mb-0">
@@ -67,10 +81,11 @@
               >
                 <option value="">Semua</option>
                 <option value="bank_data">Bank Data</option>
-                <option value="waiting">Menunggu Verifikasi</option>
+                <option value="process">Menunggu Verifikasi</option>
                 <option value="verified">Terverifikasi</option>
-                <option value="perbaiki">Perbaikan</option>
+                <option value="need_revision">Perbaikan</option>
                 <option value="rejected">Ditolak</option>
+                <option value="disqualified">Diskualifikasi</option>
               </select>
             </div>
 
@@ -89,6 +104,13 @@
           <table class="table table-bordered table-hover text-sm mb-0">
             <thead class="thead-light">
               <tr>
+                <th style="width: 30px;" class="text-center">
+                <input
+                  type="checkbox"
+                  :checked="isAllSelected"
+                  @change="toggleSelectAll($event)"
+                />
+              </th>
                 <th style="width: 40px;">#</th>
                 <th>Peserta</th>
                 <th>NIK &amp; Umur</th>
@@ -119,6 +141,19 @@
                 v-for="(item, index) in items"
                 :key="item.id"
               >
+                <td class="text-center">
+                  <input
+                    type="checkbox"
+                    :value="item.id"
+                    v-model="selectedParticipantIds"
+                    :disabled="
+                                !['bank_data', 'need_revision'].includes((item.registration_status || '').toLowerCase()) ||
+                                (item.participant?.lampiran_completion_percent || 0) < 80
+                              "
+
+                  />
+                </td>
+
                 <td>{{ index + 1 + (meta.current_page - 1) * meta.per_page }}</td>
 
                 <td>
@@ -1390,6 +1425,89 @@
       </div>
     </div>
 
+    <!-- MODAL KONFIRMASI DAFTARKAN PESERTA -->
+    <div class="modal fade" id="registerParticipantsModal" tabindex="-1" role="dialog">
+      <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+          <div class="modal-header py-2">
+            <h5 class="modal-title">
+              <i class="fas fa-check-double mr-2"></i>
+              Konfirmasi Pendaftaran Peserta
+            </h5>
+            <button type="button" class="close" data-dismiss="modal">
+              <span>&times;</span>
+            </button>
+          </div>
+
+          <div class="modal-body">
+            <p class="mb-2">
+              Anda akan mendaftarkan <strong>{{ selectedParticipants.length }}</strong> peserta
+              untuk event ini dan mengubah
+              <code>registration_status</code> menjadi
+              <span class="badge badge-info">process</span>.
+            </p>
+
+            <div v-if="selectedParticipants.length">
+              <table class="table table-sm table-bordered mb-0">
+                <thead>
+                  <tr>
+                    <th style="width: 50px;">#</th>
+                    <th>Nama Peserta</th>
+                    <th>NIK</th>
+                    <th>Cabang / Golongan</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr
+                    v-for="(ep, idx) in selectedParticipants"
+                    :key="ep.id"
+                  >
+                    <td>{{ idx + 1 }}</td>
+                    <td>{{ ep.participant?.full_name }}</td>
+                    <td class="text-monospace">{{ ep.participant?.nik }}</td>
+                    <td>
+                      {{
+                        ep.event_category?.full_name
+                        || ep.event_group?.full_name
+                        || ep.event_branch?.full_name
+                        || '-'
+                      }}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div v-else class="text-muted">
+              Tidak ada peserta yang dipilih.
+            </div>
+          </div>
+
+          <div class="modal-footer py-2">
+            <button
+              type="button"
+              class="btn btn-sm btn-secondary"
+              data-dismiss="modal"
+              :disabled="isRegistering"
+            >
+              Batal
+            </button>
+            <button
+              type="button"
+              class="btn btn-sm btn-success"
+              :disabled="!selectedParticipants.length || isRegistering"
+              @click="submitRegisterParticipants"
+            >
+              <i v-if="isRegistering" class="fas fa-spinner fa-spin mr-1"></i>
+              <i v-else class="fas fa-check mr-1"></i>
+              Ya, Daftarkan
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+
 
   
     <ViewParticipantModal :selected-participant="selectedParticipant" />
@@ -1528,25 +1646,9 @@ const openViewModal = (row) => {
   $('#viewParticipantModal').modal('show')
 }
 
-const hasFileDetail = (field) => {
-  if (!selectedParticipant.value || !selectedParticipant.value.participant) return false
-  return !!selectedParticipant.value.participant[field]
-}
-
-const openFileDetail = (field) => {
-  if (!selectedParticipant.value || !selectedParticipant.value.participant) return
-  const url = selectedParticipant.value.participant[field]
-  if (!url) return
-  window.open(url, '_blank')
-}
 // ==================================================
 // FILE HANDLER
 // ==================================================
-
-const MAX_FILE_SIZE = 1024 * 1024 // 1 MB
-
-
-
 
 
 const fieldErrors = ref({})
@@ -2711,6 +2813,160 @@ const submitMutasi = async () => {
     isMutasiSubmitting.value = false
   }
 }
+
+// ==================================================
+// SELECTION & BULK REGISTER
+// ==================================================
+
+const selectedParticipantIds = ref([])
+const isRegistering = ref(false)
+
+// peserta event yang sedang terpilih (berdasarkan selectedParticipantIds)
+const selectedParticipants = computed(() =>
+  items.value.filter(ep => selectedParticipantIds.value.includes(ep.id))
+)
+
+// apakah di halaman ini semua peserta sudah tercentang
+const isAllSelected = computed(() => {
+  if (!items.value.length) return false
+
+  // hanya peserta yang BISA dipilih (bank_data + lampiran >=80) yang dihitung
+  const selectableIds = items.value
+    .filter(ep =>
+      (ep.registration_status || '').toLowerCase() === 'bank_data' &&
+      (ep.participant?.lampiran_completion_percent || 0) >= 80
+    )
+    .map(ep => ep.id)
+
+  if (!selectableIds.length) return false
+
+  return selectableIds.every(id => selectedParticipantIds.value.includes(id))
+})
+
+const toggleSelectAll = (event) => {
+  const checked = event.target.checked
+
+  const selectableIds = items.value
+    .filter(ep =>
+      (ep.registration_status || '').toLowerCase() === 'bank_data' &&
+      (ep.participant?.lampiran_completion_percent || 0) >= 80
+    )
+    .map(ep => ep.id)
+
+  if (checked) {
+    // gabungkan id yang bisa dipilih di halaman ini dengan yang sudah ada (eliminasi duplikat)
+    selectedParticipantIds.value = Array.from(
+      new Set([...selectedParticipantIds.value, ...selectableIds])
+    )
+  } else {
+    // hilangkan semua id di halaman ini dari selection
+    const pageIds = items.value.map(ep => ep.id)
+    selectedParticipantIds.value = selectedParticipantIds.value.filter(
+      id => !pageIds.includes(id)
+    )
+  }
+}
+
+const openRegisterModal = () => {
+  if (!selectedParticipantIds.value.length) return
+  $('#registerParticipantsModal').modal('show')
+}
+
+const submitRegisterParticipants = async () => {
+  if (!selectedParticipantIds.value.length || !eventId.value) {
+    Swal.fire({
+      icon: 'warning',
+      title: 'Belum ada peserta dipilih',
+      text: 'Silakan checklist peserta berstatus BANKDATA yang akan didaftarkan.',
+    })
+    return
+  }
+
+  const selected = selectedParticipants.value
+
+  const allowedStatuses = ['bank_data', 'need_revision']
+
+  // peserta yang BUKAN bank_data / need_revision
+  const invalidSelected = selected.filter(
+    ep => !allowedStatuses.includes((ep.registration_status || '').toLowerCase())
+  )
+
+  // peserta yang boleh didaftarkan (bank_data atau need_revision)
+  const bankdataParticipants = selected.filter(
+    ep => allowedStatuses.includes((ep.registration_status || '').toLowerCase())
+  )
+
+  if (!bankdataParticipants.length) {
+    Swal.fire({
+      icon: 'warning',
+      title: 'Tidak ada peserta yang valid',
+      text: 'Hanya peserta dengan status "bank_data" atau "need_revision" yang dapat didaftarkan.',
+    })
+    return
+  }
+
+
+  if (invalidSelected.length) {
+    const names = invalidSelected
+      .slice(0, 5)
+      .map(ep => `- ${ep.participant?.full_name} (${registrationStatusLabel(ep.registration_status)})`)
+      .join('\n')
+
+    Swal.fire({
+      icon: 'warning',
+      title: 'Sebagian peserta tidak bisa didaftarkan',
+      text: 'Hanya peserta dengan status "bank_data" yang akan diproses. Periksa kembali daftar peserta.',
+      footer: `<pre style="text-align:left;margin:0;">${names}${invalidSelected.length > 5 ? '\n... dan lainnya' : ''}</pre>`,
+    })
+  }
+
+  const idsToRegister = bankdataParticipants.map(ep => ep.id)
+
+  const confirmResult = await Swal.fire({
+    icon: 'question',
+    title: `Daftarkan ${idsToRegister.length} peserta?`,
+    text: 'Status pendaftaran akan diubah menjadi "process".',
+    showCancelButton: true,
+    confirmButtonText: 'Ya, daftarkan',
+    cancelButtonText: 'Batal',
+  })
+
+  if (!confirmResult.isConfirmed) {
+    return
+  }
+
+  isRegistering.value = true
+
+  try {
+    // ⚠️ endpoint disesuaikan untuk EVENT PARTICIPANTS
+    await axios.post('/api/v1/event-participants/bulk-register', {
+      ids: idsToRegister,          // id EventParticipant
+      event_id: eventId.value,
+      registration_status: 'process',
+    })
+
+    $('#registerParticipantsModal').modal('hide')
+    selectedParticipantIds.value = []
+    await fetchItems(meta.value.current_page)
+
+    Swal.fire({
+      icon: 'success',
+      title: 'Pendaftaran berhasil',
+      text: `Sebanyak ${idsToRegister.length} peserta berstatus BANKDATA berhasil dipindahkan ke status "process".`,
+    })
+  } catch (error) {
+    console.error('Gagal mendaftarkan peserta:', error)
+    const msg = error.response?.data?.message || 'Gagal mendaftarkan peserta.'
+    Swal.fire({
+      icon: 'error',
+      title: 'Gagal',
+      text: msg,
+    })
+  } finally {
+    isRegistering.value = false
+  }
+}
+
 
 
 

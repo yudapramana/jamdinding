@@ -228,8 +228,12 @@ export const useAuthUserStore = defineStore('AuthUserStore', () => {
             docsProgressState.value = true;
             docsUpdateState.value = true;
 
+
             // Bersihkan data
-            // preserveEventStorage();
+            preserveEventStorage()
+
+            // localStorage.clear()
+            // sessionStorage.clear()
             document.cookie.split(";").forEach(cookie => {
                 const eqPos = cookie.indexOf("=");
                 const name = eqPos > -1 ? cookie.substr(0, eqPos) : cookie;
