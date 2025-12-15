@@ -1,32 +1,80 @@
 <script setup>
-import { useRouter } from 'vue-router';
-import { useAuthUserStore } from '../stores/AuthUserStore';
-import { useSettingStore } from '../stores/SettingStore';
-import CloudImage from '../components/CloudImage.vue';
-import { getActivePinia } from "pinia";
+import { useRouter } from 'vue-router'
+import { useRoute } from 'vue-router'
+import { useAuthUserStore } from '../stores/AuthUserStore'
+import { useSettingStore } from '../stores/SettingStore'
+import { computed } from 'vue'
 
-const router = useRouter();
-const settingStore = useSettingStore();
+const router = useRouter()
+const route = useRoute()
+
+const settingStore = useSettingStore()
 settingStore.setting.maintenance =
-  ['1', 1, true, 'true', 'on'].includes(settingStore.setting.maintenance);
-const authUserStore = useAuthUserStore();
+  ['1', 1, true, 'true', 'on'].includes(settingStore.setting.maintenance)
+
+const authUserStore = useAuthUserStore()
 
 const logout = () => {
-    authUserStore.logout();
-};
+  authUserStore.logout()
+}
 
+// active helper
+const isRouteActive = (name) => route.name === name
+
+// ====== permission helpers ======
+const canCore = computed(() => authUserStore.can('manage.core'))
+const canMaster = computed(() => authUserStore.can('manage.master'))
+const canEvent = computed(() => authUserStore.can('manage.event'))
+
+const showMasterSection = computed(() =>
+  authUserStore.can('manage.master.branches') ||
+  authUserStore.can('manage.master.groups') ||
+  authUserStore.can('manage.master.categories') ||
+  authUserStore.can('manage.master.fields-components') ||
+  authUserStore.can('manage.master.participants')
+)
+
+const showPesertaSection = computed(() =>
+  authUserStore.can('manage.event.participant.bank-data') ||
+  authUserStore.can('manage.event.participant.registration') ||
+  authUserStore.can('manage.event.participant.reregistration') ||
+  authUserStore.can('manage.event.participant.final') ||
+  authUserStore.can('manage.event.judges.user') ||
+  authUserStore.can('manage.event.judges-panel') ||
+  authUserStore.can('manage.event.competitions') ||
+  authUserStore.can('manage.event.competitions.scorings')
+)
+
+// ambil kompetisi terakhir yang dipilih di tree
+const lastCompetitionId = computed(() => {
+  return localStorage.getItem('last_scoring_competition_id') || null
+})
+
+// link scoring (kalau belum ada, arahkan ke list kompetisi)
+const scoringLink = computed(() => {
+  if (!lastCompetitionId.value) {
+    return { name: 'admin.event-competitions' }
+  }
+  return {
+    name: 'admin.event-competitions.scoring',
+    params: { id: lastCompetitionId.value },
+  }
+})
 </script>
+
 <template>
   <aside class="main-sidebar sidebar-dark-primary elevation-4">
-
     <a href="#" class="brand-link">
-      <img src="/app_logo.png" alt="AdminLTE Logo"
-        class="brand-image img-circle elevation-3" style="opacity: .8">
+      <img
+        src="/app_logo.png"
+        alt="AdminLTE Logo"
+        class="brand-image img-circle elevation-3"
+        style="opacity: .8"
+      >
       <span class="brand-text font-weight-light">{{ settingStore.setting.app_name }}</span>
     </a>
 
     <div class="sidebar">
-
       <div class="user-panel mt-3 pb-3 mb-3 d-flex">
         <div class="image">
           <img :src="authUserStore.user.avatar" class="img-circle elevation-2" alt="User Image">
@@ -38,7 +86,6 @@ const logout = () => {
 
       <nav class="mt-2">
         <ul class="nav nav-pills nav-sidebar flex-column" data-widget="treeview" role="menu" data-accordion="false">
-
           <!-- ===================== -->
           <!-- BERANDA -->
           <!-- ===================== -->
@@ -51,41 +98,41 @@ const logout = () => {
           </li>
 
           <!-- ===================== -->
-          <!-- CORE (MASTER.CORE.*) -->
+          <!-- CORE (manage.core.*) -->
           <!-- ===================== -->
-          <template v-if="authUserStore.can('master.core')">
+          <template v-if="canCore">
             <li class="nav-header">CORE</li>
 
-            <li class="nav-item" v-if="authUserStore.can('master.core.branches')">
+            <li class="nav-item" v-if="authUserStore.can('manage.core.branches')">
               <router-link
-                to="/admin/master-branches-groups-categories"
+                to="/admin/core-branches-groups-categories"
                 class="nav-link"
                 active-class="active"
-                :class="{ active: $route.path.startsWith('/admin/master-branches-groups-categories') }"
+                :class="{ active: $route.path.startsWith('/admin/core-branches-groups-categories') }"
               >
                 <i class="nav-icon fas fa-sitemap"></i>
                 <p>Cabang (Core)</p>
               </router-link>
             </li>
 
-            <li class="nav-item" v-if="authUserStore.can('master.core.fields')">
+            <li class="nav-item" v-if="authUserStore.can('manage.core.fields')">
               <router-link
-                to="/admin/master-list-fields"
+                to="/admin/core-list-fields"
                 class="nav-link"
                 active-class="active"
-                :class="{ active: $route.path.startsWith('/admin/master-list-fields') }"
+                :class="{ active: $route.path.startsWith('/admin/core-list-fields') }"
               >
                 <i class="nav-icon fas fa-list-alt"></i>
                 <p>Bidang Penilaian (Core)</p>
               </router-link>
             </li>
 
-            <li class="nav-item" v-if="authUserStore.can('master.core.permissions')">
+            <li class="nav-item" v-if="authUserStore.can('manage.core.permissions')">
               <router-link
-                to="/admin/master-permission-role"
+                to="/admin/core-permission-role"
                 class="nav-link"
                 active-class="active"
-                :class="{ active: $route.path.startsWith('/admin/master-permission-role') }"
+                :class="{ active: $route.path.startsWith('/admin/core-permission-role') }"
               >
                 <i class="nav-icon fas fa-user-shield"></i>
                 <p>Hak Akses Role</p>
@@ -94,17 +141,12 @@ const logout = () => {
           </template>
 
           <!-- ===================== -->
-          <!-- MASTER DATA (MASTER.MANAGE.*) -->
+          <!-- MASTER DATA (manage.master.*) -->
           <!-- ===================== -->
-          <template v-if="authUserStore.can('master.manage.branches')
-                        || authUserStore.can('master.manage.groups')
-                        || authUserStore.can('master.manage.categories')
-                        || authUserStore.can('master.manage.fields-components')
-                        || authUserStore.can('master.manage.participants')">
-
+          <template v-if="canMaster && showMasterSection">
             <li class="nav-header">MASTER DATA</li>
 
-            <li class="nav-item" v-if="authUserStore.can('master.manage.branches')">
+            <li class="nav-item" v-if="authUserStore.can('manage.master.branches')">
               <router-link
                 to="/admin/master-branches"
                 class="nav-link"
@@ -116,7 +158,7 @@ const logout = () => {
               </router-link>
             </li>
 
-            <li class="nav-item" v-if="authUserStore.can('master.manage.groups')">
+            <li class="nav-item" v-if="authUserStore.can('manage.master.groups')">
               <router-link
                 to="/admin/master-groups"
                 class="nav-link"
@@ -128,7 +170,7 @@ const logout = () => {
               </router-link>
             </li>
 
-            <li class="nav-item" v-if="authUserStore.can('master.manage.categories')">
+            <li class="nav-item" v-if="authUserStore.can('manage.master.categories')">
               <router-link
                 to="/admin/master-categories"
                 class="nav-link"
@@ -140,7 +182,7 @@ const logout = () => {
               </router-link>
             </li>
 
-            <li class="nav-item" v-if="authUserStore.can('master.manage.fields-components')">
+            <li class="nav-item" v-if="authUserStore.can('manage.master.fields-components')">
               <router-link
                 to="/admin/master-field-components"
                 class="nav-link"
@@ -152,8 +194,7 @@ const logout = () => {
               </router-link>
             </li>
 
-            <!-- jika ada halaman master peserta -->
-            <li class="nav-item" v-if="authUserStore.can('master.manage.participants')">
+            <li class="nav-item" v-if="authUserStore.can('manage.master.participants')">
               <router-link
                 to="/admin/master-participants"
                 class="nav-link"
@@ -167,9 +208,9 @@ const logout = () => {
           </template>
 
           <!-- ===================== -->
-          <!-- MANAGED DATA (MANAGE.EVENT.*) -->
+          <!-- MANAGED DATA (manage.event.*) -->
           <!-- ===================== -->
-          <template v-if="authUserStore.can('manage.event')">
+          <template v-if="canEvent">
             <li class="nav-header">MANAGED DATA</li>
 
             <li class="nav-item" v-if="authUserStore.can('manage.event.events')">
@@ -258,29 +299,23 @@ const logout = () => {
           </template>
 
           <!-- ===================== -->
-          <!-- PESERTA (MANAGE.EVENT.PARTICIPANT.*) -->
+          <!-- PESERTA + HAKIM + KOMPETISI/SCORING -->
           <!-- ===================== -->
-          <template v-if="authUserStore.can('manage.event.participant.bank-data')
-                        || authUserStore.can('manage.event.participant.registration')
-                        || authUserStore.can('manage.event.participant.reregistration')">
-
+          <template v-if="showPesertaSection">
             <li class="nav-header">PESERTA</li>
 
-            <!-- BANK DATA -->
             <li class="nav-item" v-if="authUserStore.can('manage.event.participant.bank-data')">
               <router-link
                 :to="{ name: 'admin.event.participants.bank-data' }"
                 class="nav-link"
                 active-class="active"
                 :class="{ active: $route.name === 'admin.event.participants.bank-data' }"
-
               >
                 <i class="nav-icon fas fa-database"></i>
                 <p>Bank Data</p>
               </router-link>
             </li>
 
-            <!-- PENDAFTARAN / VERIFIKASI -->
             <li class="nav-item" v-if="authUserStore.can('manage.event.participant.registration')">
               <router-link
                 :to="{ name: 'admin.event.participants.registration', params: { status: 'process' } }"
@@ -289,16 +324,11 @@ const logout = () => {
                 :class="{ active: $route.name === 'admin.event.participants.registration' }"
               >
                 <i class="nav-icon fas fa-user-plus"></i>
-                <p v-if="authUserStore.user?.role?.slug === 'verifikator'">
-                  Verifikasi
-                </p>
-                <p v-else>
-                  Pendaftaran
-                </p>
+                <p v-if="authUserStore.user?.role?.slug === 'verifikator'">Verifikasi</p>
+                <p v-else>Pendaftaran</p>
               </router-link>
             </li>
 
-            <!-- DAFTAR ULANG -->
             <li class="nav-item" v-if="authUserStore.can('manage.event.participant.reregistration')">
               <router-link
                 :to="{ name: 'admin.event.participants.reregistration' }"
@@ -311,7 +341,6 @@ const logout = () => {
               </router-link>
             </li>
 
-            <!-- PESERTA FINAL -->
             <li class="nav-item" v-if="authUserStore.can('manage.event.participant.final')">
               <router-link
                 :to="{ name: 'admin.event.participants.final' }"
@@ -321,6 +350,62 @@ const logout = () => {
               >
                 <i class="nav-icon fas fa-user-check"></i>
                 <p>Final</p>
+              </router-link>
+            </li>
+
+            <!-- ===== HAKIM ===== -->
+            <li class="nav-header" v-if="authUserStore.can('manage.event.judges') || authUserStore.can('manage.event.judges.user') || authUserStore.can('manage.event.judges-panel')">
+              HAKIM
+            </li>
+
+            <li class="nav-item" v-if="authUserStore.can('manage.event.judges.user')">
+              <router-link
+                :to="{ name: 'admin.event.judges.user' }"
+                class="nav-link"
+                active-class="active"
+                :class="{ active: $route.name === 'admin.event.judges.user' }"
+              >
+                <i class="nav-icon fas fa-users-cog"></i>
+                <p>User Hakim</p>
+              </router-link>
+            </li>
+
+            <li class="nav-item" v-if="authUserStore.can('manage.event.judges-panel')">
+              <router-link
+                :to="{ name: 'admin.event.judges-panel' }"
+                class="nav-link"
+                active-class="active"
+                :class="{ active: $route.name === 'admin.event.judges-panel' }"
+              >
+                <i class="nav-icon fas fa-gavel"></i>
+                <p>Majelis Hakim</p>
+              </router-link>
+            </li>
+
+            <!-- ===== KOMPETISI ===== -->
+            <li class="nav-header" v-if="authUserStore.can('manage.event.scoring') || authUserStore.can('manage.event.scoring.competition')">
+              KOMPETISI
+            </li>
+
+            <li class="nav-item" v-if="authUserStore.can('manage.event.scoring.competitions')">
+              <router-link
+                :to="{ name: 'admin.event-competitions' }"
+                class="nav-link"
+                :class="{ active: isRouteActive('admin.event-competitions') }"
+              >
+                <i class="nav-icon fas fa-sitemap"></i>
+                <p>Kompetisi Event</p>
+              </router-link>
+            </li>
+
+            <li class="nav-item" v-if="authUserStore.can('manage.event.competitions.scoring.input-default')">
+              <router-link
+                :to="scoringLink"
+                class="nav-link"
+                :class="{ active: isRouteActive('admin.event-competitions.scoring.input-default') }"
+              >
+                <i class="nav-icon fas fa-star"></i>
+                <p>Input Nilai</p>
               </router-link>
             </li>
           </template>
@@ -336,10 +421,8 @@ const logout = () => {
               </a>
             </form>
           </li>
-
         </ul>
       </nav>
-
     </div>
   </aside>
 </template>

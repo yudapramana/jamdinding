@@ -257,6 +257,7 @@ return new class extends Migration
 
             $table->enum('status', ['inactive', 'active'])->default('active');
             $table->boolean('is_team')->default(false);
+            $table->boolean('use_custom_judges')->default(false);
             $table->unsignedInteger('order_number')->nullable();
 
             $table->timestamps();
@@ -577,7 +578,7 @@ return new class extends Migration
             $table->foreignId('event_scoresheet_id')->constrained('event_scoresheets')->cascadeOnDelete();
 
             // optional: kalau mau link ke komponen bernilai
-            // $table->foreignId('event_field_component_id')->nullable()->constrained('event_field_components')->nullOnDelete();
+            $table->foreignId('event_field_component_id')->nullable()->constrained('event_field_components')->nullOnDelete();
 
             $table->decimal('score', 6, 2)->default(0);
             $table->decimal('max_score', 6, 2)->default(0);
@@ -595,21 +596,50 @@ return new class extends Migration
          */
 
         // 22. event_group_judges
+        // Schema::create('event_group_judges', function (Blueprint $table) {
+        //     $table->id();
+
+        //     $table->foreignId('event_group_id')->constrained('event_groups')->cascadeOnDelete();
+        //     $table->foreignId('user_id')->constrained('users');
+
+        //     $table->boolean('is_chief')->default(false); // ketua majelis?
+
+        //     $table->timestamps();
+
+        //     $table->unique(
+        //         ['event_group_id', 'user_id'],
+        //         'uq_event_group_judges_group_user'
+        //     );
+        // });
+
+        // 
+        // event_branch_judges
+        Schema::create('event_branch_judges', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('event_branch_id')->constrained('event_branches')->cascadeOnDelete();
+            $table->foreignId('user_id')->constrained('users');
+            $table->boolean('is_chief')->default(false);
+            $table->timestamps();
+
+            $table->unique(['event_branch_id','user_id'], 'uq_event_branch_judges_branch_user');
+        });
+
+        // event_group_judges
         Schema::create('event_group_judges', function (Blueprint $table) {
             $table->id();
 
             $table->foreignId('event_group_id')->constrained('event_groups')->cascadeOnDelete();
             $table->foreignId('user_id')->constrained('users');
 
-            $table->boolean('is_chief')->default(false); // ketua majelis?
+            $table->boolean('is_chief')->default(false);
 
             $table->timestamps();
 
-            $table->unique(
-                ['event_group_id', 'user_id'],
-                'uq_event_group_judges_group_user'
-            );
+            $table->unique(['event_group_id', 'user_id'], 'uq_event_group_judges_group_user');
         });
+
+
+        // 
 
         // 23. medal_standings
         Schema::create('medal_standings', function (Blueprint $table) {

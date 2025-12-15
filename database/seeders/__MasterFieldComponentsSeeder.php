@@ -121,7 +121,7 @@ class __MasterFieldComponentsSeeder extends Seeder
                 [
                     'master_group_name' => $masterGroup->full_name ?? ($masterGroup->branch_name . ' - ' . $masterGroup->group_name),
                     'field_name'        => $field->name,
-                    'default_weight'    => $defaultWeight,
+                    'default_weight'    => 100,
                     'default_max_score' => $defaultWeight,      
                     'default_order'     => $defaultOrder,
                     'is_default'        => true,

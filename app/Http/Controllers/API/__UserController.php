@@ -16,33 +16,37 @@ use Illuminate\Support\Str;
 class __UserController extends Controller
 {
     public function index(Request $request)
-{
-    $search   = $request->get('search');
-    $eventId  = $request->get('event_id');
-    $perPage  = (int) $request->get('per_page', 10);
+    {
+        $search   = $request->get('search');
+        $eventId  = $request->get('event_id');
+        $perPage  = (int) $request->get('per_page', 10);
 
-    $query = User::query()
-        ->with(['role', 'event', 'employee'])
-        ->orderBy('username');
+        $query = User::query()
+            ->with(['role', 'event', 'employee'])
+            ->whereHas('role', function ($q) {
+                $q->where('slug', '!=', 'DEWAN_HAKIM'); // ⬅️ exclude
+            })
+            ->orderBy('username');
 
-    // HANYA tampilkan user yang memiliki event_id
-    if ($eventId) {
-        $query->where('event_id', $eventId);
+        // hanya user dengan event_id tertentu
+        if ($eventId) {
+            $query->where('event_id', $eventId);
+        }
+
+        // pencarian
+        if ($search) {
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                ->orWhere('email', 'like', "%{$search}%")
+                ->orWhere('username', 'like', "%{$search}%");
+            });
+        }
+
+        return response()->json(
+            $query->paginate($perPage)
+        );
     }
 
-    // Pencarian sederhana
-    if ($search) {
-        $query->where(function ($q) use ($search) {
-            $q->where('name', 'like', "%{$search}%")
-              ->orWhere('email', 'like', "%{$search}%")
-              ->orWhere('username', 'like', "%{$search}%");
-        });
-    }
-
-    $users = $query->paginate($perPage);
-
-    return response()->json($users);
-}
 
     public function store(Request $request)
     {

@@ -16,10 +16,11 @@ class EventBranchJudge extends Model
         'order_no' => 'integer',
     ];
 
-    public function branch(): BelongsTo
+    public function eventBranch()
     {
-        return $this->belongsTo(EventCompetitionBranch::class, 'event_competition_branch_id');
+        return $this->belongsTo(\App\Models\EventBranch::class, 'event_branch_id');
     }
+
 
     public function user(): BelongsTo
     {

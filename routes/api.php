@@ -4,12 +4,16 @@ use App\Http\Controllers\Api\__BranchController;
 use App\Http\Controllers\Api\__CategoryController;
 use App\Http\Controllers\Api\__EventBranchController;
 use App\Http\Controllers\Api\__EventCategoryController;
+use App\Http\Controllers\API\__EventCompetitionController;
+use App\Http\Controllers\API\__EventCompetitionScoringController;
 use App\Http\Controllers\API\__EventController;
 use App\Http\Controllers\API\__EventFieldComponentController;
 use App\Http\Controllers\Api\__EventGroupController;
+use App\Http\Controllers\API\__EventJudgePanelController;
 use App\Http\Controllers\API\__EventParticipantController;
 use App\Http\Controllers\API\__EventStageController;
 use App\Http\Controllers\Api\__GroupController;
+use App\Http\Controllers\API\__JudgeUserController;
 use App\Http\Controllers\Api\__ListFieldController;
 use App\Http\Controllers\Api\__MasterBranchController;
 use App\Http\Controllers\Api\__MasterCategoryController;
@@ -160,6 +164,7 @@ Route::middleware(['auth:sanctum']) // kalau belum pakai sanctum, boleh dihapus 
         Route::post('/events/{event}/participants', [__EventParticipantController::class, 'store']);
 
         Route::get('/events/{event}/simple', [__EventParticipantController::class, 'simple']);
+        Route::get('/events/{event}/participants/simple', [__EventParticipantController::class, 'simpleParticipant']);
 
         Route::post('/save-event-participants/', [__EventParticipantController::class, 'eventParticipant']);
 
@@ -180,9 +185,57 @@ Route::middleware(['auth:sanctum']) // kalau belum pakai sanctum, boleh dihapus 
     
         Route::get('events/{event}/kafilah-pdf', [__EventParticipantController::class, 'kafilahPdf']);
 
+        //  Judges
+        Route::get('/events/{event}/judge-panels', [__EventJudgePanelController::class, 'index']);
+
+        // Default cabang (event_branch_judges)
+        Route::get('/event-branches/{eventBranch}/judges', [__EventJudgePanelController::class, 'getBranchJudges']);
+        Route::put('/event-branches/{eventBranch}/judges', [__EventJudgePanelController::class, 'syncBranchJudges']);
+
+        // Override golongan (event_group_judges + toggle use_custom_judges)
+        Route::get('/event-groups/{eventGroup}/judges', [__EventJudgePanelController::class, 'getGroupJudges']);
+        Route::put('/event-groups/{eventGroup}/judges', [__EventJudgePanelController::class, 'syncGroupJudges']);
+        Route::patch('/event-groups/{eventGroup}/use-custom-judges', [__EventJudgePanelController::class, 'toggleUseCustom']);
+
+
+         // list & create (scoped by event)
+        Route::get('/events/{event}/judges',  [__JudgeUserController::class, 'index']);
+        Route::post('/events/{event}/judges', [__JudgeUserController::class, 'store']);
+
+        // update / delete / toggle active
+        Route::put('/judges/{user}',                [__JudgeUserController::class, 'update']);
+        Route::delete('/judges/{user}',             [__JudgeUserController::class, 'destroy']);
+        Route::patch('/judges/{user}/toggle-active',[__JudgeUserController::class, 'toggleActive']);
+
+        // CRUD permission_role
+        Route::apiResource('permission-roles', PermissionRoleController::class);
+        Route::post('/roles/{role}/sync-permissions', [PermissionRoleController::class, 'sync']);
+
+        Route::get('/events/{event}/competitions/meta', [__EventCompetitionController::class, 'meta']);
+        Route::get('/events/{event}/competitions/tree', [__EventCompetitionController::class, 'tree']);
+        Route::post('/events/{event}/competitions', [__EventCompetitionController::class, 'store']);
+
+        Route::get('/event-competitions/{eventCompetition}', [__EventCompetitionController::class, 'show']);
+        Route::put('/event-competitions/{eventCompetition}', [__EventCompetitionController::class, 'update']);
+        Route::delete('/event-competitions/{eventCompetition}', [__EventCompetitionController::class, 'destroy']);
+
+
+        Route::get('/event-competitions/{competition}/scoring/form', [__EventCompetitionScoringController::class, 'form']);
+        Route::post('/event-competitions/{competition}/scoring/draft', [__EventCompetitionScoringController::class, 'saveDraft']);
+        Route::post('/event-competitions/{competition}/scoring/submit', [__EventCompetitionScoringController::class, 'submit']);
+        Route::post('/event-competitions/{competition}/scoring/lock', [__EventCompetitionScoringController::class, 'lock']);
 
 
 
+
+
+
+
+
+
+
+
+        
 
         // CRUD Users (per event)
         Route::apiResource('users', __UserController::class);
@@ -192,8 +245,7 @@ Route::middleware(['auth:sanctum']) // kalau belum pakai sanctum, boleh dihapus 
         // Optional: list roles untuk dropdown
         Route::get('roles', [RoleController::class, 'index']);
 
-        // CRUD permission_role
-        Route::apiResource('permission-roles', PermissionRoleController::class);
+        
 
         // Dropdown helper
         Route::get('roles-simple', [SimpleRoleController::class, 'index']);

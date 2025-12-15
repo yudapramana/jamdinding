@@ -5,6 +5,8 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Builder;
+
 
 class EventCompetition extends Model
 {
@@ -14,6 +16,7 @@ class EventCompetition extends Model
 
     protected $casts = [
         'is_team'        => 'boolean',
+        'scheduled_at'   => 'datetime:Y-m-d',
         'schedule_start' => 'datetime:Y-m-d',
         'schedule_end'   => 'datetime:Y-m-d',
     ];
@@ -31,12 +34,13 @@ class EventCompetition extends Model
     }
 
     /**
-     * CGL event (event_competition_branches)
+     * CGL event (event_group)
      */
-    public function eventCompetitionBranch(): BelongsTo
+    public function eventGroup(): BelongsTo
     {
-        return $this->belongsTo(EventCompetitionBranch::class, 'event_competition_branch_id');
+        return $this->belongsTo(\App\Models\EventGroup::class, 'event_group_id');
     }
+
 
     /**
      * Babak / Round (Penyisihan, Semifinal, Final, ...)
@@ -54,17 +58,37 @@ class EventCompetition extends Model
         return $this->hasMany(EventAssessmentHeader::class, 'event_competition_id');
     }
 
-    public function branchJudges()
+    public function groupJudges(): HasMany
     {
-        return $this->hasManyThrough(
-            EventBranchJudge::class,
-            EventCompetitionBranch::class,
-            'id',   // local key di EventCompetitionBranch
-            'event_competition_branch_id', // foreign key EventBranchJudge
-            'event_competition_branch_id', // local key di EventCompetition (ke branch)
-            'id'   // local key di EventCompetitionBranch
-        );
+        return $this->hasMany(\App\Models\EventGroupJudge::class, 'event_group_id', 'event_group_id');
     }
+
+    public function branchJudges(): Builder
+    {
+        // ambil branch_id dari event_group milik competition ini
+        $branchId = $this->eventGroup?->branch_id;
+
+        if (!$branchId) {
+            // kalau eventGroup belum diload, fallback: join event_groups
+            $branchId = \App\Models\EventGroup::whereKey($this->event_group_id)->value('branch_id');
+        }
+
+        return \App\Models\EventBranchJudge::query()
+            ->whereHas('eventBranch', function ($q) use ($branchId) {
+                $q->where('event_id', $this->event_id)
+                ->where('branch_id', $branchId);
+            });
+    }
+
+    public function judgesQuery()
+    {
+        $useCustom = (bool) ($this->eventGroup?->use_custom_judges);
+
+        return $useCustom
+            ? $this->groupJudges()
+            : $this->branchJudges(); // query builder dari opsi A
+    }
+
 
 
 

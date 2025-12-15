@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\HasApiTokens;
 use Illuminate\Support\Facades\Hash;
 use App\Notifications\CustomResetPasswordNotification;
-
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 
 class User extends Authenticatable
@@ -257,5 +257,19 @@ class User extends Authenticatable
     public function judgeAssessments()
     {
         return $this->hasMany(EventAssessmentHeader::class, 'judge_id');
+    }
+
+    public function judgedEventBranches(): BelongsToMany
+    {
+        return $this->belongsToMany(EventBranch::class, 'event_branch_judges', 'user_id', 'event_branch_id')
+            ->withPivot(['is_chief'])
+            ->withTimestamps();
+    }
+
+    public function judgedEventGroups(): BelongsToMany
+    {
+        return $this->belongsToMany(EventGroup::class, 'event_group_judges', 'user_id', 'event_group_id')
+            ->withPivot(['is_chief'])
+            ->withTimestamps();
     }
 }

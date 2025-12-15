@@ -2,10 +2,12 @@
   <section class="content-header">
     <div class="container-fluid">
       <div class="d-flex justify-content-between align-items-center">
-        <h1 class="mb-2">Pengaturan Hak Akses Role</h1>
-        <p class="mb-0 text-muted text-sm">
-          Pilih role lalu atur menu / permission yang boleh diakses.
-        </p>
+        <div>
+          <h1 class="mb-1">Pengaturan Hak Akses Role</h1>
+          <p class="mb-0 text-muted text-sm">
+            Pilih role lalu atur menu / permission yang boleh diakses.
+          </p>
+        </div>
       </div>
     </div>
   </section>
@@ -39,10 +41,7 @@
               <tr v-else-if="filteredRoles.length === 0">
                 <td colspan="4" class="text-center">Tidak ada role ditemukan.</td>
               </tr>
-              <tr
-                v-for="(role, index) in filteredRoles"
-                :key="role.id"
-              >
+              <tr v-for="(role, index) in filteredRoles" :key="role.id">
                 <td>{{ index + 1 }}</td>
                 <td>{{ role.name }}</td>
                 <td><code>{{ role.slug }}</code></td>
@@ -63,20 +62,24 @@
       </div>
     </div>
 
-    <!-- MODAL SETTING MENU / PERMISSION -->
+    <!-- MODAL -->
     <div class="modal fade" id="rolePermissionModal" tabindex="-1" role="dialog">
       <div class="modal-dialog modal-lg" role="document">
         <div class="modal-content">
 
-          <div class="modal-header py-2" style="background-color:#28a745;color:#fff;">
-            <h5 class="modal-title mb-0">
-              <strong>Setting Menu Event</strong>
-              <span v-if="currentRole" class="d-block text-sm">
-                Role: {{ currentRole.name }} ({{ currentRole.slug }})
-              </span>
-            </h5>
+          <div class="modal-header py-2 bg-primary text-white">
+            <div>
+              <h5 class="modal-title mb-0">
+                <i class="fas fa-user-shield mr-1"></i> Pengaturan Hak Akses
+              </h5>
+              <small v-if="currentRole" class="d-block">
+                Role: <strong>{{ currentRole.name }}</strong>
+                (<code class="text-white">{{ currentRole.slug }}</code>)
+              </small>
+            </div>
+
             <button type="button" class="close" data-dismiss="modal">
-              <span style="color:#fff;">&times;</span>
+              <span class="text-white">&times;</span>
             </button>
           </div>
 
@@ -86,181 +89,43 @@
             </div>
 
             <div v-else>
-              <!-- Beranda (jika ada permission group 'dashboard') -->
-              <div v-if="groupedPermissions.dashboard && groupedPermissions.dashboard.permissions.length"
-                   class="card mb-3 border-0 shadow-sm">
-                <div class="card-header py-2 bg-danger text-white d-flex align-items-center">
-                  <div class="custom-control custom-checkbox mb-0">
-                    <!-- contoh: centang semua permission di group dashboard -->
-                    <input
-                      type="checkbox"
-                      class="custom-control-input"
-                      id="group-dashboard"
-                      :checked="isGroupFullyChecked('dashboard')"
-                      @change="toggleGroup('dashboard', $event.target.checked)"
-                    />
-                    <label class="custom-control-label font-weight-bold" for="group-dashboard">
-                      Beranda
-                    </label>
-                  </div>
-                </div>
-                <div class="card-body py-2">
-                  <div
-                    v-for="perm in groupedPermissions.dashboard.permissions"
-                    :key="perm.id"
-                    class="custom-control custom-checkbox mb-1"
-                  >
-                    <input
-                      type="checkbox"
-                      class="custom-control-input"
-                      :id="'perm-'+perm.id"
-                      :value="perm.id"
-                      v-model="selectedPermissionIds"
-                    />
-                    <label class="custom-control-label" :for="'perm-'+perm.id">
-                      {{ perm.name }}
-                      <small class="text-muted">({{ perm.slug }})</small>
-                    </label>
-                  </div>
-                </div>
+              <div class="mb-2">
+                <input
+                  v-model="permSearch"
+                  type="text"
+                  class="form-control form-control-sm"
+                  placeholder="Cari permission... (contoh: manage.event.judges)"
+                />
               </div>
 
-              <!-- Master Data -->
-              <div v-if="groupedPermissions.master && groupedPermissions.master.permissions.length"
-                   class="card mb-3 border-0 shadow-sm">
-                <div class="card-header py-2 bg-danger text-white d-flex align-items-center">
-                  <div class="custom-control custom-checkbox mb-0">
-                    <input
-                      type="checkbox"
-                      class="custom-control-input"
-                      id="group-master"
-                      :checked="isGroupFullyChecked('master')"
-                      @change="toggleGroup('master', $event.target.checked)"
-                    />
-                    <label class="custom-control-label font-weight-bold" for="group-master">
-                      Master Data
-                    </label>
-                  </div>
-                </div>
-                <div class="card-body py-2">
-                  <div
-                    v-for="perm in groupedPermissions.master.permissions"
-                    :key="perm.id"
-                    class="custom-control custom-checkbox mb-1"
-                  >
-                    <input
-                      type="checkbox"
-                      class="custom-control-input"
-                      :id="'perm-'+perm.id"
-                      :value="perm.id"
-                      v-model="selectedPermissionIds"
-                    />
-                    <label class="custom-control-label" :for="'perm-'+perm.id">
-                      {{ perm.name }}
-                      <small class="text-muted">({{ perm.slug }})</small>
-                    </label>
-                  </div>
-                </div>
+              <div v-if="permissionGroups.length === 0" class="text-center text-muted py-4">
+                Tidak ada permission sesuai pencarian.
               </div>
 
-              <!-- Master / Manage Event -->
-              <div v-if="groupedPermissions.event && groupedPermissions.event.permissions.length"
-                   class="card mb-3 border-0 shadow-sm">
-                <div class="card-header py-2 bg-danger text-white d-flex align-items-center">
-                  <div class="custom-control custom-checkbox mb-0">
-                    <input
-                      type="checkbox"
-                      class="custom-control-input"
-                      id="group-event"
-                      :checked="isGroupFullyChecked('event')"
-                      @change="toggleGroup('event', $event.target.checked)"
-                    />
-                    <label class="custom-control-label font-weight-bold" for="group-event">
-                      Master Acara / Event
-                    </label>
-                  </div>
-                </div>
-                <div class="card-body py-2">
-                  <div
-                    v-for="perm in groupedPermissions.event.permissions"
-                    :key="perm.id"
-                    class="custom-control custom-checkbox mb-1"
-                  >
-                    <input
-                      type="checkbox"
-                      class="custom-control-input"
-                      :id="'perm-'+perm.id"
-                      :value="perm.id"
-                      v-model="selectedPermissionIds"
-                    />
-                    <label class="custom-control-label" :for="'perm-'+perm.id">
-                      {{ perm.name }}
-                      <small class="text-muted">({{ perm.slug }})</small>
-                    </label>
-                  </div>
-                </div>
-              </div>
-
-              <div v-if="groupedPermissions.participant && groupedPermissions.participant.permissions.length"
-                   class="card mb-3 border-0 shadow-sm">
-                <div class="card-header py-2 bg-danger text-white d-flex align-items-center">
-                  <div class="custom-control custom-checkbox mb-0">
-                    <input
-                      type="checkbox"
-                      class="custom-control-input"
-                      id="group-participant"
-                      :checked="isGroupFullyChecked('participant')"
-                      @change="toggleGroup('participant', $event.target.checked)"
-                    />
-                    <label class="custom-control-label font-weight-bold" for="group-participant">
-                      Kelola Peserta
-                    </label>
-                  </div>
-                </div>
-                <div class="card-body py-2">
-                  <div
-                    v-for="perm in groupedPermissions.participant.permissions"
-                    :key="perm.id"
-                    class="custom-control custom-checkbox mb-1"
-                  >
-                    <input
-                      type="checkbox"
-                      class="custom-control-input"
-                      :id="'perm-'+perm.id"
-                      :value="perm.id"
-                      v-model="selectedPermissionIds"
-                    />
-                    <label class="custom-control-label" :for="'perm-'+perm.id">
-                      {{ perm.name }}
-                      <small class="text-muted">({{ perm.slug }})</small>
-                    </label>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Group lain (opsional) -->
               <div
-                v-for="group in otherGroups"
-                :key="group.key"
+                v-for="g in permissionGroups"
+                :key="g.key"
                 class="card mb-3 border-0 shadow-sm"
               >
-                <div class="card-header py-2 bg-danger text-white d-flex align-items-center">
+                <div class="card-header py-2 bg-dark text-white d-flex align-items-center">
                   <div class="custom-control custom-checkbox mb-0">
                     <input
                       type="checkbox"
                       class="custom-control-input"
-                      :id="'group-'+group.key"
-                      :checked="isGroupFullyChecked(group.key)"
-                      @change="toggleGroup(group.key, $event.target.checked)"
+                      :id="'group-'+g.key"
+                      :checked="isGroupFullyChecked(g.key)"
+                      @change="toggleGroup(g.key, $event.target.checked)"
                     />
-                    <label class="custom-control-label font-weight-bold" :for="'group-'+group.key">
-                      {{ group.title }}
+                    <label class="custom-control-label font-weight-bold" :for="'group-'+g.key">
+                      {{ g.title }}
+                      <small class="ml-1" style="opacity:.9;">({{ g.key }})</small>
                     </label>
                   </div>
                 </div>
+
                 <div class="card-body py-2">
                   <div
-                    v-for="perm in group.permissions"
+                    v-for="perm in g.permissions"
                     :key="perm.id"
                     class="custom-control custom-checkbox mb-1"
                   >
@@ -280,18 +145,15 @@
               </div>
 
               <p class="text-muted text-sm mb-0">
-                Centang menu yang boleh diakses oleh role
+                Centang permission yang boleh diakses oleh role
                 <strong>{{ currentRole?.name }}</strong>.
               </p>
             </div>
+
           </div>
 
           <div class="modal-footer py-2">
-            <button
-              type="button"
-              class="btn btn-secondary btn-sm"
-              data-dismiss="modal"
-            >
+            <button type="button" class="btn btn-secondary btn-sm" data-dismiss="modal">
               Batal
             </button>
             <button
@@ -317,23 +179,24 @@ import { ref, computed, onMounted, watch } from 'vue'
 import axios from 'axios'
 import { useDebounceFn } from '@vueuse/core'
 import { useAuthUserStore } from '../../stores/AuthUserStore'
-import Swal from 'sweetalert2';
+import Swal from 'sweetalert2'
 
 const authUserStore = useAuthUserStore()
 
-// ====== STATE ROLE LIST ======
+// ====== ROLE LIST ======
 const roles = ref([])
 const isLoadingRoles = ref(false)
 const search = ref('')
 
-// ====== STATE MODAL ======
+// ====== MODAL ======
 const currentRole = ref(null)
 const isLoadingModal = ref(false)
 const isSaving = ref(false)
 
-const allPermissions = ref([])           // semua permission dari /permissions-simple
-const rolePermissionPivots = ref([])     // data pivot permission_role utk role aktif
-const selectedPermissionIds = ref([])    // array of permission_id yg dicentang
+const permSearch = ref('')
+const allPermissions = ref([])
+const rolePermissionPivots = ref([])
+const selectedPermissionIds = ref([])
 
 // ====== FETCH ROLES ======
 const fetchRoles = async () => {
@@ -343,15 +206,13 @@ const fetchRoles = async () => {
     roles.value = res.data || []
   } catch (error) {
     console.error('Gagal memuat roles:', error)
-    if (error.response && error.response.status === 401) {
-      authUserStore.logout()
-    }
+    if (error.response && error.response.status === 401) authUserStore.logout()
   } finally {
     isLoadingRoles.value = false
   }
 }
 
-// search lokal
+// filter local
 const filteredRoles = computed(() => {
   if (!search.value) return roles.value
   const q = search.value.toLowerCase()
@@ -361,12 +222,9 @@ const filteredRoles = computed(() => {
   )
 })
 
-watch(
-  search,
-  useDebounceFn(() => {}, 300) // hanya filter client-side
-)
+watch(search, useDebounceFn(() => {}, 250))
 
-// ====== FETCH PERMISSIONS (sekali di awal) ======
+// ====== FETCH PERMISSIONS ======
 const fetchPermissions = async () => {
   try {
     const res = await axios.get('/api/v1/permissions-simple')
@@ -376,71 +234,84 @@ const fetchPermissions = async () => {
   }
 }
 
-// ====== GROUPING PERMISSION BY PREFIX SLUG ======
-const groupedPermissions = computed(() => {
-  const groups = {
-    dashboard:        { key: 'dashboard',       title: 'Beranda', permissions: [] },
-    master:           { key: 'master',          title: 'Master Data', permissions: [] },
-    event:            { key: 'event',           title: 'Master Acara / Event', permissions: [] },
-    participant:      { key: 'participant',     title: 'Peserta', permissions: [] },
-    other:            { key: 'other',           title: 'Lainnya', permissions: [] },
-  }
+// ====== GROUPING (sesuai array permission kamu) ======
+const GROUP_TITLES = {
+  'manage.core': 'CORE',
+  'manage.master': 'MASTER DATA',
+  'manage.event': 'MANAGED DATA',
+  'manage.event.participant': 'PESERTA',
+  'manage.event.judges': 'HAKIM',
+  'manage.event.scoring': 'PENILAIAN',
+}
 
-  allPermissions.value.forEach(p => {
-    const prefix = (p.slug || '').split('.')[0]
+const GROUP_ORDER = [
+  'manage.core',
+  'manage.master',
+  'manage.event',
+  'manage.event.participant',
+  'manage.event.judges',
+  'manage.event.scoring',
+]
 
-    if (prefix === 'master') {
-      groups.master.permissions.push(p)
-    } else if (prefix === 'event') {
-      groups.event.permissions.push(p)
-    } else if (prefix === 'dashboard') {
-      groups.dashboard.permissions.push(p)
-    } else if (prefix === 'participant') {
-      groups.participant.permissions.push(p)
-    } else {
-      groups.other.permissions.push(p)
-    }
+const getGroupKeyFromSlug = (slug = '') => {
+  const s = String(slug || '')
+
+  // paling spesifik dulu
+  if (s.startsWith('manage.event.scoring')) return 'manage.event.scoring'
+  if (s.startsWith('manage.event.participant')) return 'manage.event.participant'
+  if (s.startsWith('manage.event.judges')) return 'manage.event.judges'
+
+  // manage.event.* selain participant/judges/scoring
+  if (s.startsWith('manage.event')) return 'manage.event'
+
+  if (s.startsWith('manage.core')) return 'manage.core'
+  if (s.startsWith('manage.master')) return 'manage.master'
+  return 'other'
+}
+
+const sortPerms = (a, b) => {
+  const as = String(a.slug || '')
+  const bs = String(b.slug || '')
+  const ad = as.split('.').length
+  const bd = bs.split('.').length
+  if (ad !== bd) return ad - bd
+  return as.localeCompare(bs)
+}
+
+const permissionGroups = computed(() => {
+  const q = (permSearch.value || '').toLowerCase().trim()
+
+  const map = {}
+  GROUP_ORDER.forEach(k => {
+    map[k] = { key: k, title: GROUP_TITLES[k] || k, permissions: [] }
   })
+  map.other = { key: 'other', title: 'LAINNYA', permissions: [] }
 
-  return groups
-})
-
-// untuk looping group lain
-const otherGroups = computed(() => {
-  return Object.values(groupedPermissions.value).filter(
-    g => g.key === 'other' && g.permissions.length
-  )
-})
-
-// helper group check
-const isGroupFullyChecked = (groupKey) => {
-  const group = groupedPermissions.value[groupKey]
-  if (!group || !group.permissions.length) return false
-  return group.permissions.every(p => selectedPermissionIds.value.includes(p.id))
-}
-
-const toggleGroup = (groupKey, checked) => {
-  const group = groupedPermissions.value[groupKey]
-  if (!group) return
-
-  const ids = group.permissions.map(p => p.id)
-
-  if (checked) {
-    // tambahkan semua jika belum ada
-    selectedPermissionIds.value = Array.from(new Set([
-      ...selectedPermissionIds.value,
-      ...ids,
-    ]))
-  } else {
-    // hilangkan semua dari group
-    selectedPermissionIds.value = selectedPermissionIds.value.filter(
-      id => !ids.includes(id)
-    )
+  const passes = (p) => {
+    if (!q) return true
+    const s1 = (p.slug || '').toLowerCase()
+    const s2 = (p.name || '').toLowerCase()
+    return s1.includes(q) || s2.includes(q)
   }
-}
 
-// ====== OPEN MODAL: AMBIL PERMISSIONS ROLE ======
+  for (const p of (allPermissions.value || [])) {
+    if (!passes(p)) continue
+    const key = getGroupKeyFromSlug(p.slug)
+    if (!map[key]) map[key] = { key, title: key, permissions: [] }
+    map[key].permissions.push(p)
+  }
+
+  Object.values(map).forEach(g => g.permissions.sort(sortPerms))
+
+  return [
+    ...GROUP_ORDER.map(k => map[k]).filter(g => g && g.permissions.length),
+    ...(map.other.permissions.length ? [map.other] : []),
+  ]
+})
+
+// ====== MODAL OPEN ======
 const openPermissionModal = async (role) => {
+  permSearch.value = ''
   currentRole.value = role
   isLoadingModal.value = true
   selectedPermissionIds.value = []
@@ -449,86 +320,62 @@ const openPermissionModal = async (role) => {
   $('#rolePermissionModal').modal('show')
 
   try {
-    // 1) pastikan permission sudah ada
-    if (!allPermissions.value.length) {
-      await fetchPermissions()
-    }
+    if (!allPermissions.value.length) await fetchPermissions()
 
-    // 2) ambil pivot permission_role untuk role ini
     const res = await axios.get('/api/v1/permission-roles', {
       params: { role_id: role.id, per_page: 1000 },
     })
 
     rolePermissionPivots.value = res.data.data || []
-
-    // isi checkbox berdasarkan pivot
-    selectedPermissionIds.value = rolePermissionPivots.value.map(
-      (pr) => pr.permission_id
-    )
+    selectedPermissionIds.value = rolePermissionPivots.value.map(pr => pr.permission_id)
   } catch (error) {
     console.error('Gagal memuat permission role:', error)
-    if (error.response && error.response.status === 401) {
-      authUserStore.logout()
-    }
+    if (error.response && error.response.status === 401) authUserStore.logout()
   } finally {
     isLoadingModal.value = false
   }
 }
 
-// ====== SIMPAN: SYNC PERMISSIONS UNTUK ROLE ======
+// ====== SAVE ======
 const savePermissions = async () => {
   if (!currentRole.value) return
   isSaving.value = true
-
   try {
-    const currentIds = rolePermissionPivots.value.map(pr => pr.permission_id)
-    const currentByPermId = {}
-    rolePermissionPivots.value.forEach(pr => {
-      currentByPermId[pr.permission_id] = pr
+    await axios.post(`/api/v1/roles/${currentRole.value.id}/sync-permissions`, {
+      permission_ids: selectedPermissionIds.value,
     })
 
-    const newIds = selectedPermissionIds.value
-
-    const toAdd = newIds.filter(id => !currentIds.includes(id))
-    const toRemove = currentIds.filter(id => !newIds.includes(id))
-
-    // ADD
-    for (const permId of toAdd) {
-      await axios.post('/api/v1/permission-roles', {
-        role_id: currentRole.value.id,
-        permission_id: permId,
-      })
-    }
-
-    // REMOVE
-    for (const permId of toRemove) {
-      const pivot = currentByPermId[permId]
-      if (pivot?.id) {
-        await axios.delete(`/api/v1/permission-roles/${pivot.id}`)
-      }
-    }
-
-    // refresh pivot utk role
-    await openPermissionModal(currentRole.value)
-
-    // alert('Pengaturan permission role berhasil disimpan.')
-    Swal.fire({
-            icon: 'success',
-            title: 'Pengaturan permission role berhasil disimpan.',
-            showConfirmButton: false,
-            timer: 2000
-        });
+    Swal.fire({ icon: 'success', title: 'Hak akses berhasil disimpan.', showConfirmButton: false, timer: 1400 })
     $('#rolePermissionModal').modal('hide')
   } catch (error) {
-    console.error('Gagal menyimpan permission role:', error)
-    alert(error.response?.data?.message || 'Gagal menyimpan pengaturan hak akses.')
+    console.error('Gagal sync permissions:', error)
+    Swal.fire('Gagal', error.response?.data?.message || 'Gagal menyimpan hak akses.', 'error')
   } finally {
     isSaving.value = false
   }
 }
 
+// ====== GROUP CHECK ======
+const isGroupFullyChecked = (groupKey) => {
+  const g = permissionGroups.value.find(x => x.key === groupKey)
+  if (!g || !g.permissions.length) return false
+  return g.permissions.every(p => selectedPermissionIds.value.includes(p.id))
+}
+
+const toggleGroup = (groupKey, checked) => {
+  const g = permissionGroups.value.find(x => x.key === groupKey)
+  if (!g) return
+  const ids = g.permissions.map(p => p.id)
+
+  if (checked) {
+    selectedPermissionIds.value = Array.from(new Set([...selectedPermissionIds.value, ...ids]))
+  } else {
+    selectedPermissionIds.value = selectedPermissionIds.value.filter(id => !ids.includes(id))
+  }
+}
+
 onMounted(() => {
   fetchRoles()
-  fetchPermissions() // boleh paralel
+  fetchPermissions()
 })
 </script>

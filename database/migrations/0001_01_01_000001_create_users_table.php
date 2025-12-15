@@ -38,7 +38,6 @@ return new class () extends Migration {
                 ->nullable()
                 ->constrained('villages');
 
-
             $table->rememberToken();
             $table->timestamps();
 

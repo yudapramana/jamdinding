@@ -62,6 +62,7 @@ class DatabaseSeeder extends Seeder
         $this->call(_EventParticipantsSeeder::class);
         $this->call(_RolePermissionSeeder::class);
         $this->call(_UsersbyEventSeeder::class);
+        $this->call(_JudgeUsersFromEventBranchesSeeder::class);
 
 
 

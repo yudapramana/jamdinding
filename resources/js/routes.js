@@ -25,14 +25,19 @@ export default [
         component: () => import('./components/Dashboard.vue'),
       },
       {
-        path: 'master-branches-groups-categories',
-        name: 'admin.master.branches-groups-categories',
-        component: () => import('./pages/master/MasterBranchesGroupsCategories.vue'),
+        path: 'core-branches-groups-categories',
+        name: 'admin.core.branches-groups-categories',
+        component: () => import('./pages/core/CoreBranchesGroupsCategories.vue'),
       },
       {
-        path: 'master-list-fields',
-        name: 'admin.master.list-fields',
-        component: () => import('./pages/master/MasterListFields.vue'),
+        path: 'core-list-fields',
+        name: 'admin.core.list-fields',
+        component: () => import('./pages/core/CoreListFields.vue'),
+      },
+      {
+        path: 'core-permission-role',
+        name: 'admin.core-permission-role',
+        component: () => import('./pages/permission/PermissionRoleList.vue'),
       },
       {
         path: 'master-branches',
@@ -95,6 +100,61 @@ export default [
         name: 'admin.event.participants.final',
         component: () => import('./pages/EventParticipantsFinal.vue'),
       },
+      {
+        path: '/event-judges-user',
+        name: 'admin.event.judges.user',
+        component: () => import('./pages/event/EventJudgesUsers.vue'),
+      },
+      {
+        path: '/event-judges-panel',
+        name: 'admin.event.judges-panel',
+        component: () => import('./pages/event/EventJudgePanels.vue'),
+      },
+      {
+        path: '/admin/scoring/events-competitions',
+        name: 'admin.event-competitions',
+        component: () => import('./pages/event/EventCompetitionsTree.vue'),
+      },
+
+      // ==============================
+      // EVENT COMPETITION – SCORING
+      // ==============================
+
+      // Form pengisian nilai 1 peserta pada 1 kompetisi
+      {
+        path: '/admin/scoring/events-competitions/scoring',
+        name: 'admin.event-competitions.scoring.default',
+        component: () => import('./pages/event/EventCompetitionScoring.vue'),
+      },
+      {
+        path: '/admin/scoring/events-competitions/:id/scoring',
+        name: 'admin.event-competitions.scoring.specific',
+        component: () => import('./pages/event/EventCompetitionScoring.vue'),
+        props: route => ({
+          eventParticipantId: route.query.event_participant_id || null,
+        }),
+      },
+
+      // (opsional) Monitoring / rekap nilai per kompetisi
+      // {
+      //   path: '/admin/events-competitions/:id/scores',
+      //   name: 'admin.event-competitions.scores',
+      //   component: () => import('./pages/event/EventCompetitionScores.vue'),
+      // },
+
+      // // (opsional) Ranking hasil babak
+      // {
+      //   path: '/admin/events-competitions/:id/ranking',
+      //   name: 'admin.event-competitions.ranking',
+      //   component: () => import('./pages/event/EventCompetitionRanking.vue'),
+      // },
+
+
+
+
+
+
+
 
 
       // batas
@@ -133,11 +193,6 @@ export default [
         path: 'master-competition-branch',
         name: 'admin.master-competition-branch',
         component: () => import('./pages/competition/MasterCompetitionBranchList.vue'),
-      },
-      {
-        path: 'master-permission-role',
-        name: 'admin.master-permission-role',
-        component: () => import('./pages/permission/PermissionRoleList.vue'),
       },
       {
         path: 'event-competition-branch',

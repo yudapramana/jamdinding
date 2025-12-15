@@ -6,9 +6,50 @@ use App\Http\Controllers\Controller;
 use App\Models\PermissionRole;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use App\Models\Permission;
+use App\Models\Role;
+use Illuminate\Support\Facades\DB;
 
 class PermissionRoleController extends Controller
 {
+
+    public function sync(Request $request, Role $role)
+    {
+        $data = $request->validate([
+            'permission_ids'   => ['required','array'],
+            'permission_ids.*' => ['integer'],
+        ]);
+
+        $ids = collect($data['permission_ids'])
+            ->filter(fn($v) => is_numeric($v))
+            ->map(fn($v) => (int)$v)
+            ->unique()
+            ->values()
+            ->all();
+
+        // pastikan semua id valid
+        $validCount = Permission::whereIn('id', $ids)->count();
+        if ($validCount !== count($ids)) {
+            return response()->json([
+                'message' => 'Ada permission_id yang tidak valid.',
+            ], 422);
+        }
+
+        DB::transaction(function () use ($role, $ids) {
+            // default pivot Laravel: permission_role
+            $role->permissions()->sync($ids);
+        });
+
+        return response()->json([
+            'message' => 'Permissions role berhasil disinkronkan.',
+            'data' => [
+                'role_id' => $role->id,
+                'permission_ids' => $ids,
+            ],
+        ]);
+    }
+
+
     public function index(Request $request)
     {
         $search   = $request->get('search');

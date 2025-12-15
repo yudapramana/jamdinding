@@ -1387,19 +1387,19 @@ const submitVerification = async () => {
     return
   }
 
-  // const detailErrors = validateVerificationDetails()
-  // if (detailErrors.length) {
-  //   Swal.fire({
-  //     icon: 'warning',
-  //     title: 'Form verifikasi belum lengkap',
-  //     html: `
-  //       <ul style="text-align:left; max-height:260px; overflow-y:auto; padding-left:18px;">
-  //         ${detailErrors.map(e => `<li>${e}</li>`).join('')}
-  //       </ul>
-  //     `,
-  //   })
-  //   return
-  // }
+  const detailErrors = validateVerificationDetails()
+  if (detailErrors.length) {
+    Swal.fire({
+      icon: 'warning',
+      title: 'Form verifikasi belum lengkap',
+      html: `
+        <ul style="text-align:left; max-height:260px; overflow-y:auto; padding-left:18px;">
+          ${detailErrors.map(e => `<li>${e}</li>`).join('')}
+        </ul>
+      `,
+    })
+    return
+  }
 
   const confirmResult = await Swal.fire({
     icon: 'question',

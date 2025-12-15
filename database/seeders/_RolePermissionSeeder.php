@@ -12,16 +12,17 @@ class _RolePermissionSeeder extends Seeder
     {
         // 1) Definisi PERMISSIONS
         $perms = [
-            ['name' => 'Manage Core',                               'slug' => 'master.core'],
-            ['name' => 'Manage Core Branch',                        'slug' => 'master.core.branches'],
-            ['name' => 'Manage Core Fields',                        'slug' => 'master.core.fields'],
-            ['name' => 'Manage Core Permission',                    'slug' => 'master.core.permissions'],
+            ['name' => 'Manage Core',                               'slug' => 'manage.core'],
+            ['name' => 'Manage Core Branch',                        'slug' => 'manage.core.branches'],
+            ['name' => 'Manage Core Fields',                        'slug' => 'manage.core.fields'],
+            ['name' => 'Manage Core Permission',                    'slug' => 'manage.core.permissions'],
 
-            ['name' => 'Manage Master Branch',                      'slug' => 'master.manage.branches'],
-            ['name' => 'Manage Master Group',                       'slug' => 'master.manage.groups'],
-            ['name' => 'Manage Master Category',                    'slug' => 'master.manage.categories'],
-            ['name' => 'Manage Master Field Component',             'slug' => 'master.manage.fields-components'],
-            ['name' => 'Manage Master Participant',                 'slug' => 'master.manage.participants'],
+            ['name' => 'Manage Master',                             'slug' => 'manage.master'],
+            ['name' => 'Manage Master Branch',                      'slug' => 'manage.master.branches'],
+            ['name' => 'Manage Master Group',                       'slug' => 'manage.master.groups'],
+            ['name' => 'Manage Master Category',                    'slug' => 'manage.master.categories'],
+            ['name' => 'Manage Master Field Component',             'slug' => 'manage.master.fields-components'],
+            ['name' => 'Manage Master Participant',                 'slug' => 'manage.master.participants'],
 
             ['name' => 'Manage Event',                              'slug' => 'manage.event'],
             ['name' => 'Manage Event Event',                        'slug' => 'manage.event.events'],
@@ -36,6 +37,14 @@ class _RolePermissionSeeder extends Seeder
             ['name' => 'Manage Event Participant Registration',     'slug' => 'manage.event.participant.registration'],
             ['name' => 'Manage Event Participant Reregistration',   'slug' => 'manage.event.participant.reregistration'],
             ['name' => 'Manage Event Participant Final',            'slug' => 'manage.event.participant.final'],
+
+            ['name' => 'Manage Event Judges',                       'slug' => 'manage.event.judges'],
+            ['name' => 'Manage Event Judges User',                  'slug' => 'manage.event.judges.user'],
+            ['name' => 'Manage Event Judges Panel',                 'slug' => 'manage.event.judges-panel'],
+
+            ['name' => 'Manage Event Scoring Competition',          'slug' => 'manage.event.scoring.competitions'],
+            ['name' => 'Manage Event Scoring Input Default',        'slug' => 'manage.event.scoring.input-default'],
+            ['name' => 'Manage Event Scoring Input Specific',       'slug' => 'manage.event.scoring.input-specific'],
         ];
 
         // Simpan / ambil permissions, index by slug
@@ -112,8 +121,24 @@ class _RolePermissionSeeder extends Seeder
                 ->all()
         );
 
+        // PANITERA:
+        $paniteraSlugs = [
+            'manage.event.judges',
+            'manage.event.judges.user',
+            'manage.event.judges-panel',
+            'manage.event.scoring.competitions',
+            'manage.event.scoring.default',
+            'manage.event.scoring.specific',
+        ];
+
+        $roleModels['panitera']->permissions()->sync(
+                collect($permissions)
+                    ->whereIn('slug', $paniteraSlugs)
+                    ->pluck('id')
+                    ->all()
+            );
+
         // Lainnya kosong
         $roleModels['dewan_hakim']->permissions()->sync([]);
-        $roleModels['panitera']->permissions()->sync([]);
     }
 }

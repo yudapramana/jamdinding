@@ -25,7 +25,45 @@ use Barryvdh\DomPDF\Facade\Pdf;
 class __EventParticipantController extends Controller
 {
 
-   
+    /**
+     * GET /api/v1/events/{event}/participants/simple
+     * Dropdown: id, participant(nik, full_name), contingent, event_category(full_name)
+     */
+    public function simpleParticipant(Request $request, Event $event)
+    {
+        $request->validate([
+            'event_group_id' => ['nullable','integer','exists:event_groups,id'],
+            'per_page' => ['nullable','integer'],
+            'search' => ['nullable','string'],
+        ]);
+
+        $q = \App\Models\EventParticipant::query()
+            ->where('event_participants.event_id', $event->id)
+            ->with([
+                'participant:id,nik,full_name',
+                'eventCategory:id,full_name',
+            ])
+            ->orderByDesc('event_participants.contingent');
+
+        if ($request->filled('event_group_id')) {
+            $q->where('event_participants.event_group_id', $request->event_group_id);
+        }
+
+        if ($s = trim((string)$request->search)) {
+            $q->whereHas('participant', function ($qq) use ($s) {
+                $qq->where('full_name','like',"%{$s}%")
+                ->orWhere('nik','like',"%{$s}%");
+            });
+        }
+
+        $perPage = (int)($request->per_page ?: 1000);
+
+        return response()->json(
+            $q->paginate($perPage, ['event_participants.*'])
+        );
+    }
+
+
 
     public function kafilahPdf(Request $request, Event $event)
     {
