@@ -396,7 +396,7 @@ const buildJsTree = async () => {
   if (node.type === 'competition') {
     const compId = String(node.id).replace('comp-', '')
     router.push({
-      name: 'admin.event-competitions.scoring.specific',
+      name: 'admin.event-competitions.scoring.input-specific',
       params: { id: compId },
     })
   }

@@ -30,7 +30,6 @@ class _RolePermissionSeeder extends Seeder
             ['name' => 'Manage Event Branch',                       'slug' => 'manage.event.branches'],
             ['name' => 'Manage Event Group',                        'slug' => 'manage.event.groups'],
             ['name' => 'Manage Event Category',                     'slug' => 'manage.event.categories'],
-            ['name' => 'Manage Event Field Components',             'slug' => 'manage.event.fields-components'],
             ['name' => 'Manage Event User',                         'slug' => 'manage.event.user'],
 
             ['name' => 'Manage Event Participant Bank Data',        'slug' => 'manage.event.participant.bank-data'],
@@ -38,13 +37,15 @@ class _RolePermissionSeeder extends Seeder
             ['name' => 'Manage Event Participant Reregistration',   'slug' => 'manage.event.participant.reregistration'],
             ['name' => 'Manage Event Participant Final',            'slug' => 'manage.event.participant.final'],
 
-            ['name' => 'Manage Event Judges',                       'slug' => 'manage.event.judges'],
-            ['name' => 'Manage Event Judges User',                  'slug' => 'manage.event.judges.user'],
-            ['name' => 'Manage Event Judges Panel',                 'slug' => 'manage.event.judges-panel'],
-
-            ['name' => 'Manage Event Scoring Competition',          'slug' => 'manage.event.scoring.competitions'],
-            ['name' => 'Manage Event Scoring Input Default',        'slug' => 'manage.event.scoring.input-default'],
-            ['name' => 'Manage Event Scoring Input Specific',       'slug' => 'manage.event.scoring.input-specific'],
+            ['name' => 'Manage Event Competition',                              'slug' => 'manage.event-competitions'],
+            ['name' => 'Manage Event Competition Judges',                       'slug' => 'manage.event-competitions.judges'],
+            ['name' => 'Manage Event Competition Judges User',                  'slug' => 'manage.event-competitions.judges.user'],
+            ['name' => 'Manage Event Competition Judges Panel',                 'slug' => 'manage.event-competitions.judges-panel'],
+            ['name' => 'Manage Event Competition Field Components',             'slug' => 'manage.event-competitions.fields-components'],
+            ['name' => 'Manage Event Competition Scoring Competition Index',    'slug' => 'manage.event-competitions.scoring.index'],
+            ['name' => 'Manage Event Competition Scoring Input Default',        'slug' => 'manage.event-competitions.scoring.input-default'],
+            ['name' => 'Manage Event Competition Scoring Input Specific',       'slug' => 'manage.event-competitions.scoring.input-specific'],
+            
         ];
 
         // Simpan / ambil permissions, index by slug
@@ -123,12 +124,14 @@ class _RolePermissionSeeder extends Seeder
 
         // PANITERA:
         $paniteraSlugs = [
-            'manage.event.judges',
-            'manage.event.judges.user',
-            'manage.event.judges-panel',
-            'manage.event.scoring.competitions',
-            'manage.event.scoring.default',
-            'manage.event.scoring.specific',
+            'manage.event-competitions',
+            'manage.event-competitions.judges',
+            'manage.event-competitions.judges.user',
+            'manage.event-competitions.judges-panel',
+            'manage.event-competitions.fields-components',
+            'manage.event-competitions.scoring.index',
+            'manage.event-competitions.scoring.input-default',
+            'manage.event-competitions.scoring.input-specific',
         ];
 
         $roleModels['panitera']->permissions()->sync(

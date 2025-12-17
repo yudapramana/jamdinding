@@ -136,7 +136,7 @@
                     </td>
 
                     <td>
-                      <strong>{{ item.event_category?.full_name }}</strong>
+                      <strong>{{ item.event_group?.full_name }}</strong>
                       <div v-if="item.event_group" class="text-xs text-muted">
                         Batas: {{ (item.event_group?.max_age ?? 0) - 1 }}T 11B 29H
                       </div>

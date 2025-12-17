@@ -2,14 +2,29 @@
     <section class="content-header">
         <div class="container-fluid">
             <div class="d-flex justify-content-between align-items-center">
-                <div>
+                <!-- <div>
                     <h1 class="mb-1">Data Tahapan Peserta</h1>
                     <p class="mb-0 text-muted text-sm">
                         Event:
                         <strong>{{ eventInfo?.nama_event || '-' }}</strong>
                         <span v-if="eventInfo?.lokasi_event"> • {{ eventInfo.lokasi_event }}</span>
                     </p>
-                </div>
+                </div> -->
+
+                <div>
+                    <h1 class="mb-1">Data Tahapan Peserta</h1>
+                    <p class="mb-0 text-muted text-sm">
+                        Mengatur Tahapan Event.
+                    </p>
+
+                    <!-- Info event aktif -->
+                    <p v-if="eventId" class="mb-0 mt-1 text-sm text-muted">
+                        Event aktif:
+                        <strong>{{ eventData?.event_name }}</strong>
+                        <span v-if="eventData?.event_year"> ({{ eventData.event_year }})</span>
+                        • Lokasi: <strong>{{ eventData?.event_location || '-' }}</strong>
+                    </p>
+                    </div>
                 <div class="d-flex gap-2">
                     <button
                         class="btn btn-outline-secondary btn-sm mr-2"
@@ -39,10 +54,10 @@
                         class="form-control form-control-sm w-50"
                         placeholder="Cari nama tahapan..."
                     />
-                    <span class="text-muted text-sm" v-if="eventInfo">
+                    <span class="text-muted text-sm" v-if="eventData">
                         Periode Event:
                         <strong>
-                            {{ formatDate(eventInfo.tanggal_mulai) }} s.d. {{ formatDate(eventInfo.tanggal_selesai) }}
+                            {{ formatDate(eventData.start_date) }} s.d. {{ formatDate(eventData.end_date) }}
                         </strong>
                     </span>
                 </div>
@@ -233,13 +248,15 @@
 </template>
 
 <script setup>
-import { ref, watch, onMounted } from 'vue'
+import { ref, watch, onMounted, computed } from 'vue'
 import { useDebounceFn } from '@vueuse/core'
 import axios from 'axios'
 import { useAuthUserStore } from '../../stores/AuthUserStore'
 import Swal from 'sweetalert2';
 
 const authUserStore = useAuthUserStore()
+
+
 
 // DATA TABLE
 const stages = ref([])
@@ -272,6 +289,8 @@ const form = ref({
 // INFO EVENT (dari localStorage / cookie event_data)
 const eventInfo = ref(null)
 const eventId = ref(null)
+// ✅ event aktif diambil dari AuthUserStore
+const eventData = computed(() => authUserStore.eventData || null)
 
 const toDateInput = (val) => {
   if (!val) return ''

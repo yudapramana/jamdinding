@@ -85,34 +85,34 @@ export default [
         component: () => import('./pages/EventParticipants.vue'),
       },
       {
-        path: '/event-participants/registration/:status',
+        path: 'event-participants/registration/:status',
         name: 'admin.event.participants.registration',
         component: () => import('./pages/EventParticipantsRegistration.vue'),
         props: true, // kirim param status ke props
       },
       {
-        path: '/event-participants/reregistration',
+        path: 'event-participants/reregistration',
         name: 'admin.event.participants.reregistration',
         component: () => import('./pages/EventParticipantsReregistration.vue'),
       },
       {
-        path: '/event-participants/final',
+        path: 'event-participants/final',
         name: 'admin.event.participants.final',
         component: () => import('./pages/EventParticipantsFinal.vue'),
       },
       {
-        path: '/event-judges-user',
-        name: 'admin.event.judges.user',
+        path: 'event-competition/judges-user',
+        name: 'admin.event-competition.judges.user',
         component: () => import('./pages/event/EventJudgesUsers.vue'),
       },
       {
-        path: '/event-judges-panel',
-        name: 'admin.event.judges-panel',
+        path: 'event-competition/judges-panel',
+        name: 'admin.event-competition.judges-panel',
         component: () => import('./pages/event/EventJudgePanels.vue'),
       },
       {
-        path: '/admin/scoring/events-competitions',
-        name: 'admin.event-competitions',
+        path: 'event-competition/scoring/index',
+        name: 'admin.event-competitions.scoring.index',
         component: () => import('./pages/event/EventCompetitionsTree.vue'),
       },
 
@@ -122,13 +122,13 @@ export default [
 
       // Form pengisian nilai 1 peserta pada 1 kompetisi
       {
-        path: '/admin/scoring/events-competitions/scoring',
-        name: 'admin.event-competitions.scoring.default',
+        path: 'events-competitions/scoring/input-default',
+        name: 'admin.event-competitions.scoring.input-default',
         component: () => import('./pages/event/EventCompetitionScoring.vue'),
       },
       {
-        path: '/admin/scoring/events-competitions/:id/scoring',
-        name: 'admin.event-competitions.scoring.specific',
+        path: 'admin/scoring/events-competitions/:id/scoring',
+        name: 'admin.event-competitions.scoring.input-specific',
         component: () => import('./pages/event/EventCompetitionScoring.vue'),
         props: route => ({
           eventParticipantId: route.query.event_participant_id || null,
@@ -159,7 +159,7 @@ export default [
 
       // batas
       {
-        path: '/participants/status/:status',
+        path: 'participants/status/:status',
         name: 'admin.participants.status',
         component: () => import('./pages/participant/ParticipantStatusList.vue'),
         props: true, // kirim param status ke props

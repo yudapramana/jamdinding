@@ -99,15 +99,15 @@
         });
     </script>
 
-    <script src="{{ asset('/sw.js') }}"></script>
+    {{-- <script src="{{ asset('/sw.js') }}"></script> --}}
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/turn.js/3/turn.min.js"></script>
     <script>
-        if (!navigator.serviceWorker.controller) {
-            navigator.serviceWorker.register("/sw.js").then(function(reg) {
-                console.log("Service worker has been registered for scope: " + reg.scope);
-            });
-        }
+        // if (!navigator.serviceWorker.controller) {
+        //     navigator.serviceWorker.register("/sw.js").then(function(reg) {
+        //         console.log("Service worker has been registered for scope: " + reg.scope);
+        //     });
+        // }
 
         $(document).on('change', '.custom-file-input', function(e) {
             let fileName = e.target.files[0]?.name || 'Pilih file...'

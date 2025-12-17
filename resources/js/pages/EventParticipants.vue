@@ -154,19 +154,21 @@
                   />
                 </td>
 
+                <!-- Nomor -->
                 <td>{{ index + 1 + (meta.current_page - 1) * meta.per_page }}</td>
 
+                <!-- Nama Peserta -->
                 <td>
                   
                   <strong>{{ item.participant?.full_name }}</strong>
                   
-                <br>
-                <span
-                  class="badge mr-1" style="width:17px;"
-                  :class="item.participant?.gender === 'MALE' ? 'badge-primary' : 'badge-pink'"
-                >
-                  <i :class="item.participant?.gender === 'MALE' ? 'fas fa-mars' : 'fas fa-venus'"></i>
-                </span>
+                  <br>
+                  <span
+                    class="badge mr-1" style="width:17px;"
+                    :class="item.participant?.gender === 'MALE' ? 'badge-primary' : 'badge-pink'"
+                  >
+                    <i :class="item.participant?.gender === 'MALE' ? 'fas fa-mars' : 'fas fa-venus'"></i>
+                  </span>
 
                   <span
                     class="badge"
@@ -176,6 +178,7 @@
                   </span>
                 </td>
 
+                <!-- NIK -->
                 <td>
                     <strong>{{ item.participant?.nik }}</strong>
                     <div v-if="item.age_year !== null" class="text-xs text-muted">
@@ -202,7 +205,7 @@
                 </td>
 
                 <td>
-                    <strong>{{ item.event_category.full_name }}</strong>
+                    <strong>{{ item.event_group.full_name }}</strong>
                     <div class="text-xs text-muted" v-if="item.event_group">
                         Batas:
                         {{ item.event_group.max_age - 1 }}T
