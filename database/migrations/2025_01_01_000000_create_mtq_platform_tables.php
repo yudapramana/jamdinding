@@ -651,8 +651,9 @@ return new class extends Migration
 
             $table->unsignedInteger('order_number')->nullable(); // peringkat 1, 2, 3
 
-            $table->enum('medal_type', ['gold', 'silver', 'bronze'])->default('gold');
-            $table->unsignedInteger('medal_point')->default(0);
+            $table->enum('medal_type', ['gold', 'silver', 'bronze', 'fourth'])->default('gold');
+            $table->enum('medal_point', [5, 3, 1, 0])->default('0');
+
 
             $table->string('contingent')->nullable(); // siapa kontingen yang dapat medali
 
@@ -675,6 +676,7 @@ return new class extends Migration
             $table->unsignedInteger('gold_count')->default(0);
             $table->unsignedInteger('silver_count')->default(0);
             $table->unsignedInteger('bronze_count')->default(0);
+            $table->unsignedInteger('fourth_count')->default(0);
             $table->unsignedInteger('total_point')->default(0);
 
             $table->timestamps();

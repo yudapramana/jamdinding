@@ -22,4 +22,9 @@ class EventScoreItem extends Model
     {
         return $this->belongsTo(EventScoresheet::class, 'event_scoresheet_id');
     }
+
+    public function eventFieldComponent()
+    {
+        return $this->belongsTo(EventFieldComponent::class, 'event_field_component_id');
+    }
 }

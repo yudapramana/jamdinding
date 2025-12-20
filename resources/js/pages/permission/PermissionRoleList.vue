@@ -58,7 +58,6 @@
             </tbody>
           </table>
         </div>
-
       </div>
     </div>
 
@@ -234,14 +233,19 @@ const fetchPermissions = async () => {
   }
 }
 
-// ====== GROUPING (sesuai array permission kamu) ======
+// =====================================================
+// GROUPING (SESUAI PERMISSIONS BARU)
+// =====================================================
 const GROUP_TITLES = {
   'manage.core': 'CORE',
   'manage.master': 'MASTER DATA',
-  'manage.event': 'MANAGED DATA',
+  'manage.event': 'EVENT',
   'manage.event.participant': 'PESERTA',
   'manage.event.judges': 'HAKIM',
   'manage.event.scoring': 'PENILAIAN',
+  'manage.event.scores': 'REKAP NILAI',
+  'manage.event.ranking': 'RANKING',
+  'manage.event.results': 'PEROLEHAN JUARA',
 }
 
 const GROUP_ORDER = [
@@ -251,30 +255,54 @@ const GROUP_ORDER = [
   'manage.event.participant',
   'manage.event.judges',
   'manage.event.scoring',
+  'manage.event.scores',
+  'manage.event.ranking',
+  'manage.event.results',
 ]
+
+// slug menu yang level “menu” (bukan halaman spesifik)
+const MENU_SLUGS = new Set([
+  'manage.core',
+  'manage.master',
+  'manage.event',
+  'manage.event.participant',
+  'manage.event.judges',
+  'manage.event.scoring',
+  'manage.event.scores',
+  'manage.event.ranking',
+  'manage.event.results',
+])
 
 const getGroupKeyFromSlug = (slug = '') => {
   const s = String(slug || '')
 
   // paling spesifik dulu
-  if (s.startsWith('manage.event.scoring')) return 'manage.event.scoring'
   if (s.startsWith('manage.event.participant')) return 'manage.event.participant'
   if (s.startsWith('manage.event.judges')) return 'manage.event.judges'
+  if (s.startsWith('manage.event.scoring')) return 'manage.event.scoring'
+  if (s.startsWith('manage.event.scores')) return 'manage.event.scores'
+  if (s.startsWith('manage.event.ranking')) return 'manage.event.ranking'
+  if (s.startsWith('manage.event.results')) return 'manage.event.results'
 
-  // manage.event.* selain participant/judges/scoring
   if (s.startsWith('manage.event')) return 'manage.event'
-
   if (s.startsWith('manage.core')) return 'manage.core'
   if (s.startsWith('manage.master')) return 'manage.master'
   return 'other'
 }
 
+// urutkan: menu dulu, lalu submenu. kemudian by depth, lalu alfabet.
 const sortPerms = (a, b) => {
   const as = String(a.slug || '')
   const bs = String(b.slug || '')
+
+  const aIsMenu = MENU_SLUGS.has(as)
+  const bIsMenu = MENU_SLUGS.has(bs)
+  if (aIsMenu !== bIsMenu) return aIsMenu ? -1 : 1
+
   const ad = as.split('.').length
   const bd = bs.split('.').length
   if (ad !== bd) return ad - bd
+
   return as.localeCompare(bs)
 }
 
@@ -297,7 +325,7 @@ const permissionGroups = computed(() => {
   for (const p of (allPermissions.value || [])) {
     if (!passes(p)) continue
     const key = getGroupKeyFromSlug(p.slug)
-    if (!map[key]) map[key] = { key, title: key, permissions: [] }
+    if (!map[key]) map[key] = { key, title: GROUP_TITLES[key] || key, permissions: [] }
     map[key].permissions.push(p)
   }
 
@@ -345,7 +373,12 @@ const savePermissions = async () => {
       permission_ids: selectedPermissionIds.value,
     })
 
-    Swal.fire({ icon: 'success', title: 'Hak akses berhasil disimpan.', showConfirmButton: false, timer: 1400 })
+    Swal.fire({
+      icon: 'success',
+      title: 'Hak akses berhasil disimpan.',
+      showConfirmButton: false,
+      timer: 1400,
+    })
     $('#rolePermissionModal').modal('hide')
   } catch (error) {
     console.error('Gagal sync permissions:', error)

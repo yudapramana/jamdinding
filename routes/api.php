@@ -5,7 +5,10 @@ use App\Http\Controllers\Api\__CategoryController;
 use App\Http\Controllers\Api\__EventBranchController;
 use App\Http\Controllers\Api\__EventCategoryController;
 use App\Http\Controllers\API\__EventCompetitionController;
+use App\Http\Controllers\API\__EventCompetitionRankingController;
+use App\Http\Controllers\API\__EventCompetitionScoresController;
 use App\Http\Controllers\API\__EventCompetitionScoringController;
+use App\Http\Controllers\API\__EventContingentController;
 use App\Http\Controllers\API\__EventController;
 use App\Http\Controllers\API\__EventFieldComponentController;
 use App\Http\Controllers\Api\__EventGroupController;
@@ -224,6 +227,31 @@ Route::middleware(['auth:sanctum']) // kalau belum pakai sanctum, boleh dihapus 
         Route::post('/event-competitions/{competition}/scoring/draft', [__EventCompetitionScoringController::class, 'saveDraft']);
         Route::post('/event-competitions/{competition}/scoring/submit', [__EventCompetitionScoringController::class, 'submit']);
         Route::post('/event-competitions/{competition}/scoring/lock', [__EventCompetitionScoringController::class, 'lock']);
+
+
+        // REKAP SCORES
+        Route::get('/event-competitions/{competition}/scores', [__EventCompetitionScoresController::class, 'index']);
+        Route::get('/event-competitions/{competition}/scores-detail', [__EventCompetitionScoresController::class, 'indexDetail']);
+        Route::patch('/event-competitions/{competition}/scoresheets/{scoresheet}', [__EventCompetitionScoresController::class, 'update']);
+
+        // RANKING
+        Route::get('/event-competitions/{competition}/ranking', [__EventCompetitionRankingController::class, 'index']);
+        Route::post('/event-competitions/{competition}/ranking/recalculate', [__EventCompetitionRankingController::class, 'recalculate']);
+        Route::post('/event-competitions/{competition}/ranking/publish', [__EventCompetitionRankingController::class, 'publish']);
+
+        // export -> GET (biar match vue kamu)
+        Route::get('/event-competitions/{competition}/ranking/export', [__EventCompetitionRankingController::class, 'export']);
+
+        // details matrix (nilai per field & hakim)
+        Route::get('/event-competitions/{competition}/ranking/details', [__EventCompetitionRankingController::class, 'details']);
+
+
+
+        Route::get('/events/{event}/contingents', [__EventContingentController::class, 'indexByEvent'])->name('api.v1.events.contingents.index');
+
+
+        
+
 
 
 

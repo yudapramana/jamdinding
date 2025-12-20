@@ -11,6 +11,16 @@ class EventContingent extends Model
 
     protected $guarded = [];
 
+    protected $casts = [
+        'total_participant' => 'integer',
+        'gold_count' => 'integer',
+        'silver_count' => 'integer',
+        'bronze_count' => 'integer',
+        'fourth_count' => 'integer',
+        'total_point' => 'integer',
+    ];
+
+
     public function event()
     {
         return $this->belongsTo(Event::class);

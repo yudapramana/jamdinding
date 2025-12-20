@@ -87,6 +87,24 @@
                 <option value="rejected">Ditolak</option>
                 <option value="disqualified">Diskualifikasi</option>
               </select>
+
+              <strong class="mr-3">|</strong>
+
+              <label class="mb-0 mr-1 text-sm text-muted">Cabang / Golongan</label>
+              <select
+                v-model="filters.event_group_id"
+                class="form-control form-control-sm w-auto mr-2"
+              >
+                <option value="">Semua</option>
+                <option
+                  v-for="g in eventGroups"
+                  :key="g.id"
+                  :value="String(g.id)"
+                >
+                  {{ g.full_name || g.name || g.group_name || ('Golongan #' + g.id) }}
+                </option>
+              </select>
+
             </div>
 
             <!-- RIGHT: search -->
@@ -1589,8 +1607,10 @@ const form = ref(emptyForm())
 
 const filters = ref({
   registration_status: '',
+  event_group_id: '',      // ✅ filter cabang/golongan
   reregistration_status: '',
 })
+
 
 const meta = ref({
   current_page: 1,
@@ -1806,6 +1826,7 @@ const fetchItems = async (page = 1) => {
         per_page: perPage.value,
         search: search.value,
         registration_status: filters.value.registration_status || '',
+        event_group_id: filters.value.event_group_id || '',   // ✅ tambah ini
         reregistration_status: filters.value.reregistration_status || '',
       },
     })

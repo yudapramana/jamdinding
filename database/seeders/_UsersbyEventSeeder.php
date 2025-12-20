@@ -35,10 +35,73 @@ class _UsersbyEventSeeder extends Seeder
         $roleSlugs = ['pendaftaran', 'verifikator'];
 
         $roles = Role::query()
-            ->whereIn('slug', $roleSlugs)
+            ->whereIn('slug', array_merge($roleSlugs, ['panitera']))
             ->get()
             ->keyBy('slug');
 
+        // =========================
+        // TAMBAHAN: 5 USER PANITERA
+        // =========================
+        if (!$roles->has('panitera')) {
+            $this->command?->warn("Role slug 'panitera' tidak ditemukan. Skip create user panitera.");
+        } else {
+            $paniteraRole = $roles['panitera'];
+
+            $createdPanitera = 0;
+            $skippedPanitera = 0;
+
+            for ($i = 1; $i <= 5; $i++) {
+                $uname = "panitera1301_{$i}";
+                $email = $uname . '@' . $defaultDomain;
+
+                $exists = User::query()
+                    ->where('event_id', $event->id)
+                    ->where('username', $uname)
+                    ->where('role_id', $paniteraRole->id)
+                    ->exists();
+
+                if ($exists) {
+                    $skippedPanitera++;
+                    continue;
+                }
+
+                // Wilayah mengikuti level event biar rapi
+                $provinceId = $event->province_id ?? null;
+                $regencyId  = $event->regency_id ?? null;
+                $districtId = null;
+
+                if ($event->event_level === 'regency') {
+                    // untuk event regency: panitera level kabupaten (tanpa district)
+                    $districtId = null;
+                } else {
+                    // event province: panitera level provinsi (tanpa regency/district)
+                    $regencyId = null;
+                    $districtId = null;
+                }
+
+                User::create([
+                    'name'        => $uname,     // sesuai request
+                    'email'       => $email,
+                    'username'    => $uname,
+                    'password'    => $hashedPassword,
+                    'avatar'      => null,
+                    'role_id'     => $paniteraRole->id,
+                    'event_id'    => $event->id,
+                    'province_id' => $provinceId,
+                    'regency_id'  => $regencyId,
+                    'district_id' => $districtId,
+                    'village_id'  => null,
+                ]);
+
+                $createdPanitera++;
+            }
+
+            $this->command?->info("Seeder UsersByEventSeeder: role=panitera created={$createdPanitera} skipped={$skippedPanitera}");
+        }
+
+        // =========================
+        // EXISTING: pendaftaran & verifikator per wilayah
+        // =========================
         foreach ($roleSlugs as $slug) {
             if (!$roles->has($slug)) {
                 $this->command?->warn("Role slug '{$slug}' tidak ditemukan. Skip.");

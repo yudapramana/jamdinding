@@ -89,6 +89,9 @@ class EventCompetition extends Model
             : $this->branchJudges(); // query builder dari opsi A
     }
 
+    public function scoresheets() { return $this->hasMany(EventScoresheet::class, 'event_competition_id'); }
+
+
 
 
 

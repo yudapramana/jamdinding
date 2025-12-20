@@ -102,41 +102,26 @@
                     {{ g.full_name || g.name }}
                   </option>
                 </select>
-              </div>
-
-              <div class="form-group col-md-8">
-                <label class="mb-1">Nama Kompetisi (otomatis) <span class="text-danger">*</span></label>
-                <input v-model="form.full_name" type="text" class="form-control form-control-sm" readonly />
-                <small class="text-muted">
-                  Otomatis mengikuti <strong>Event Group</strong>. (Kalau mau tambah suffix babak, tinggal ubah logic.)
+                <small v-if="selectedGroup" class="text-muted d-block mt-1">
+                  Tipe: <strong>{{ selectedGroup.is_team ? 'TEAM' : 'INDIVIDU' }}</strong>
+                  (diambil dari Event Group)
                 </small>
               </div>
 
-              <div class="form-group col-md-4">
-                <label class="mb-1">Status <span class="text-danger">*</span></label>
-                <select v-model="form.status" class="form-control form-control-sm">
-                  <option v-for="s in statusOptions" :key="s.value" :value="s.value">
-                    {{ s.label }}
-                  </option>
-                </select>
+              <div class="form-group col-md-12">
+                <label class="mb-1">Nama Kompetisi (otomatis) <span class="text-danger">*</span></label>
+                <input v-model="form.full_name" type="text" class="form-control form-control-sm" readonly />
+                <small class="text-muted">
+                  Otomatis mengikuti <strong>Event Group</strong>.
+                </small>
               </div>
 
-              <div class="form-group col-md-4">
+              <div class="form-group col-md-6">
                 <label class="mb-1">Jadwal (scheduled_at)</label>
                 <input v-model="form.scheduled_at" type="datetime-local" class="form-control form-control-sm" />
               </div>
 
-              <div class="form-group col-md-6">
-                <label class="mb-1">Venue</label>
-                <input v-model="form.venue" type="text" class="form-control form-control-sm" placeholder="Lokasi/ruangan" />
-              </div>
-
-              <div class="form-group col-md-2 d-flex align-items-end">
-                <div class="custom-control custom-checkbox">
-                  <input id="isTeam" type="checkbox" class="custom-control-input" v-model="form.is_team" />
-                  <label class="custom-control-label" for="isTeam">Team</label>
-                </div>
-              </div>
+              <!-- ✅ STATUS / TEAM / VENUE DIHAPUS -->
             </div>
 
             <small class="text-muted">
@@ -177,13 +162,6 @@ const eventId = computed(() => eventData.value?.id || null)
 const rounds = ref([])
 const eventGroups = ref([])
 
-const statusOptions = [
-  { value: 'draft', label: 'Draft' },
-  { value: 'ongoing', label: 'Ongoing' },
-  { value: 'finished', label: 'Finished' },
-  { value: 'cancelled', label: 'Cancelled' },
-]
-
 // tree state
 const fullTree = ref([])
 const search = ref('')
@@ -199,10 +177,7 @@ function emptyForm () {
     event_group_id: '',
     round_id: '',
     full_name: '',
-    status: 'draft',
-    is_team: false,
     scheduled_at: '',
-    venue: '',
   }
 }
 
@@ -270,7 +245,6 @@ const buildJsTree = async () => {
   await nextTick()
   const $tree = $('#tree-container')
 
-  // destroy + OFF semua handler supaya tidak dobel
   if ($tree.jstree(true)) $tree.jstree(true).destroy()
   $tree.off('.jstree')
   $tree.off('activate_node.jstree')
@@ -278,132 +252,122 @@ const buildJsTree = async () => {
   $tree.off('click', '.js-edit-competition')
   $tree.off('click', '.js-del-competition')
 
-  $tree
-    .jstree({
-      core: {
-        check_callback: true,
-        themes: { stripes: true },
-        html_titles: true,
-        data: (node, cb) => {
-          // ROOT -> rounds
-          if (node.id === '#') {
-            const roots = (fullTree.value || []).map(r => ({
-              id: `round-${r.id}`,
-              type: 'round',
-              children: true,
-              data: { roundId: r.id },
+  $tree.jstree({
+    core: {
+      check_callback: true,
+      themes: { stripes: true },
+      html_titles: true,
+      data: (node, cb) => {
+        if (node.id === '#') {
+          const roots = (fullTree.value || []).map(r => ({
+            id: `round-${r.id}`,
+            type: 'round',
+            children: true,
+            data: { roundId: r.id },
+            text: `
+              <span class="tree-round">
+                <strong>${escapeHtml(r.name)}</strong>
+                <span class="badge badge-light border ml-2">${(r.competitions?.length || 0)} kompetisi</span>
+              </span>
+            `,
+          }))
+          cb(roots)
+          return
+        }
+
+        if (node.type === 'round') {
+          const roundId = String(node.data?.roundId || '')
+          const round = (fullTree.value || []).find(x => String(x.id) === String(roundId))
+          const comps = round?.competitions || []
+
+          if (!comps.length) {
+            cb([{
+              id: `info-empty-${roundId}`,
+              type: 'info',
+              children: false,
+              text: `<span class="text-muted">Belum ada kompetisi di babak ini.</span>`,
+            }])
+            return
+          }
+
+          cb(comps.map(c => {
+            const teamBadge = c.is_team ? `<span class="badge badge-dark ml-2">TEAM</span>` : ''
+            const statusCls = statusBadge(c.status)
+            const dt = escapeHtml(formatDateTime(c.scheduled_at))
+            const venue = escapeHtml(c.venue || '-')
+            const eg = escapeHtml(c.event_group?.full_name || '-')
+
+            return {
+              id: `comp-${c.id}`,
+              type: 'competition',
+              children: false,
+              data: { competitionId: c.id },
               text: `
-                <span class="tree-round">
-                  <strong>${escapeHtml(r.name)}</strong>
-                  <span class="badge badge-light border ml-2">${(r.competitions?.length || 0)} kompetisi</span>
+                <span class="tree-comp">
+                  <span class="tree-comp-title">
+                    <strong>${escapeHtml(c.full_name)}</strong>
+                    ${teamBadge}
+                    <span class="badge ${statusCls} ml-2">${escapeHtml(c.status)}</span>
+                  </span>
+
+                  <span class="tree-comp-sub text-muted">
+                    <span class="mr-2"><i class="far fa-clock mr-1"></i>${dt}</span>
+                    <span class="mr-2"><i class="fas fa-map-marker-alt mr-1"></i>${venue}</span>
+                    <span class="mr-2"><i class="fas fa-layer-group mr-1"></i>${eg}</span>
+                  </span>
+
+                  <span class="tree-actions ml-2">
+                    <a href="#" class="badge badge-info js-edit-competition" data-id="${c.id}">
+                      <i class="fas fa-edit mr-1"></i>Edit
+                    </a>
+                    <a href="#" class="badge badge-danger js-del-competition ml-1" data-id="${c.id}">
+                      <i class="fas fa-trash mr-1"></i>Hapus
+                    </a>
+                  </span>
                 </span>
               `,
-            }))
-            cb(roots)
-            return
-          }
-
-          // CHILD of round -> competitions
-          if (node.type === 'round') {
-            const roundId = String(node.data?.roundId || '')
-            const round = (fullTree.value || []).find(x => String(x.id) === String(roundId))
-            const comps = round?.competitions || []
-
-            if (!comps.length) {
-              cb([{
-                id: `info-empty-${roundId}`,
-                type: 'info',
-                children: false,
-                text: `<span class="text-muted">Belum ada kompetisi di babak ini.</span>`,
-              }])
-              return
             }
+          }))
+          return
+        }
 
-            cb(comps.map(c => {
-              const teamBadge = c.is_team ? `<span class="badge badge-dark ml-2">TEAM</span>` : ''
-              const statusCls = statusBadge(c.status)
-              const dt = escapeHtml(formatDateTime(c.scheduled_at))
-              const venue = escapeHtml(c.venue || '-')
-              const eg = escapeHtml(c.event_group?.full_name || '-')
-
-              return {
-                id: `comp-${c.id}`,
-                type: 'competition',
-                children: false,
-                data: { competitionId: c.id },
-                text: `
-                  <span class="tree-comp">
-                    <span class="tree-comp-title">
-                      <strong>${escapeHtml(c.full_name)}</strong>
-                      ${teamBadge}
-                      <span class="badge ${statusCls} ml-2">${escapeHtml(c.status)}</span>
-                    </span>
-
-                    <span class="tree-comp-sub text-muted">
-                      <span class="mr-2"><i class="far fa-clock mr-1"></i>${dt}</span>
-                      <span class="mr-2"><i class="fas fa-map-marker-alt mr-1"></i>${venue}</span>
-                      <span class="mr-2"><i class="fas fa-layer-group mr-1"></i>${eg}</span>
-                    </span>
-
-                    <span class="tree-actions ml-2">
-                      <a href="#" class="badge badge-info js-edit-competition" data-id="${c.id}">
-                        <i class="fas fa-edit mr-1"></i>Edit
-                      </a>
-                      <a href="#" class="badge badge-danger js-del-competition ml-1" data-id="${c.id}">
-                        <i class="fas fa-trash mr-1"></i>Hapus
-                      </a>
-                    </span>
-                  </span>
-                `,
-              }
-            }))
-            return
-          }
-
-          cb([])
-        },
+        cb([])
       },
-      plugins: ['types', 'state', 'search'],
-      state: {
-        key: 'event-competitions-tree-v2',
-        filter: (s) => {
-          // ✅ jangan restore selected node (biar tidak auto redirect)
-          if (s?.core?.selected) s.core.selected = []
-          return s
-        },
+    },
+    plugins: ['types', 'state', 'search'],
+    state: {
+      key: 'event-competitions-tree-v2',
+      filter: (s) => {
+        if (s?.core?.selected) s.core.selected = []
+        return s
       },
-      types: {
-        round: { icon: 'far fa-folder' },
-        competition: { icon: 'far fa-flag' },
-        info: { icon: 'far fa-circle' },
-      },
-    })
+    },
+    types: {
+      round: { icon: 'far fa-folder' },
+      competition: { icon: 'far fa-flag' },
+      info: { icon: 'far fa-circle' },
+    },
+  })
 
-  // ✅ Klik node (activate) -> redirect / toggle
   $tree.on('activate_node.jstree', (e, data) => {
-  if (!data || !data.node) return
+    if (!data || !data.node) return
+    const node = data.node
 
-  const node = data.node
+    if (node.type === 'round') {
+      const inst = $('#tree-container').jstree(true)
+      inst.toggle_node(node)
+      return
+    }
 
-  // klik round → expand / collapse
-  if (node.type === 'round') {
-    const inst = $('#tree-container').jstree(true)
-    inst.toggle_node(node)
-    return
-  }
+    if (node.type === 'competition') {
+      const compId = String(node.id).replace('comp-', '')
+      router.push({
+        name: 'admin.event.scoring.input-specific',
+        params: { id: compId },
+      })
+    }
+  })
 
-  // klik competition → redirect
-  if (node.type === 'competition') {
-    const compId = String(node.id).replace('comp-', '')
-    router.push({
-      name: 'admin.event-competitions.scoring.input-specific',
-      params: { id: compId },
-    })
-  }
-})
-
-
-  // edit click (badge)
   $tree.on('click', '.js-edit-competition', async (e) => {
     e.preventDefault()
     e.stopPropagation()
@@ -413,7 +377,6 @@ const buildJsTree = async () => {
     return false
   })
 
-  // delete click (badge)
   $tree.on('click', '.js-del-competition', async (e) => {
     e.preventDefault()
     e.stopPropagation()
@@ -473,13 +436,9 @@ const openEditModalById = async (id) => {
       event_group_id: data.event_group_id,
       round_id: data.round_id,
       full_name: '',
-      status: data.status,
-      is_team: !!data.is_team,
       scheduled_at: data.scheduled_at ? String(data.scheduled_at).slice(0, 16) : '',
-      venue: data.venue || '',
     }
 
-    // pastikan full_name terisi (kalau watcher tidak terpanggil)
     const g = (eventGroups.value || []).find(x => String(x.id) === String(form.value.event_group_id))
     form.value.full_name = g?.full_name || data.full_name || ''
 
@@ -493,7 +452,6 @@ const openEditModalById = async (id) => {
 const submitForm = async () => {
   if (!eventId.value) return
 
-  // ensure full_name dari event group
   const g = selectedGroup.value
   form.value.full_name = g?.full_name || form.value.full_name || ''
 
@@ -509,10 +467,8 @@ const submitForm = async () => {
       round_id: form.value.round_id,
       event_group_id: form.value.event_group_id,
       full_name: form.value.full_name,
-      status: form.value.status,
-      is_team: form.value.is_team,
       scheduled_at: form.value.scheduled_at ? form.value.scheduled_at.replace('T', ' ') : null,
-      venue: form.value.venue,
+      // ✅ status / is_team / venue tidak dikirim
     }
 
     if (isEdit.value && form.value.id) {

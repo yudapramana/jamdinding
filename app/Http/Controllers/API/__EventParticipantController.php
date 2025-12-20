@@ -31,37 +31,216 @@ class __EventParticipantController extends Controller
      */
     public function simpleParticipant(Request $request, Event $event)
     {
-        $request->validate([
-            'event_group_id' => ['nullable','integer','exists:event_groups,id'],
-            'per_page' => ['nullable','integer'],
-            'search' => ['nullable','string'],
-        ]);
+        $perPage = (int) $request->get('per_page', 1000);
+        $groupId = (int) $request->get('event_group_id', 0);
+        $isTeam  = (int) $request->get('is_team', 0);
+        $search  = trim((string) $request->get('search', ''));
 
-        $q = \App\Models\EventParticipant::query()
-            ->where('event_participants.event_id', $event->id)
-            ->with([
-                'participant:id,nik,full_name',
-                'eventCategory:id,full_name',
-            ])
-            ->orderByDesc('event_participants.contingent');
+        $perPage = max(1, min($perPage, 5000)); // safety cap
 
-        if ($request->filled('event_group_id')) {
-            $q->where('event_participants.event_group_id', $request->event_group_id);
+        if (!$groupId) {
+            return response()->json([
+                'data' => [],
+                'message' => 'event_group_id is required',
+            ], 422);
         }
 
-        if ($s = trim((string)$request->search)) {
-            $q->whereHas('participant', function ($qq) use ($s) {
-                $qq->where('full_name','like',"%{$s}%")
-                ->orWhere('nik','like',"%{$s}%");
+        // OPTIONAL filter status
+        // $onlyVerified = (int) $request->get('only_verified', 0);
+
+        // ==========================================================
+        // TEAM MODE: 1 row per (contingent + event_category_id)
+        // ==========================================================
+        if ($isTeam === 1) {
+
+            // 1) ambil agregasi tim (representative id + member_count)
+            $teamQuery = EventParticipant::query()
+                ->select([
+                    DB::raw('MIN(event_participants.id) as id'), // representative EP id
+                    'event_participants.event_id',
+                    'event_participants.event_group_id',
+                    'event_participants.event_category_id',
+                    'event_participants.contingent',
+                    DB::raw('COUNT(*) as member_count'),
+                ])
+                ->where('event_participants.event_id', $event->id)
+                ->where('event_participants.event_group_id', $groupId)
+                ->whereNull('event_participants.deleted_at')
+                ->whereNotNull('event_participants.contingent')
+                ->where('event_participants.contingent', '!=', '')
+                ->groupBy([
+                    'event_participants.event_id',
+                    'event_participants.event_group_id',
+                    'event_participants.event_category_id',
+                    'event_participants.contingent',
+                ]);
+
+            // kalau mau hanya peserta verified:
+            // if ($onlyVerified) {
+            //     $teamQuery->where('event_participants.registration_status', 'verified');
+            // }
+
+            // search team: cari di contingent dulu (cepat)
+            if ($search !== '') {
+                $teamQuery->where(function ($w) use ($search) {
+                    $w->where('event_participants.contingent', 'like', "%{$search}%");
+                });
+            }
+
+            $teams = $teamQuery
+                ->orderBy('event_participants.contingent')
+                ->limit($perPage)
+                ->get();
+
+            if ($teams->isEmpty()) {
+                return response()->json(['data' => []]);
+            }
+
+            // 2) load category map
+            $catIds = $teams->pluck('event_category_id')->unique()->filter()->values()->all();
+            $cats = \App\Models\EventCategory::query()
+                ->whereIn('id', $catIds)
+                ->get(['id', 'full_name'])
+                ->keyBy('id');
+
+            // 3) ambil anggota untuk semua tim yang terambil (1 query)
+            //    key = group|category|contingent
+            $membersQuery = EventParticipant::query()
+                ->join('participants as p', 'p.id', '=', 'event_participants.participant_id')
+                ->where('event_participants.event_id', $event->id)
+                ->where('event_participants.event_group_id', $groupId)
+                ->whereNull('event_participants.deleted_at')
+                ->whereNotNull('event_participants.contingent')
+                ->where('event_participants.contingent', '!=', '');
+
+            // if ($onlyVerified) $membersQuery->where('event_participants.registration_status', 'verified');
+
+            // kalau search tidak ketemu di contingent, user biasanya cari nama anggota tim
+            // → kita perlu juga filter by p.full_name
+            if ($search !== '') {
+                $membersQuery->where(function ($w) use ($search) {
+                    $w->where('event_participants.contingent', 'like', "%{$search}%")
+                    ->orWhere('p.full_name', 'like', "%{$search}%");
+                });
+            }
+
+            $members = $membersQuery->get([
+                'event_participants.event_group_id',
+                'event_participants.event_category_id',
+                'event_participants.contingent',
+                'p.full_name',
+            ])->groupBy(function ($r) {
+                return (int)$r->event_group_id . '|' . (int)$r->event_category_id . '|' . (string)$r->contingent;
+            });
+
+            // 4) bentuk output
+            $out = $teams->map(function ($t) use ($cats, $members) {
+                $key = (int)$t->event_group_id . '|' . (int)$t->event_category_id . '|' . (string)$t->contingent;
+
+                $names = ($members[$key] ?? collect())
+                    ->pluck('full_name')
+                    ->filter()
+                    ->unique()
+                    ->values()
+                    ->take(15) // batasi agar option dropdown tidak kepanjangan
+                    ->all();
+
+                return [
+                    'id' => (string) $t->id, // representative event_participant_id
+                    'contingent' => $t->contingent,
+                    'team_name' => $t->contingent,
+                    'event_category_id' => (int) $t->event_category_id,
+                    'event_category' => [
+                        'id' => (int) $t->event_category_id,
+                        'full_name' => $cats[$t->event_category_id]->full_name ?? '-',
+                    ],
+                    'member_count' => (int) $t->member_count,
+                    'member_names' => $names, // ✅ dipakai Vue untuk tampilkan anggota tim
+                ];
+            })->values();
+
+            return response()->json(['data' => $out]);
+        }
+
+        // ==========================================================
+        // INDIVIDUAL MODE: return EP list (nama, nik, category, contingent)
+        // ==========================================================
+        $q = EventParticipant::query()
+            ->with([
+                'participant:id,full_name,nik',
+                'eventCategory:id,full_name',
+            ])
+            ->where('event_id', $event->id)
+            ->where('event_group_id', $groupId)
+            ->whereNull('deleted_at');
+
+        // if ($onlyVerified) $q->where('registration_status', 'verified');
+
+        if ($search !== '') {
+            $q->where(function ($w) use ($search) {
+                $w->where('contingent', 'like', "%{$search}%")
+                ->orWhereHas('participant', function ($p) use ($search) {
+                    $p->where('full_name', 'like', "%{$search}%")
+                        ->orWhere('nik', 'like', "%{$search}%");
+                });
             });
         }
 
-        $perPage = (int)($request->per_page ?: 1000);
+        $list = $q->orderBy('id')->limit($perPage)->get();
 
-        return response()->json(
-            $q->paginate($perPage, ['event_participants.*'])
-        );
+        $out = $list->map(function ($ep) {
+            return [
+                'id' => (string) $ep->id,
+                'contingent' => $ep->contingent,
+                'participant' => [
+                    'full_name' => $ep->participant?->full_name,
+                    'nik' => $ep->participant?->nik,
+                ],
+                'event_category' => [
+                    'id' => (int) $ep->event_category_id,
+                    'full_name' => $ep->eventCategory?->full_name,
+                ],
+            ];
+        })->values();
+
+        return response()->json(['data' => $out]);
     }
+
+
+    // public function simpleParticipant(Request $request, Event $event)
+    // {
+    //     $request->validate([
+    //         'event_group_id' => ['nullable','integer','exists:event_groups,id'],
+    //         'per_page' => ['nullable','integer'],
+    //         'search' => ['nullable','string'],
+    //     ]);
+
+    //     $q = \App\Models\EventParticipant::query()
+    //         ->where('event_participants.event_id', $event->id)
+    //         ->with([
+    //             'participant:id,nik,full_name',
+    //             'eventCategory:id,full_name',
+    //             'eventGroup:id,full_name,is_team'
+    //         ])
+    //         ->orderByDesc('event_participants.contingent');
+
+    //     if ($request->filled('event_group_id')) {
+    //         $q->where('event_participants.event_group_id', $request->event_group_id);
+    //     }
+
+    //     if ($s = trim((string)$request->search)) {
+    //         $q->whereHas('participant', function ($qq) use ($s) {
+    //             $qq->where('full_name','like',"%{$s}%")
+    //             ->orWhere('nik','like',"%{$s}%");
+    //         });
+    //     }
+
+    //     $perPage = (int)($request->per_page ?: 1000);
+
+    //     return response()->json(
+    //         $q->paginate($perPage, ['event_participants.*'])
+    //     );
+    // }
 
 
 
@@ -172,6 +351,7 @@ class __EventParticipantController extends Controller
         $perPage               = (int) $request->get('per_page', 10);
         $registrationStatus    = $request->get('registration_status');
         $reregistrationStatus  = $request->get('reregistration_status');
+        $eventGroupId          = $request->get('event_group_id');
         $withVerifications = filter_var($request->get('withVerifications', false), FILTER_VALIDATE_BOOLEAN);
 
         $eventId = $event->id;
@@ -196,6 +376,10 @@ class __EventParticipantController extends Controller
 
         if ($reregistrationStatus) {
             $query->where('reregistration_status', $reregistrationStatus);
+        }
+
+        if ($eventGroupId) {
+            $query->where('event_group_id', $eventGroupId);
         }
 
         if ($roleSlug !== 'superadmin') {
@@ -231,12 +415,12 @@ class __EventParticipantController extends Controller
     public function simple(Event $event)
     {
         $branches = $event->eventBranches()
-            ->select('id', 'branch_name')
+            ->select('id', 'branch_name', 'full_name')
             ->orderBy('branch_name')
             ->get();
 
         $groups = $event->eventGroups()
-            ->select('id', 'group_name', 'max_age')
+            ->select('id', 'group_name', 'max_age', 'full_name')
             ->orderBy('group_name')
             ->get();
 

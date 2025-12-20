@@ -12,40 +12,71 @@ class _RolePermissionSeeder extends Seeder
     {
         // 1) Definisi PERMISSIONS
         $perms = [
-            ['name' => 'Manage Core',                               'slug' => 'manage.core'],
-            ['name' => 'Manage Core Branch',                        'slug' => 'manage.core.branches'],
-            ['name' => 'Manage Core Fields',                        'slug' => 'manage.core.fields'],
-            ['name' => 'Manage Core Permission',                    'slug' => 'manage.core.permissions'],
+            // Menu Core
+            ['name' => 'Manage Menu Core',                              'slug' => 'manage.core'],
+            // SubMenu Core
+            ['name' => 'Manage Core Branch Branch Group Categories',    'slug' => 'manage.core.branches-groups-categories'],
+            ['name' => 'Manage Core Fields',                            'slug' => 'manage.core.fields'],
+            ['name' => 'Manage Core Permission',                        'slug' => 'manage.core.permissions'],
 
-            ['name' => 'Manage Master',                             'slug' => 'manage.master'],
-            ['name' => 'Manage Master Branch',                      'slug' => 'manage.master.branches'],
-            ['name' => 'Manage Master Group',                       'slug' => 'manage.master.groups'],
-            ['name' => 'Manage Master Category',                    'slug' => 'manage.master.categories'],
-            ['name' => 'Manage Master Field Component',             'slug' => 'manage.master.fields-components'],
-            ['name' => 'Manage Master Participant',                 'slug' => 'manage.master.participants'],
+            // Menu Master
+            ['name' => 'Manage Menu Master',                            'slug' => 'manage.master'],
+            // SubMenu Master
+            ['name' => 'Manage Master Branch',                          'slug' => 'manage.master.branches'],
+            ['name' => 'Manage Master Group',                           'slug' => 'manage.master.groups'],
+            ['name' => 'Manage Master Category',                        'slug' => 'manage.master.categories'],
+            ['name' => 'Manage Master Field Component',                 'slug' => 'manage.master.field-components'],
 
-            ['name' => 'Manage Event',                              'slug' => 'manage.event'],
-            ['name' => 'Manage Event Event',                        'slug' => 'manage.event.events'],
-            ['name' => 'Manage Event Stage',                        'slug' => 'manage.event.stages'],
-            ['name' => 'Manage Event Branch',                       'slug' => 'manage.event.branches'],
-            ['name' => 'Manage Event Group',                        'slug' => 'manage.event.groups'],
-            ['name' => 'Manage Event Category',                     'slug' => 'manage.event.categories'],
-            ['name' => 'Manage Event User',                         'slug' => 'manage.event.user'],
+            // Menu Event
+            ['name' => 'Manage Menu Event',                             'slug' => 'manage.event'],
+            // SubMenu Event
+            ['name' => 'Manage Event Index',                            'slug' => 'manage.event.index'],
+            ['name' => 'Manage Event Stage',                            'slug' => 'manage.event.stages'],
+            ['name' => 'Manage Event Branch',                           'slug' => 'manage.event.branches'],
+            ['name' => 'Manage Event Group',                            'slug' => 'manage.event.groups'],
+            ['name' => 'Manage Event Category',                         'slug' => 'manage.event.categories'],
+            ['name' => 'Manage Event User',                             'slug' => 'manage.event.user'],
 
-            ['name' => 'Manage Event Participant Bank Data',        'slug' => 'manage.event.participant.bank-data'],
-            ['name' => 'Manage Event Participant Registration',     'slug' => 'manage.event.participant.registration'],
-            ['name' => 'Manage Event Participant Reregistration',   'slug' => 'manage.event.participant.reregistration'],
-            ['name' => 'Manage Event Participant Final',            'slug' => 'manage.event.participant.final'],
+            // Menu Participant
+            ['name' => 'Manage Event Participant Menu',                 'slug' => 'manage.event.participant'],
+            // SubMenu Participant
+            ['name' => 'Manage Event Participant Bank Data',            'slug' => 'manage.event.participant.bank-data'],
+            ['name' => 'Manage Event Participant Registration',         'slug' => 'manage.event.participant.registration'],
+            ['name' => 'Manage Event Participant Reregistration',       'slug' => 'manage.event.participant.reregistration'],
+            ['name' => 'Manage Event Participant Final',                'slug' => 'manage.event.participant.final'],
 
-            ['name' => 'Manage Event Competition',                              'slug' => 'manage.event-competitions'],
-            ['name' => 'Manage Event Competition Judges',                       'slug' => 'manage.event-competitions.judges'],
-            ['name' => 'Manage Event Competition Judges User',                  'slug' => 'manage.event-competitions.judges.user'],
-            ['name' => 'Manage Event Competition Judges Panel',                 'slug' => 'manage.event-competitions.judges-panel'],
-            ['name' => 'Manage Event Competition Field Components',             'slug' => 'manage.event-competitions.fields-components'],
-            ['name' => 'Manage Event Competition Scoring Competition Index',    'slug' => 'manage.event-competitions.scoring.index'],
-            ['name' => 'Manage Event Competition Scoring Input Default',        'slug' => 'manage.event-competitions.scoring.input-default'],
-            ['name' => 'Manage Event Competition Scoring Input Specific',       'slug' => 'manage.event-competitions.scoring.input-specific'],
-            
+            // Menu Judges
+            ['name' => 'Manage Event Judges',                           'slug' => 'manage.event.judges'],
+            // SubMenu Judges
+            ['name' => 'Manage Event Judges User',                      'slug' => 'manage.event.judges.users'],
+            ['name' => 'Manage Event Judges Panel',                     'slug' => 'manage.event.judges.panels'],
+
+            // Menu Scoring
+            ['name' => 'Manage Event Scoring',                          'slug' => 'manage.event.scoring'],
+            // SubMenu Scoring
+            ['name' => 'Manage Event Scoring Field Components',         'slug' => 'manage.event.scoring.field-components'],
+            ['name' => 'Manage Event Scoring Index',                    'slug' => 'manage.event.scoring.index'],
+            ['name' => 'Manage Event Scoring Input Default',            'slug' => 'manage.event.scoring.input-default'],
+            ['name' => 'Manage Event Scoring Input Specific',           'slug' => 'manage.event.scoring.input-specific'],
+
+            // Menu Score
+            ['name' => 'Manage Event Score',                            'slug' => 'manage.event.scores'],
+            // SubMenu Score
+            ['name' => 'Manage Event Score Selector',                   'slug' => 'manage.event.scores.select'],
+            ['name' => 'Manage Event Score',                            'slug' => 'manage.event.scores.index'],
+            ['name' => 'Manage Event Score Detail Selector',            'slug' => 'manage.event.scores.detail.select'],
+            ['name' => 'Manage Event Score Detail',                     'slug' => 'manage.event.scores.detail.index'],
+
+            // Menu Ranking
+            ['name' => 'Manage Event Ranking',                          'slug' => 'manage.event.ranking'],
+            // SubMenu Ranking
+            ['name' => 'Manage Event Ranking Select',                   'slug' => 'manage.event.ranking.select'],
+            ['name' => 'Manage Event Ranking Index',                    'slug' => 'manage.event.ranking.index'],
+
+            // Menu Result
+            ['name' => 'Manage Event Results',                          'slug' => 'manage.event.results'],
+            // SubMenu Result 
+            ['name' => 'Manage Event Results Index',                    'slug' => 'manage.event.results.index'],
         ];
 
         // Simpan / ambil permissions, index by slug
@@ -96,6 +127,7 @@ class _RolePermissionSeeder extends Seeder
 
         // PENDAFTARAN: hanya bank-data + registration
         $pendaftaranSlugs = [
+            'manage.event.participant',
             'manage.event.participant.bank-data',
             'manage.event.participant.registration',
             'manage.event.participant.final',
@@ -110,6 +142,7 @@ class _RolePermissionSeeder extends Seeder
 
         // VERIFIKATOR: hanya registration + reregistration
         $verifikatorSlugs = [
+            'manage.event.participant',
             'manage.event.participant.registration',
             'manage.event.participant.reregistration',
             'manage.event.participant.final',
@@ -124,14 +157,24 @@ class _RolePermissionSeeder extends Seeder
 
         // PANITERA:
         $paniteraSlugs = [
-            'manage.event-competitions',
-            'manage.event-competitions.judges',
-            'manage.event-competitions.judges.user',
-            'manage.event-competitions.judges-panel',
-            'manage.event-competitions.fields-components',
-            'manage.event-competitions.scoring.index',
-            'manage.event-competitions.scoring.input-default',
-            'manage.event-competitions.scoring.input-specific',
+            'manage.event',
+            'manage.event.judges',
+            'manage.event.judges.users',
+            'manage.event.judges.panels',
+            'manage.event.field-components',
+            'manage.event.scoring',
+            'manage.event.scoring.index',
+            'manage.event.scoring.input-default',
+            'manage.event.scoring.input-specific',
+            'manage.event.scores',
+            'manage.event.scores.select',
+            'manage.event.scores.index',
+            'manage.event.scores.detail.select',
+            'manage.event.scores.detail.index',
+            'manage.event.ranking',
+            'manage.event.ranking.select',
+            'manage.event.ranking.index',
+            'manage.event.results.index',
         ];
 
         $roleModels['panitera']->permissions()->sync(

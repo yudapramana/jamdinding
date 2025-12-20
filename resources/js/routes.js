@@ -25,94 +25,109 @@ export default [
         component: () => import('./components/Dashboard.vue'),
       },
       {
-        path: 'core-branches-groups-categories',
+        path: 'core/branches-groups-categories',
         name: 'admin.core.branches-groups-categories',
         component: () => import('./pages/core/CoreBranchesGroupsCategories.vue'),
       },
       {
-        path: 'core-list-fields',
-        name: 'admin.core.list-fields',
+        path: 'core/fields',
+        name: 'admin.core.fields',
         component: () => import('./pages/core/CoreListFields.vue'),
       },
       {
-        path: 'core-permission-role',
-        name: 'admin.core-permission-role',
+        path: 'core/permissions',
+        name: 'admin.core.permissions',
         component: () => import('./pages/permission/PermissionRoleList.vue'),
       },
       {
-        path: 'master-branches',
+        path: 'master/branches',
         name: 'admin.master.branches',
         component: () => import('./pages/master/MasterBranches.vue'),
       },
       {
-        path: 'master-groups',
+        path: 'master/groups',
         name: 'admin.master.groups',
         component: () => import('./pages/master/MasterGroups.vue'),
       },
       {
-        path: 'master-categories',
+        path: 'master/categories',
         name: 'admin.master.categories',
         component: () => import('./pages/master/MasterCategories.vue'),
       },
       {
-        path: 'master-field-components',
+        path: 'master/field-components',
         name: 'admin.master.field-components',
         component: () => import('./pages/master/MasterFieldComponents.vue'),
       },
       {
-        path: 'event-branches',
+        path: 'events/index',
+        name: 'admin.events.index',
+        component: () => import('./pages/event/EventList.vue'),
+      },
+      {
+        path: 'event/stages',
+        name: 'admin.event.stages',
+        component: () => import('./pages/event/EventStageList.vue'),
+      },
+      {
+        path: 'event/branches',
         name: 'admin.event.branches',
         component: () => import('./pages/event/EventBranches.vue'),
       },
       {
-        path: 'event-groups',
+        path: 'event/groups',
         name: 'admin.event.groups',
         component: () => import('./pages/event/EventGroups.vue'),
       },
       {
-        path: 'event-categories',
+        path: 'event/categories',
         name: 'admin.event.categories',
         component: () => import('./pages/event/EventCategories.vue'),
       },
       {
-        path: 'event-field-components',
-        name: 'admin.event.field-components',
-        component: () => import('./pages/event/EventFieldComponents.vue'),
+        path: 'event/users',
+        name: 'admin.event.users',
+        component: () => import('./pages/event/EventUserList.vue'),
       },
       {
-        path: 'event-participants/bank-data',
+        path: 'event/participants/bank-data',
         name: 'admin.event.participants.bank-data',
         component: () => import('./pages/EventParticipants.vue'),
       },
       {
-        path: 'event-participants/registration/:status',
+        path: 'event/participants/registration/:status',
         name: 'admin.event.participants.registration',
         component: () => import('./pages/EventParticipantsRegistration.vue'),
         props: true, // kirim param status ke props
       },
       {
-        path: 'event-participants/reregistration',
+        path: 'event/participants/reregistration',
         name: 'admin.event.participants.reregistration',
         component: () => import('./pages/EventParticipantsReregistration.vue'),
       },
       {
-        path: 'event-participants/final',
+        path: 'event/participants/final',
         name: 'admin.event.participants.final',
         component: () => import('./pages/EventParticipantsFinal.vue'),
       },
       {
-        path: 'event-competition/judges-user',
-        name: 'admin.event-competition.judges.user',
+        path: 'event/judges/users',
+        name: 'admin.event.judges.users',
         component: () => import('./pages/event/EventJudgesUsers.vue'),
       },
       {
-        path: 'event-competition/judges-panel',
-        name: 'admin.event-competition.judges-panel',
+        path: 'event/judges/panels',
+        name: 'admin.event.judges.panel',
         component: () => import('./pages/event/EventJudgePanels.vue'),
       },
       {
-        path: 'event-competition/scoring/index',
-        name: 'admin.event-competitions.scoring.index',
+        path: 'event/scoring/field-components',
+        name: 'admin.event.scoring.field-components',
+        component: () => import('./pages/event/EventFieldComponents.vue'),
+      },
+      {
+        path: 'event/scoring/index',
+        name: 'admin.event.scoring.index',
         component: () => import('./pages/event/EventCompetitionsTree.vue'),
       },
 
@@ -122,32 +137,70 @@ export default [
 
       // Form pengisian nilai 1 peserta pada 1 kompetisi
       {
-        path: 'events-competitions/scoring/input-default',
-        name: 'admin.event-competitions.scoring.input-default',
+        path: 'event/scoring/input-default',
+        name: 'admin.event.scoring.input-default',
         component: () => import('./pages/event/EventCompetitionScoring.vue'),
       },
       {
-        path: 'admin/scoring/events-competitions/:id/scoring',
-        name: 'admin.event-competitions.scoring.input-specific',
+        path: 'event/scoring/:id/input-specific',
+        name: 'admin.event.scoring.input-specific',
         component: () => import('./pages/event/EventCompetitionScoring.vue'),
         props: route => ({
           eventParticipantId: route.query.event_participant_id || null,
         }),
       },
+      
+      // selector page (tanpa :id)
+      {
+        path: 'event/scores/select',
+        name: 'admin.event.scores.select',
+        component: () => import('./pages/event/EventCompetitionScores.vue'),
+      },
 
-      // (opsional) Monitoring / rekap nilai per kompetisi
-      // {
-      //   path: '/admin/events-competitions/:id/scores',
-      //   name: 'admin.event-competitions.scores',
-      //   component: () => import('./pages/event/EventCompetitionScores.vue'),
-      // },
+      // detail per competition (dengan :id)
+      {
+        path: 'event/:id/scores/index',
+        name: 'admin.event.scores.index',
+        component: () => import('./pages/event/EventCompetitionScores.vue'),
+      },
 
-      // // (opsional) Ranking hasil babak
-      // {
-      //   path: '/admin/events-competitions/:id/ranking',
-      //   name: 'admin.event-competitions.ranking',
-      //   component: () => import('./pages/event/EventCompetitionRanking.vue'),
-      // },
+      // selector (tanpa :id)
+      {
+        path: 'event/scores/detail/select',
+        name: 'admin.event.scores.detail.select',
+        component: () => import('./pages/event/EventCompetitionScoresDetail.vue'),
+      },
+
+      // detail (dengan :id)
+      {
+        path: '/admin/event/:id/scores/detail/index',
+        name: 'admin.event.scores.detail.index',
+        component: () => import('./pages/event/EventCompetitionScoresDetail.vue'),
+      },
+
+      // Ranking selector (tanpa :id)
+      {
+        path: '/admin/event/ranking/select',
+        name: 'admin.event.ranking.select',
+        component: () => import('./pages/event/EventCompetitionRanking.vue'),
+      },
+
+      // Ranking detail (dengan :id)
+      {
+        path: '/admin/event/:id/ranking/index',
+        name: 'admin.event.ranking.index',
+        component: () => import('./pages/event/EventCompetitionRanking.vue'),
+      },
+
+      {
+        path: '/admin/event/results/index',
+        name: 'admin.event.results.index',
+        component: () => import('./pages/event_contingents/EventContingentsIndex.vue'),
+        meta: {
+          title: 'Perolehan Juara Kontingen',
+        },
+      },
+
 
 
 
@@ -169,11 +222,7 @@ export default [
         name: 'admin.event.participant-registrations',
         component: () => import('./pages/EventParticipantsRegistration.vue'),
       },
-      {
-        path: 'event-stage',
-        name: 'admin.eventstagelist',
-        component: () => import('./pages/event/EventStageList.vue'),
-      },
+      
       {
         path: 'master-stage',
         name: 'admin.master-stage',
@@ -199,16 +248,8 @@ export default [
         name: 'admin.event-competition-branch',
         component: () => import('./pages/competition/EventCompetitionBranchList.vue'),
       },
-      {
-        path: 'event-users',
-        name: 'admin.event-users',
-        component: () => import('./pages/event/EventUserList.vue'),
-      },
-      {
-        path: 'events',
-        name: 'admin.events',
-        component: () => import('./pages/event/EventList.vue'),
-      },
+      
+      
       {
         path: 'participants',
         name: 'admin.participants',
