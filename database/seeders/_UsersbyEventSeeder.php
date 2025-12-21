@@ -35,9 +35,61 @@ class _UsersbyEventSeeder extends Seeder
         $roleSlugs = ['pendaftaran', 'verifikator'];
 
         $roles = Role::query()
-            ->whereIn('slug', array_merge($roleSlugs, ['panitera']))
+            ->whereIn('slug', array_merge($roleSlugs, ['panitera', 'admin_event']))
             ->get()
             ->keyBy('slug');
+
+        // =========================
+        // TAMBAHAN: 1 USER ADMIN_EVENT
+        // =========================
+        if (!$roles->has('admin_event')) {
+            $this->command?->warn("Role slug 'admin_event' tidak ditemukan. Skip create user admin_event.");
+        } else {
+            $adminRole = $roles['admin_event'];
+
+            $uname = 'admin_event1301';
+            $email = $uname . '@' . $defaultDomain;
+
+            $exists = User::query()
+                ->where('event_id', $event->id)
+                ->where('username', $uname)
+                ->where('role_id', $adminRole->id)
+                ->exists();
+
+            if ($exists) {
+                $this->command?->info("Seeder UsersByEventSeeder: role=admin_event skipped (already exists)");
+            } else {
+                // Wilayah mengikuti level event
+                $provinceId = $event->province_id ?? null;
+                $regencyId  = $event->regency_id ?? null;
+                $districtId = null;
+
+                if ($event->event_level === 'province') {
+                    // admin event level provinsi
+                    $regencyId  = null;
+                    $districtId = null;
+                } elseif ($event->event_level === 'regency') {
+                    // admin event level kabupaten
+                    $districtId = null;
+                }
+
+                User::create([
+                    'name'        => strtoupper('ADMIN EVENT'),
+                    'email'       => $email,
+                    'username'    => $uname,
+                    'password'    => $hashedPassword,
+                    'avatar'      => null,
+                    'role_id'     => $adminRole->id,
+                    'event_id'    => $event->id,
+                    'province_id' => $provinceId,
+                    'regency_id'  => $regencyId,
+                    'district_id' => $districtId,
+                    'village_id'  => null,
+                ]);
+
+                $this->command?->info("Seeder UsersByEventSeeder: role=admin_event created=1 skipped=0");
+            }
+        }
 
         // =========================
         // TAMBAHAN: 5 USER PANITERA

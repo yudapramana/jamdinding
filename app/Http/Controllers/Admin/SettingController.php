@@ -22,70 +22,40 @@ class SettingController extends Controller
         return $settings;
     }
 
-    // public function update()
-    // {
-    //     $settings = request()->validate([
-    //         'app_name' => ['required', 'string'],
-    //         'date_format' => ['required', 'string'],
-    //         'pagination_limit' => ['required', 'int', 'min:1', 'max:100'],
-    //     ]);
-
-    //     foreach ($settings as $key => $value) {
-    //         Setting::updateOrCreate(
-    //             ['key' => $key],
-    //             ['value' => $value],
-    //         );
-    //     }
-
-    //     Cache::flush('settings');
-
-    //     return response()->json(['success' => true]);
-    // }
-
     public function update()
     {
-        // Ambil nilai maintenance sebelumnya
-        $prevMaintenance = optional(
-            Setting::where('key', 'maintenance')->first()
-        )->value;
+        // Ambil maintenance sebelumnya
+        $prevMaintenance = Setting::where('key', 'maintenance')->value('value');
+        $prevOn = in_array(strtolower((string)$prevMaintenance), ['1','true','on','yes'], true);
 
-        $prevOn = in_array(strtolower((string) $prevMaintenance), ['1','true','on','yes'], true);
-
-        // Validasi (pakai key 'maintenance')
+        // VALIDASI
         $settings = request()->validate([
             'app_name'         => ['required', 'string'],
             'date_format'      => ['required', 'string'],
-            'pagination_limit' => ['required', 'int', 'min:1', 'max:100'],
+            'pagination_limit' => ['required', 'integer', 'min:1', 'max:100'],
             'maintenance'      => ['required', 'boolean'],
+            'environment'      => ['required', 'in:development,production'],
         ]);
 
-        // Simpan semua key-value (boolean -> "1"/"0" agar konsisten)
+        // SIMPAN
         foreach ($settings as $key => $value) {
             Setting::updateOrCreate(
                 ['key' => $key],
-                ['value' => is_bool($value) ? (string) (int) $value : $value],
+                ['value' => is_bool($value) ? (string)(int)$value : (string)$value],
             );
         }
 
-        // Bersihkan cache settings (pakai forget utk single key)
         Cache::forget('settings');
 
-        $nowOn = (bool) $settings['maintenance'];
-
-        // Logout massal SETIAP kali toggle ON ↔ OFF (hanya saat berubah)
+        // LOGOUT MASSAL HANYA JIKA MAINTENANCE BERUBAH
+        $nowOn = (bool)$settings['maintenance'];
         if ($prevOn !== $nowOn) {
             $this->logoutAllUsersSimple();
-            \App\Models\User::each(function ($u) {
-                Auth::login($u);
-                Auth::logout();
-            });
         }
-
-        Cache::flush('settings');
-        Cache::forget('settings');
 
         return response()->json(['success' => true]);
     }
+
 
     /**
      * Cara paling simple & cepat untuk logout semua user:

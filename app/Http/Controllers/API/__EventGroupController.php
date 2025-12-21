@@ -22,13 +22,23 @@ class __EventGroupController extends Controller
             ], 422);
         }
 
-        $search    = $request->get('search');
-        $perPage   = (int) ($request->get('per_page') ?? 10);
-        $branchId  = $request->get('branch_id');   // filter optional
-        $simple    = $request->boolean('simple');  // 👈 penentu simple / paginate
-        $withFields = $request->boolean('with_fields'); // 👈 untuk relasi komponen
+        $search     = $request->get('search');
+        $perPage    = (int) ($request->get('per_page') ?? 10);
+        $branchId   = $request->get('branch_id');        // optional filter
+        $simple     = $request->boolean('simple');       // simple list
+        $withFields = $request->boolean('with_fields');  // include fieldComponents
+        $fromCrud   = $request->boolean('from_crud');    // 👈 PENENTU MODE
 
-        $query = EventGroup::where('event_id', $eventId);
+        $query = EventGroup::query()
+            ->where('event_id', $eventId);
+
+        /**
+         * DEFAULT FILTER:
+         * jika BUKAN dari halaman CRUD → hanya tampilkan status ACTIVE
+         */
+        if (!$fromCrud) {
+            $query->where('status', 'active');
+        }
 
         // filter optional by branch
         if ($branchId) {
@@ -46,9 +56,11 @@ class __EventGroupController extends Controller
 
         // relasi komponen (dipakai di fetchGroupsWithComponents: with_fields=1)
         if ($withFields) {
-            $query->with(['fieldComponents' => function ($q) {
-                $q->orderByRaw('COALESCE(order_number, 9999)');
-            }]);
+            $query->with([
+                'fieldComponents' => function ($q) {
+                    $q->orderByRaw('COALESCE(order_number, 9999)');
+                }
+            ]);
         }
 
         // urutan default
@@ -57,12 +69,8 @@ class __EventGroupController extends Controller
             ->orderBy('group_name');
 
         /**
-         * SIMPLE = 1
-         * dipakai oleh:
-         *
-         * axios.get('/api/v1/event-groups', {
-         *   params: { event_id: eventId.value, simple: 1 },
-         * })
+         * SIMPLE MODE
+         * dipakai oleh dropdown / selector
          */
         if ($simple) {
             $data = $query->get([
@@ -75,6 +83,7 @@ class __EventGroupController extends Controller
                 'max_age',
                 'is_team',
                 'order_number',
+                'status',
             ]);
 
             return response()->json([
@@ -83,7 +92,9 @@ class __EventGroupController extends Controller
             ]);
         }
 
-        // default: paginated (dipakai di fetchGroupsWithComponents)
+        /**
+         * DEFAULT: PAGINATED
+         */
         $data = $query->paginate($perPage);
 
         return response()->json([
@@ -91,6 +102,7 @@ class __EventGroupController extends Controller
             'data'    => $data,
         ]);
     }
+
 
 
 

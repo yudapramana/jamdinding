@@ -123,8 +123,10 @@ Route::middleware(['auth:sanctum']) // kalau belum pakai sanctum, boleh dihapus 
 
         // EVENT - PENGATURAN TAHAPAN EVENT
         Route::apiResource('event-stages', __EventStageController::class)->except(['index']);
-        Route::get('events/{event}/stages', [__EventStageController::class, 'index'])->middleware('permission:event.manage.stage');
-        Route::post('events/{event}/stages/generate-default', [__EventStageController::class, 'generateFromMaster'])->middleware('permission:event.manage.stage');
+        // Route::get('events/{event}/stages', [__EventStageController::class, 'index'])->middleware('permission:event.manage.stage');
+        Route::get('events/{event}/stages', [__EventStageController::class, 'index']);
+        // Route::post('events/{event}/stages/generate-default', [__EventStageController::class, 'generateFromMaster'])->middleware('permission:event.manage.stage');
+        Route::post('events/{event}/stages/generate-default', [__EventStageController::class, 'generateFromMaster']);
 
         // EVENT - PENGATURAN CABANG LOMBA
         Route::get('event-branches', [__EventBranchController::class, 'index']);

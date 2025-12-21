@@ -118,7 +118,7 @@ class _RolePermissionSeeder extends Seeder
         $adminEventIds = collect($permissions)
             ->reject(function ($perm) {
                 // exclude: master.core, master.core.*
-                return $perm->slug === 'master.core' || str_starts_with($perm->slug, 'master.core.');
+                return $perm->slug === 'manage.core' || str_starts_with($perm->slug, 'manage.core.') || $perm->slug === 'manage.master' || str_starts_with($perm->slug, 'manage.master.');
             })
             ->pluck('id')
             ->all();

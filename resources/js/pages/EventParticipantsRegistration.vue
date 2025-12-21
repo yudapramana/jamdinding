@@ -32,7 +32,7 @@
           <div class="card card-outline card-primary">
             <div class="card-header py-2">
               <h3 class="card-title text-sm mb-0">
-                <i class="fas fa-filter mr-1"></i> Status Pendaftaran
+                <i class="fas fa-filter mr-1"></i> Status 
               </h3>
             </div>
 
@@ -60,7 +60,7 @@
             <div class="card-header">
               <div class="d-flex flex-wrap justify-content-between align-items-center w-100">
                 <div class="d-flex flex-wrap align-items-center">
-                  <label class="mb-0 mr-1 text-sm text-muted">Tampilkan</label>
+                  <!-- <label class="mb-0 mr-1 text-sm text-muted"></label> -->
                   <select v-model.number="perPage" class="form-control form-control-sm w-auto mr-2">
                     <option :value="10">10</option>
                     <option :value="25">25</option>
@@ -68,6 +68,23 @@
                     <option :value="100">100</option>
                   </select>
                   <label class="mb-0 text-sm text-muted mr-3">Entri</label>
+
+                  <strong class="mr-3">|</strong>
+
+                  <label class="mb-0 mr-1 text-sm text-muted">Cabang / Golongan</label>
+                  <select
+                    v-model="filters.event_group_id"
+                    class="form-control form-control-sm w-auto mr-2"
+                  >
+                    <option value="">Semua</option>
+                    <option
+                      v-for="g in eventGroups"
+                      :key="g.id"
+                      :value="String(g.id)"
+                    >
+                      {{ g.full_name || g.name || g.group_name || ('Golongan #' + g.id) }}
+                    </option>
+                  </select>
                 </div>
 
                 <input
@@ -947,6 +964,7 @@ import { useDebounceFn } from '@vueuse/core'
 import axios from 'axios'
 import Swal from 'sweetalert2'
 import { useAuthUserStore } from '../stores/AuthUserStore'
+import { useSettingStore } from '../stores/SettingStore'
 import ViewParticipantModal from './ViewParticipantModal.vue'
 import { registrationBadgeClass, registrationStatusLabel } from './EventParticipantHelpers'
 
@@ -954,6 +972,30 @@ const props = defineProps({
   status: { type: String, default: '' },
 })
 
+const filters = ref({
+  event_group_id: '',      // ✅ filter cabang/golongan
+})
+
+const fetchEventMasterData = async () => {
+  if (!eventId.value) return
+  try {
+    const { data } = await axios.get(`/api/v1/events/${eventId.value}/simple`)
+    // diasumsikan controller mengembalikan: event, branches, groups, categories
+    eventBranches.value = data.branches || []
+    eventGroups.value = data.groups || []
+    eventCategories.value = data.categories || []
+  } catch (error) {
+    console.error('Gagal memuat master event (branches/groups/categories):', error)
+    Swal.fire('Gagal', 'Gagal memuat daftar cabang event & golongan.', 'error')
+  }
+}
+
+const eventBranches = ref([])   // event_branches (cabang/golongan)
+const eventGroups = ref([])
+const eventCategories = ref([])
+
+
+const settingStore = useSettingStore()
 const authUserStore = useAuthUserStore()
 const currentUser = computed(() => authUserStore.user || null)
 
@@ -1044,6 +1086,7 @@ const fetchItems = async (page = 1) => {
         search: search.value,
         registration_status: activeStatus.value,
         withVerifications: 1, // atau true
+        event_group_id: filters.value.event_group_id || '',   // ✅ tambah ini
       },
     })
 
@@ -1387,18 +1430,20 @@ const submitVerification = async () => {
     return
   }
 
-  const detailErrors = validateVerificationDetails()
-  if (detailErrors.length) {
-    Swal.fire({
-      icon: 'warning',
-      title: 'Form verifikasi belum lengkap',
-      html: `
-        <ul style="text-align:left; max-height:260px; overflow-y:auto; padding-left:18px;">
-          ${detailErrors.map(e => `<li>${e}</li>`).join('')}
-        </ul>
-      `,
-    })
-    return
+  if(!settingStore.isDevelopment) {
+    const detailErrors = validateVerificationDetails()
+    if (detailErrors.length) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'Form verifikasi belum lengkap',
+        html: `
+          <ul style="text-align:left; max-height:260px; overflow-y:auto; padding-left:18px;">
+            ${detailErrors.map(e => `<li>${e}</li>`).join('')}
+          </ul>
+        `,
+      })
+      return
+    }
   }
 
   const confirmResult = await Swal.fire({
@@ -1474,6 +1519,16 @@ const submitVerification = async () => {
 // =========================
 // WATCHERS
 // =========================
+
+// filter status
+watch(
+  () => ({ ...filters.value }),
+  () => {
+    fetchItems(1)
+  }
+)
+
+
 watch(
   () => props.status,
   (val) => {
@@ -1510,6 +1565,7 @@ onMounted(() => {
   if (!eventId.value) {
     Swal.fire('Event belum dipilih', 'Silakan pilih event melalui Portal Event terlebih dahulu.', 'info')
   }
+  fetchEventMasterData()
 })
 </script>
 

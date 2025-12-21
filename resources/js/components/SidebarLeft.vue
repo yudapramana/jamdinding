@@ -542,6 +542,20 @@ watch(
             </li>
           </template>
 
+
+          <li class="nav-header">KELOLA</li>
+
+                    
+                   
+          <li class="nav-item">
+              <router-link to="/admin/settings" active-class="active" class="nav-link">
+                  <i class="nav-icon fas fa-cog"></i>
+                  <p>
+                      Pengaturan
+                  </p>
+              </router-link>
+          </li>
+
           <!-- LOGOUT -->
           <li class="nav-item">
             <a href="#" class="nav-link" @click.prevent="logout">

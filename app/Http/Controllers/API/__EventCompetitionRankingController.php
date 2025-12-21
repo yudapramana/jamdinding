@@ -422,10 +422,9 @@ class __EventCompetitionRankingController extends Controller
             ]);
         }
 
-        // ===== TEAM/GROUP MODE =====
-        // group key: contingent + event_category_id
+        // ===== TEAM / GROUP MODE (WITH scores_by_field) =====
+
         $groups = [];   // key => aggregated row
-        $judgesMap = [];
 
         $makeKey = function ($contingent, $cid) {
             $c = trim((string)($contingent ?? ''));
@@ -439,159 +438,177 @@ class __EventCompetitionRankingController extends Controller
             if (!$ep || !$ep->participant) continue;
 
             $judgeId = (int) $ss->judge_id;
+            $jid = (string)$judgeId;
+
             $judgesMap[$judgeId] = [
                 'id' => $judgeId,
                 'name' => $ss->judge?->name ?? 'Hakim',
                 'username' => $ss->judge?->username,
             ];
 
-            $cont = $ep->contingent;
-            $cid  = $ep->event_category_id;
-
-            $key = $makeKey($cont, $cid);
+            $key = $makeKey($ep->contingent, $ep->event_category_id);
 
             if (!isset($groups[$key])) {
                 $groups[$key] = [
                     // identity
                     'group_key' => $key,
-                    'contingent' => (trim((string)$cont) !== '' ? $cont : '-'),
-                    'event_category_id' => $cid,
+                    'contingent' => trim((string)$ep->contingent) ?: '-',
+                    'event_category_id' => $ep->event_category_id,
                     'category_name' => $ep->eventCategory?->full_name,
                     'category' => $ep->eventCategory?->full_name,
 
                     // display
-                    'full_name' => (trim((string)$cont) !== '' ? strtoupper((string)$cont) : 'KONTINGEN -'),
+                    'full_name' => strtoupper(trim((string)$ep->contingent) ?: '-'),
                     'member_names' => [],
                     'member_count' => 0,
 
-                    // aggregators
-                    'judge_totals' => [],    // judgeId => sum total_score
-                    'judge_counts' => [],    // judgeId => count participants
-                    'scores' => [],          // judgeId => avg total_score (computed later)
+                    // per judge totals
+                    'judge_totals' => [],
+                    'judge_counts' => [],
+                    'scores' => [],
 
-                    // per field: totals+counts across ALL (participants x judges)
-                    'field_totals' => [],    // fcId => sum weighted_score
-                    'field_counts' => [],    // fcId => count cells
+                    // NEW: per judge per field
+                    'scores_by_field' => [],
+                    'scores_by_field_cnt' => [],
 
-                    // chief per field aggregated across participants (chief judge only)
-                    'chief_totals' => [],    // fcId => sum chief weighted_score
-                    'chief_counts' => [],    // fcId => count
-                    'chief_field' => [],     // fcId => avg (computed later)
+                    // per field global
+                    'field_totals' => [],
+                    'field_counts' => [],
+
+                    // chief
+                    'chief_totals' => [],
+                    'chief_counts' => [],
+                    'chief_field' => [],
 
                     // derived
-                    'field_avg' => [],       // fcId => avg across judges+participants
+                    'field_avg' => [],
                     'final_score' => 0.0,
                     'avg_score' => 0.0,
                     'sum_score' => 0.0,
                 ];
 
                 foreach ($fieldOrder as $fcId) {
-                    $groups[$key]['field_totals'][(string)$fcId] = 0.0;
-                    $groups[$key]['field_counts'][(string)$fcId] = 0;
-                    $groups[$key]['chief_totals'][(string)$fcId] = 0.0;
-                    $groups[$key]['chief_counts'][(string)$fcId] = 0;
-                    $groups[$key]['chief_field'][(string)$fcId]  = null;
-                    $groups[$key]['field_avg'][(string)$fcId]    = 0.0;
+                    $fid = (string)$fcId;
+                    $groups[$key]['field_totals'][$fid] = 0.0;
+                    $groups[$key]['field_counts'][$fid] = 0;
+                    $groups[$key]['chief_totals'][$fid] = 0.0;
+                    $groups[$key]['chief_counts'][$fid] = 0;
+                    $groups[$key]['chief_field'][$fid] = null;
+                    $groups[$key]['field_avg'][$fid] = 0.0;
                 }
             }
 
-            // member list
+            // members
             $groups[$key]['member_names'][] = $ep->participant->full_name;
             $groups[$key]['member_count']++;
 
-            // total_score aggregator per judge (avg across participants)
-            if (!isset($groups[$key]['judge_totals'][(string)$judgeId])) {
-                $groups[$key]['judge_totals'][(string)$judgeId] = 0.0;
-                $groups[$key]['judge_counts'][(string)$judgeId] = 0;
+            // judge totals
+            if (!isset($groups[$key]['judge_totals'][$jid])) {
+                $groups[$key]['judge_totals'][$jid] = 0.0;
+                $groups[$key]['judge_counts'][$jid] = 0;
             }
-            $groups[$key]['judge_totals'][(string)$judgeId] += (float)$ss->total_score;
-            $groups[$key]['judge_counts'][(string)$judgeId] += 1;
+            $groups[$key]['judge_totals'][$jid] += (float)$ss->total_score;
+            $groups[$key]['judge_counts'][$jid] += 1;
 
-            // per field aggregator
+            // ensure scores_by_field slot
+            if (!isset($groups[$key]['scores_by_field'][$jid])) {
+                $groups[$key]['scores_by_field'][$jid] = [];
+                $groups[$key]['scores_by_field_cnt'][$jid] = [];
+            }
+
+            // items → field aggregation
             foreach (($ss->items ?? []) as $it) {
                 $fcId = (int)$it->event_field_component_id;
                 if (!$fcId) continue;
 
-                $val = $it->weighted_score;
-                if ($val === null) $val = $it->score;
+                $fid = (string)$fcId;
+                $val = $it->weighted_score ?? $it->score;
                 if ($val === null) continue;
 
-                if (!array_key_exists((string)$fcId, $groups[$key]['field_totals'])) {
-                    $groups[$key]['field_totals'][(string)$fcId] = 0.0;
-                    $groups[$key]['field_counts'][(string)$fcId] = 0;
-                    $groups[$key]['chief_totals'][(string)$fcId] = 0.0;
-                    $groups[$key]['chief_counts'][(string)$fcId] = 0;
-                    $groups[$key]['chief_field'][(string)$fcId]  = null;
-                    $groups[$key]['field_avg'][(string)$fcId]    = 0.0;
+                // global field
+                $groups[$key]['field_totals'][$fid] += (float)$val;
+                $groups[$key]['field_counts'][$fid] += 1;
+
+                // per judge per field
+                if (!isset($groups[$key]['scores_by_field'][$jid][$fid])) {
+                    $groups[$key]['scores_by_field'][$jid][$fid] = 0.0;
+                    $groups[$key]['scores_by_field_cnt'][$jid][$fid] = 0;
                 }
 
-                $groups[$key]['field_totals'][(string)$fcId] += (float)$val;
-                $groups[$key]['field_counts'][(string)$fcId] += 1;
+                $groups[$key]['scores_by_field'][$jid][$fid] += (float)$val;
+                $groups[$key]['scores_by_field_cnt'][$jid][$fid] += 1;
 
-                // chief aggregator
+                // chief
                 if ($chiefJudgeId && $judgeId === (int)$chiefJudgeId) {
-                    $groups[$key]['chief_totals'][(string)$fcId] += (float)$val;
-                    $groups[$key]['chief_counts'][(string)$fcId] += 1;
+                    $groups[$key]['chief_totals'][$fid] += (float)$val;
+                    $groups[$key]['chief_counts'][$fid] += 1;
                 }
             }
         }
 
         $list = array_values($groups);
 
-        // compute derived + normalize member list
+        // ===== FINALIZE =====
         foreach ($list as &$g) {
-            // unique member names (optional)
-            $names = array_values(array_unique(array_filter($g['member_names'] ?? [])));
+            // normalize members
+            $names = array_values(array_unique(array_filter($g['member_names'])));
             sort($names, SORT_NATURAL | SORT_FLAG_CASE);
             $g['member_names'] = $names;
             $g['member_count'] = count($names);
 
-            // scores per judge = avg total_score across participants for that judge
+            // scores per judge (avg total_score)
             $sumAcrossJudges = 0.0;
-            $judgeCount = 0;
+            $judgeCnt = 0;
 
-            foreach (array_values($judgesMap) as $j) {
-                $jid = (string)$j['id'];
+            foreach (array_keys($judgesMap) as $jid) {
                 $tot = (float)($g['judge_totals'][$jid] ?? 0);
                 $cnt = (int)($g['judge_counts'][$jid] ?? 0);
                 $avg = $cnt > 0 ? ($tot / $cnt) : 0.0;
 
-                $g['scores'][$jid] = $avg; // FE bisa pakai ini kalau perlu
+                $g['scores'][$jid] = round($avg, 4);
                 $sumAcrossJudges += $avg;
-                $judgeCount++;
+                $judgeCnt++;
             }
 
-            $g['avg_score'] = $judgeCount > 0 ? round($sumAcrossJudges / $judgeCount, 2) : 0;
+            $g['avg_score'] = $judgeCnt > 0 ? round($sumAcrossJudges / $judgeCnt, 2) : 0.0;
             $g['final_score'] = $g['avg_score'];
-
-            // sum_score = SUM avg per judge (biar konsisten dengan halaman lain)
             $g['sum_score'] = round($sumAcrossJudges, 2);
 
-            // field_avg = avg across all cells (participants x judges) untuk field itu
-            foreach (($g['field_totals'] ?? []) as $fcId => $sum) {
-                $cnt = (int)($g['field_counts'][(string)$fcId] ?? 0);
-                $g['field_avg'][(string)$fcId] = $cnt > 0 ? ((float)$sum / $cnt) : 0.0;
+            // field_avg
+            foreach ($g['field_totals'] as $fid => $sum) {
+                $cnt = (int)($g['field_counts'][$fid] ?? 0);
+                $g['field_avg'][$fid] = $cnt > 0 ? round($sum / $cnt, 4) : 0.0;
             }
 
-            // chief_field = avg across chief cells (participants) untuk field itu; default NULL jika chief tidak menilai
-            foreach (($g['chief_totals'] ?? []) as $fcId => $sum) {
-                $cnt = (int)($g['chief_counts'][(string)$fcId] ?? 0);
-                $g['chief_field'][(string)$fcId] = $cnt > 0 ? ((float)$sum / $cnt) : null;
+            // chief_field
+            foreach ($g['chief_totals'] as $fid => $sum) {
+                $cnt = (int)($g['chief_counts'][$fid] ?? 0);
+                $g['chief_field'][$fid] = $cnt > 0 ? round($sum / $cnt, 4) : null;
             }
+
+            // FINAL: avg per judge per field
+            foreach ($g['scores_by_field'] as $jid => $byField) {
+                foreach ($byField as $fid => $sum) {
+                    $cnt = (int)($g['scores_by_field_cnt'][$jid][$fid] ?? 0);
+                    $g['scores_by_field'][$jid][$fid] = $cnt > 0
+                        ? round($sum / $cnt, 4)
+                        : null;
+                }
+            }
+
+            unset($g['scores_by_field_cnt']);
         }
         unset($g);
 
-        // sort with comparator (pakai fieldOrder yang sama)
+        // ===== SORT + RANK =====
         $pairs = [];
         usort($list, function ($a, $b) use ($fieldOrder, $cmpDecimals, &$pairs) {
             [$cmp, $decidedBy] = $this->compareParticipants($a, $b, $fieldOrder, $cmpDecimals);
-
             $pairs[] = [
-                'a' => ['id' => $a['group_key'] ?? null, 'name' => ($a['contingent'] ?? '-') . ' / ' . ($a['category_name'] ?? '-')],
-                'b' => ['id' => $b['group_key'] ?? null, 'name' => ($b['contingent'] ?? '-') . ' / ' . ($b['category_name'] ?? '-')],
+                'a' => ['id' => $a['group_key'], 'name' => $a['contingent']],
+                'b' => ['id' => $b['group_key'], 'name' => $b['contingent']],
                 'decided_by' => $decidedBy,
             ];
-
             return $cmp;
         });
 
@@ -611,7 +628,7 @@ class __EventCompetitionRankingController extends Controller
             ],
             'fields' => $fields,
             'judges' => array_values($judgesMap),
-            'participants' => $list, // NOTE: ini sudah per kontingen+category
+            'participants' => $list,
             'debug' => $withDebug ? [
                 'cmp_decimals' => $cmpDecimals,
                 'chief_judge_id' => $chiefJudgeId,
@@ -620,6 +637,7 @@ class __EventCompetitionRankingController extends Controller
                 'pairs' => $pairs,
             ] : null,
         ]);
+
     }
 
     public function recalculate(Request $request, EventCompetition $competition)

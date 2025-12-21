@@ -450,6 +450,7 @@ const fetchItems = async (page = 1) => {
         page,
         per_page: perPage.value,
         search: search.value,
+        from_crud: 1,
       },
     })
 

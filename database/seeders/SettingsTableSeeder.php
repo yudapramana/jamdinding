@@ -27,6 +27,10 @@ class SettingsTableSeeder extends Seeder
                 'key' => 'pagination_limit',
                 'value' => 10,
             ],
+            [
+                'key' => 'environment',
+                'value' => 'development',
+            ],
         ]);
     }
 }

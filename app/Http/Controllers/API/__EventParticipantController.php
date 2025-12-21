@@ -46,7 +46,7 @@ class __EventParticipantController extends Controller
         }
 
         // OPTIONAL filter status
-        // $onlyVerified = (int) $request->get('only_verified', 0);
+        $onlyVerified = (int) $request->get('only_verified', 0);
 
         // ==========================================================
         // TEAM MODE: 1 row per (contingent + event_category_id)
@@ -76,9 +76,9 @@ class __EventParticipantController extends Controller
                 ]);
 
             // kalau mau hanya peserta verified:
-            // if ($onlyVerified) {
-            //     $teamQuery->where('event_participants.registration_status', 'verified');
-            // }
+            if ($onlyVerified) {
+                $teamQuery->where('event_participants.registration_status', 'verified')->where('event_participants.reregistration_status', 'verified');
+            }
 
             // search team: cari di contingent dulu (cepat)
             if ($search !== '') {
@@ -113,7 +113,7 @@ class __EventParticipantController extends Controller
                 ->whereNotNull('event_participants.contingent')
                 ->where('event_participants.contingent', '!=', '');
 
-            // if ($onlyVerified) $membersQuery->where('event_participants.registration_status', 'verified');
+            if ($onlyVerified) $membersQuery->where('event_participants.registration_status', 'verified')->where('event_participants.reregistration_status', 'verified');
 
             // kalau search tidak ketemu di contingent, user biasanya cari nama anggota tim
             // → kita perlu juga filter by p.full_name
@@ -174,7 +174,7 @@ class __EventParticipantController extends Controller
             ->where('event_group_id', $groupId)
             ->whereNull('deleted_at');
 
-        // if ($onlyVerified) $q->where('registration_status', 'verified');
+        if ($onlyVerified) $q->where('registration_status', 'verified')->where('event_participants.reregistration_status', 'verified');
 
         if ($search !== '') {
             $q->where(function ($w) use ($search) {
@@ -382,9 +382,8 @@ class __EventParticipantController extends Controller
             $query->where('event_group_id', $eventGroupId);
         }
 
-        if ($roleSlug !== 'superadmin') {
-            $user  = Auth::user();
-
+        if ($roleSlug !== 'superadmin' && $roleSlug !== 'admin_event') {
+            dd('masuk no lagi');
             if ($event->event_level === 'province') {
                 $query->where('p.province_id', $event->province_id)
                     ->where('p.regency_id', $user->regency_id);

@@ -127,10 +127,10 @@
                     type="checkbox"
                     :value="p.id"
                     v-model="selectedParticipantIds"
-                    :disabled="(p.status_pendaftaran || '').toLowerCase() !== 'bankdata' || p.lampiran_completion_percent < 80"
+                    :disabled="isCheckboxDisabled(p)"
                   />
-
                 </td>
+
                 <td>{{ index + 1 + (meta.current_page - 1) * meta.per_page }}</td>
                 <td>
                   <strong>{{ p.full_name }}</strong>
@@ -1696,9 +1696,25 @@ import { ref, onMounted, watch, computed } from 'vue'
 import axios from 'axios'
 import { useDebounceFn } from '@vueuse/core'
 import { useAuthUserStore } from '../../stores/AuthUserStore'
+import { useSettingStore } from '../../stores/SettingStore'
 import Swal from 'sweetalert2'
 
 const authUserStore = useAuthUserStore()
+const settingStore = useSettingStore()
+
+
+const isCheckboxDisabled = (p) => {
+
+  // 🧪 DEVELOPMENT MODE → selalu aktif
+  if (settingStore.isDevelopment) return false
+
+  // 🚀 PRODUCTION RULE
+  return (
+    (p.status_pendaftaran || '').toLowerCase() !== 'bankdata' ||
+    p.lampiran_completion_percent < 80
+  )
+}
+
 
 // user login sekarang
 const currentUser = computed(() => authUserStore.user || {})
@@ -3435,6 +3451,9 @@ onMounted(async () => {
 
   eventInfo.value = ev
   eventId.value = ev.id
+
+  console.log('settingStore.isDevelopment');
+  console.log(settingStore.isDevelopment);
 
   await fetchProvinceOptions()
   await fetchBranchOptions()

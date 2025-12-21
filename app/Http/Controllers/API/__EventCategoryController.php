@@ -17,6 +17,8 @@ class __EventCategoryController extends Controller
     public function index(Request $request)
     {
         $eventId = $request->get('event_id');
+        $fromCrud   = $request->boolean('from_crud');    // 👈 PENENTU MODE
+
         if (!$eventId) {
             return response()->json([
                 'message' => 'event_id is required.',
@@ -29,6 +31,14 @@ class __EventCategoryController extends Controller
         $groupId  = $request->get('group_id');  // 👈
 
         $query = EventCategory::where('event_id', $eventId);
+
+        /**
+         * DEFAULT FILTER:
+         * jika BUKAN dari halaman CRUD → hanya tampilkan status ACTIVE
+         */
+        if (!$fromCrud) {
+            $query->where('status', 'active');
+        }
 
         if ($branchId) {
             $query->where('branch_id', $branchId);

@@ -280,6 +280,39 @@ const fetchRankingDetails = async () => {
 }
 
 // =========================
+// HELPERS: TEAM (field × hakim)
+// =========================
+const getTeamScore = (row, judgeId, fieldId) => {
+  const jKey = String(judgeId)
+  const fKey = String(fieldId)
+
+  // 1) Format paling ideal: scores_by_field[judgeId][fieldId] = number
+  const byJudge1 = row?.scores_by_field?.[jKey] ?? row?.scores_by_field?.[judgeId]
+  if (byJudge1) {
+    const cell = byJudge1?.[fKey] ?? byJudge1?.[fieldId]
+    if (cell != null && cell !== '') {
+      const num = Number(typeof cell === 'object' ? (cell.weighted_score ?? cell.score) : cell)
+      return Number.isFinite(num) ? num : null
+    }
+  }
+
+  // 2) Alternatif: field_scores (samakan dengan individu) jika backend mengirim ini juga untuk TEAM
+  const byJudge2 = row?.field_scores?.[jKey] ?? row?.field_scores?.[judgeId]
+  if (byJudge2) {
+    const cell = byJudge2?.[fKey] ?? byJudge2?.[fieldId]
+    if (cell != null && cell !== '') {
+      const num = Number(typeof cell === 'object' ? (cell.weighted_score ?? cell.score) : cell)
+      return Number.isFinite(num) ? num : null
+    }
+  }
+
+  // 3) Fallback terakhir: kalau backend cuma kirim total per hakim (bukan per bidang)
+  // tidak bisa dipecah per field -> return null
+  return null
+}
+
+
+// =========================
 // HELPERS: TEAM
 // =========================
 const memberText = (row) => {
@@ -311,23 +344,6 @@ const getJudgeTotal = (row, judgeId) => {
 
   const num = Number(tot) / Number(cnt)
   return Number.isFinite(num) ? num : null
-}
-
-const getSumTotal = (row) => {
-  const vals = (detail.value.judges || [])
-    .map((j) => getJudgeTotal(row, j.id))
-    .filter((v) => Number.isFinite(Number(v)))
-  if (!vals.length) return null
-  return vals.reduce((a, b) => a + Number(b), 0)
-}
-
-const getAvgTotal = (row) => {
-  const vals = (detail.value.judges || [])
-    .map((j) => getJudgeTotal(row, j.id))
-    .filter((v) => Number.isFinite(Number(v)))
-  if (!vals.length) return null
-  const s = vals.reduce((a, b) => a + Number(b), 0)
-  return s / vals.length
 }
 
 // =========================
@@ -419,6 +435,55 @@ const tieBreakMap = computed(() => {
 })
 
 const isTieWin = (row, fieldId) => tieBreakMap.value.get(`${row.event_participant_id}|${fieldId}`) === 'win'
+
+const tieBreakTooltipMap = computed(() => {
+  const map = new Map()
+  const dbg = detail.value?.debug || null
+  if (!dbg?.pairs) return map
+
+  for (const p of dbg.pairs) {
+    const rule = p.decided_by?.rule
+    const fcId = p.decided_by?.field_component_id
+    if (!rule || !fcId) continue
+
+    // row A menang
+    if (p.decided_by?.a > p.decided_by?.b) {
+      map.set(`${p.a.id}|${fcId}`, {
+        rule,
+        field_id: fcId,
+        value: p.decided_by.a,
+      })
+    }
+
+    // row B menang
+    if (p.decided_by?.b > p.decided_by?.a) {
+      map.set(`${p.b.id}|${fcId}`, {
+        rule,
+        field_id: fcId,
+        value: p.decided_by.b,
+      })
+    }
+  }
+
+  return map
+})
+
+const tieBreakTooltip = (row, fieldId) => {
+  const key = `${row.group_key || row.event_participant_id}|${fieldId}`
+  const info = tieBreakTooltipMap.value.get(key)
+  if (!info) return null
+
+  if (info.rule === 2) {
+    return `Tie-break Rule #2\nRerata Bidang\nNilai: ${fmt(info.value)}`
+  }
+
+  if (info.rule === 3) {
+    return `Tie-break Rule #3\nHakim Ketua\nNilai: ${fmt(info.value)}`
+  }
+
+  return null
+}
+
 
 // =========================
 // LIFECYCLE
@@ -732,90 +797,108 @@ watch(
               Detail nilai belum tersedia (judges kosong).
             </div>
 
-            <!-- ✅ TEAM DETAIL: Nilai Akhir per Hakim -->
+            <!-- ✅ TEAM DETAIL: Bidang (top) → Hakim (sub) -->
             <div v-else-if="isTeam" class="table-responsive">
               <table class="table table-bordered table-sm text-sm mb-0">
                 <thead class="thead-light">
                   <tr>
-                    <th rowspan="2" style="width:60px" class="text-center align-middle">No</th>
-                    <th rowspan="2" style="min-width:220px" class="align-middle">Kontingen</th>
-                    <th rowspan="2" style="min-width:320px" class="align-middle">Anggota</th>
+                    <th rowspan="2" class="text-center align-middle" style="width:50px">#</th>
+                    <th rowspan="2" class="align-middle" style="min-width:160px">Kontingen</th>
+                    <!-- <th rowspan="2" class="text-center align-middle" style="width:90px">Jml Anggota</th> -->
+                    <th rowspan="2" class="align-middle" style="min-width:260px">Anggota</th>
 
-                    <th class="text-center" :colspan="detail.judges.length + 1">
-                      Nilai Akhir
+                    <th
+                      v-for="f in detail.fields"
+                      :key="'fh-' + f.id"
+                      class="text-center"
+                      :colspan="detail.judges.length + 1"
+                    >
+                      {{ f.name }}
                     </th>
 
-                    <th rowspan="2" class="text-center align-middle" style="min-width:100px">AVG Total</th>
-                    <th rowspan="2" class="text-center align-middle" style="min-width:100px">SUM Total</th>
+                    <th rowspan="2" class="text-center align-middle" style="width:110px">
+                      Final<br />Score
+                    </th>
                   </tr>
 
                   <tr>
-                    <th
-                      v-for="(j, jIdx) in detail.judges"
-                      :key="'tj-' + j.id"
-                      class="text-center"
-                      style="min-width:70px"
-                      :class="{ 'chief-col': isChiefJudge(j.id) }"
-                      :title="isChiefJudge(j.id) ? 'Hakim Ketua' : ''"
-                    >
-                      {{ judgeLabel(jIdx) }}
-                    </th>
-                    <th class="text-center" style="min-width:90px">Rerata</th>
+                    <template v-for="f in detail.fields" :key="'fs-' + f.id">
+                      <th
+                        v-for="(j, jIdx) in detail.judges"
+                        :key="'fj-' + f.id + '-' + j.id"
+                        class="text-center"
+                        style="width:70px"
+                        :class="{ 'chief-col': isChiefJudge(j.id) }"
+                        :title="isChiefJudge(j.id) ? 'Hakim Ketua' : ''"
+                      >
+                        {{ judgeLabel(jIdx) }}
+                      </th>
+                      <th class="text-center" style="width:90px">Rerata</th>
+                    </template>
                   </tr>
                 </thead>
 
-                <tbody>
-                  <tr v-if="detail.rows.length === 0">
-                    <td :colspan="3 + (detail.judges.length + 1) + 2" class="text-center text-muted p-3">
-                      Tidak ada data detail untuk kategori ini.
-                    </td>
-                  </tr>
 
-                  <tr v-for="(row, idx) in detail.rows" :key="'trow-' + (row.group_key || idx)">
+
+                <tbody>
+                  <tr v-for="(row, idx) in detail.rows" :key="row.group_key">
                     <td class="text-center font-weight-bold">{{ idx + 1 }}</td>
 
                     <td>
-                      <div class="font-weight-bold">{{ row.full_name || row.contingent || '-' }}</div>
-                      <div class="text-muted text-xs">{{ row.category || row.category_name || '-' }}</div>
+                      <div class="font-weight-bold">{{ row.contingent }}</div>
+                      <!-- <div class="text-muted text-xs">{{ row.category_name }}</div> -->
                     </td>
+
+                    <!-- <td class="text-center">{{ row.member_count }}</td> -->
 
                     <td class="text-muted text-xs">
-                      {{ memberText(row) }}
+                      {{ row.member_names.join(', ') }}
                     </td>
 
-                    <td
-                      v-for="j in detail.judges"
-                      :key="'tcell-' + (row.group_key || idx) + '-' + j.id"
-                      class="text-center"
-                      :class="{ 'chief-col': isChiefJudge(j.id) }"
-                    >
-                      <span v-if="getJudgeTotal(row, j.id) != null">{{ fmt(getJudgeTotal(row, j.id)) }}</span>
-                      <span v-else class="text-muted">-</span>
-                    </td>
+                    <!-- FIELD × JUDGE -->
+                    <template v-for="f in detail.fields" :key="'bf-' + f.id">
+                      <!-- nilai per hakim -->
+                      <td
+                        v-for="j in detail.judges"
+                        :key="'bj-' + row.group_key + '-' + f.id + '-' + j.id"
+                        class="text-center"
+                        :class="{ 'chief-col': isChiefJudge(j.id) }"
+                        :title="tieBreakTooltip(row, f.id)"
+                      >
+                        <span v-if="getTeamScore(row, j.id, f.id) != null">
+                          {{ fmt(getTeamScore(row, j.id, f.id)) }}
+                        </span>
+                        <span v-else class="text-muted">-</span>
+                      </td>
 
+                      <!-- rerata bidang -->
+                      <td
+                        class="text-center font-weight-bold"
+                        :class="{ 'tie-win': isTieWin(row, f.id) }"
+                        :title="tieBreakTooltip(row, f.id)"
+                      >
+                        <span v-if="row.field_avg?.[f.id] != null">
+                          {{ fmt(row.field_avg[f.id]) }}
+                        </span>
+                        <span v-else class="text-muted">-</span>
+                      </td>
+                    </template>
+
+                    <!-- FINAL SCORE -->
                     <td class="text-center font-weight-bold">
-                      <span v-if="getAvgTotal(row) != null">{{ fmt(getAvgTotal(row)) }}</span>
-                      <span v-else class="text-muted">-</span>
-                    </td>
-
-                    <td class="text-center font-weight-bold">
-                      <span v-if="getAvgTotal(row) != null">{{ fmt(getAvgTotal(row)) }}</span>
-                      <span v-else class="text-muted">-</span>
-                    </td>
-
-                    <td class="text-center font-weight-bold">
-                      <span v-if="getSumTotal(row) != null">{{ fmt(getSumTotal(row)) }}</span>
-                      <span v-else class="text-muted">-</span>
+                      {{ fmt(row.final_score) }}
                     </td>
                   </tr>
                 </tbody>
+
               </table>
 
               <small class="text-muted d-block mt-2">
-                * Mode TEAM: skor kontingen dihitung sebagai <strong>rata-rata skor peserta</strong> dalam kontingen.<br />
+                * Mode TEAM: tabel menampilkan nilai per <strong>bidang</strong> (Tahfizh/Tajwid/dll) lalu per <strong>hakim</strong> (H1..Hn) + rerata.<br />
                 * Kolom hakim ketua ditandai warna kuning lembut.
               </small>
             </div>
+
 
             <!-- ✅ INDIVIDU DETAIL: field × hakim -->
             <div v-else-if="!detail.fields.length" class="text-center text-muted py-3">
@@ -826,7 +909,7 @@ watch(
               <table class="table table-bordered table-sm text-sm mb-0">
                 <thead class="thead-light">
                   <tr>
-                    <th rowspan="2" style="min-width: 60px" class="text-center align-middle">Rank</th>
+                    <th rowspan="2" style="width: 50px" class="text-center align-middle">#</th>
                     <th rowspan="2" style="min-width: 220px" class="align-middle">Peserta</th>
                     <th rowspan="2" style="min-width: 160px" class="align-middle">Kontingen</th>
 
@@ -839,8 +922,8 @@ watch(
                       {{ f.name }}
                     </th>
 
-                    <th rowspan="2" class="text-center align-middle" style="min-width: 100px">AVG Total</th>
-                    <th rowspan="2" class="text-center align-middle" style="min-width: 100px">SUM Total</th>
+                    <th rowspan="2" class="text-center align-middle" style="width: 100px">Final Score</th>
+                    <!-- <th rowspan="2" class="text-center align-middle" style="min-width: 100px">SUM Total</th> -->
                   </tr>
 
                   <tr>
@@ -849,13 +932,13 @@ watch(
                         v-for="(j, jIdx) in detail.judges"
                         :key="'hj-' + f.id + '-' + j.id"
                         class="text-center"
-                        style="min-width: 70px"
+                        style="width: 70px"
                         :class="{ 'chief-col': isChiefJudge(j.id) }"
                         :title="isChiefJudge(j.id) ? 'Hakim Ketua' : ''"
                       >
                         {{ judgeLabel(jIdx) }}
                       </th>
-                      <th class="text-center" style="min-width: 90px">Rerata</th>
+                      <th class="text-center" style="width: 90px">Rerata</th>
                     </template>
                   </tr>
                 </thead>
@@ -871,9 +954,9 @@ watch(
                     <td class="text-center font-weight-bold">{{ row.rank }}</td>
                     <td>
                       <div class="font-weight-bold">{{ row.full_name }}</div>
-                      <div class="text-muted text-xs">
+                      <!-- <div class="text-muted text-xs">
                         {{ row.branch || '-' }} • {{ row.group || '-' }} • {{ row.category || row.category_name || '-' }}
-                      </div>
+                      </div> -->
                     </td>
                     <td>{{ row.contingent || '-' }}</td>
 
@@ -884,11 +967,14 @@ watch(
                         class="text-center"
                         :class="{ 'chief-col': isChiefJudge(j.id) }"
                       >
+                        <!-- :title="tieBreakTooltip(row, f.id)" -->
+
+
                         <span v-if="getScore(row, j.id, f.id) != null">{{ fmt(getScore(row, j.id, f.id)) }}</span>
                         <span v-else class="text-muted">-</span>
                       </td>
 
-                      <td class="text-center font-weight-bold" :class="{ 'tie-win': isTieWin(row, f.id) }">
+                      <td class="text-center font-weight-bold" :class="{ 'tie-win': isTieWin(row, f.id) }" :title="tieBreakTooltip(row, f.id)">
                         <span v-if="getFieldAvg(row, f.id) != null">{{ fmt(getFieldAvg(row, f.id)) }}</span>
                         <span v-else class="text-muted">-</span>
                       </td>
@@ -899,10 +985,10 @@ watch(
                       <span v-else class="text-muted">-</span>
                     </td>
 
-                    <td class="text-center font-weight-bold">
+                    <!-- <td class="text-center font-weight-bold">
                       <span v-if="row.sum_score != null">{{ fmt(row.sum_score) }}</span>
                       <span v-else class="text-muted">-</span>
-                    </td>
+                    </td> -->
                   </tr>
                 </tbody>
               </table>

@@ -1,8 +1,19 @@
 <script setup>
 import { onMounted, ref } from 'vue';
 import { useToastr } from '@/toastr';
+import { useSettingStore } from '../../stores/SettingStore';
 
-const settings = ref({});
+const settingStore = useSettingStore()
+
+
+const settings = ref({
+  app_name: '',
+  date_format: '',
+  pagination_limit: 10,
+  maintenance: '0',
+  environment: 'development',
+});
+
 const original = ref({}); // simpan nilai awal dari server
 const errors = ref(null);
 const toastr = useToastr();
@@ -21,7 +32,7 @@ const updateSettings = async () => {
   const prevOn = isOn(original.value.maintenance);
   const nextOn = isOn(settings.value.maintenance);
 
-  // Konfirmasi hanya saat toggle dari OFF -> ON
+  // Konfirmasi hanya saat OFF -> ON
   if (!prevOn && nextOn) {
     const ok = confirm(
       'Turn ON maintenance mode? This will log out ALL users immediately.'
@@ -30,19 +41,36 @@ const updateSettings = async () => {
   }
 
   try {
-    await axios.post('/api/settings', settings.value);
+    const { data } = await axios.post('/api/settings', settings.value);
+
     toastr.success('Settings updated successfully!');
-    // Setelah sukses, perbarui snapshot agar konfirmasi tidak muncul lagi kalau tidak ada perubahan
+
+    // 🔑 UPDATE SNAPSHOT
     original.value = { ...settings.value };
 
-    // Jika mau paksa reload saat menjadi ON, baru aktifkan ini:
-    // if (!prevOn && nextOn) location.reload();
+    // 🔥 UPDATE PINIA STORE (INI PENTING)
+    settingStore.setting = {
+      ...settingStore.setting,
+      ...settings.value,
+    };
+
+    /**
+     * OPTIONAL:
+     * Kalau maintenance ON dan mau force reload:
+     */
+     if (!prevOn && nextOn) {
+        location.reload();
+     }
+
   } catch (error) {
     if (error.response?.status === 422) {
       errors.value = error.response.data.errors;
     }
   }
 };
+
+settingStore.applySettings(settings.value)
+
 
 onMounted(getSettings);
 </script>
@@ -125,6 +153,24 @@ onMounted(getSettings);
                                         {{ errors.maintenance[0] }}
                                     </span>
                                 </div>
+
+                                <div class="form-group">
+                                    <label>Application Environment</label>
+                                    <select v-model="settings.environment" class="form-control">
+                                        <option value="development">Development</option>
+                                        <option value="production">Production</option>
+                                    </select>
+
+                                    <small class="form-text text-muted">
+                                        Development: debug aktif, bypass tertentu.<br>
+                                        Production: mode aman, fitur sensitif terkunci.
+                                    </small>
+
+                                    <span v-if="errors?.environment" class="text-danger text-sm">
+                                        {{ errors.environment[0] }}
+                                    </span>
+                                </div>
+
                             </div>
 
                             <div class="card-footer">

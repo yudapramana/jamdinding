@@ -73,7 +73,7 @@
 
               <strong class="mr-3">|</strong>
 
-              <label class="mb-0 mr-1 text-sm text-muted">Status Pendaftaran</label>
+              <label class="mb-0 mr-1 text-sm text-muted">Status</label>
 
               <select
                 v-model="filters.registration_status"
@@ -164,10 +164,8 @@
                     type="checkbox"
                     :value="item.id"
                     v-model="selectedParticipantIds"
-                    :disabled="
-                                !['bank_data', 'need_revision'].includes((item.registration_status || '').toLowerCase()) ||
-                                (item.participant?.lampiran_completion_percent || 0) < 80
-                              "
+                    :disabled="isCheckboxDisabled(item)"
+
 
                   />
                 </td>
@@ -1541,6 +1539,7 @@ import { useDebounceFn } from '@vueuse/core'
 import axios from 'axios'
 import Swal from 'sweetalert2'
 import { useAuthUserStore } from '../stores/AuthUserStore'
+import { useSettingStore } from '../stores/SettingStore'
 import ViewParticipantModal from './ViewParticipantModal.vue'
 import {
   formatDate,
@@ -1572,6 +1571,23 @@ const isPrivileged = computed(() => {
   const roleName = currentUser.value?.role?.name || ''
   return roleName === 'SUPERADMIN' || roleName === 'ADMIN_EVENT'
 })
+
+const settingStore = useSettingStore()
+
+
+const isCheckboxDisabled = (p) => {
+  // 🧪 DEVELOPMENT MODE → selalu aktif
+  if (settingStore.isDevelopment) return false
+
+  // 🚀 PRODUCTION RULE
+  return (
+    !['bank_data', 'need_revision'].includes(
+      (p.registration_status || '').toLowerCase()
+    ) ||
+    (p.participant?.lampiran_completion_percent || 0) < 80
+  )
+}
+
 
 
 
@@ -2870,26 +2886,32 @@ const isAllSelected = computed(() => {
 const toggleSelectAll = (event) => {
   const checked = event.target.checked
 
-  const selectableIds = items.value
-    .filter(ep =>
-      (ep.registration_status || '').toLowerCase() === 'bank_data' &&
-      (ep.participant?.lampiran_completion_percent || 0) >= 80
-    )
-    .map(ep => ep.id)
+  // 🧪 DEVELOPMENT MODE → semua bisa dipilih
+  const selectableIds = settingStore.isDevelopment
+    ? items.value.map(ep => ep.id)
+    : items.value
+        .filter(ep =>
+          ['bank_data', 'need_revision'].includes(
+            (ep.registration_status || '').toLowerCase()
+          ) &&
+          (ep.participant?.lampiran_completion_percent || 0) >= 80
+        )
+        .map(ep => ep.id)
 
   if (checked) {
-    // gabungkan id yang bisa dipilih di halaman ini dengan yang sudah ada (eliminasi duplikat)
+    // gabungkan id yang bisa dipilih di halaman ini dengan yang sudah ada (tanpa duplikat)
     selectedParticipantIds.value = Array.from(
       new Set([...selectedParticipantIds.value, ...selectableIds])
     )
   } else {
-    // hilangkan semua id di halaman ini dari selection
+    // hapus semua id di halaman ini dari selection
     const pageIds = items.value.map(ep => ep.id)
     selectedParticipantIds.value = selectedParticipantIds.value.filter(
       id => !pageIds.includes(id)
     )
   }
 }
+
 
 const openRegisterModal = () => {
   if (!selectedParticipantIds.value.length) return

@@ -28,6 +28,15 @@
             <i v-else class="fas fa-magic mr-1"></i>
             Generate dari Template
           </button>
+          <button
+            class="btn btn-outline-primary btn-sm"
+            @click="printTable"
+            :disabled="!groups.length"
+          >
+            <i class="fas fa-print mr-1"></i>
+            Print
+          </button>
+
         </div>
       </div>
 
@@ -183,6 +192,60 @@
 
       </div>
     </div>
+
+    <!-- =========================
+     PRINT AREA (HIDDEN)
+     ========================= -->
+    <div id="print-area" class="d-none">
+      <h3 class="text-center mb-1">
+        Komponen Penilaian Golongan Event
+      </h3>
+      <p class="text-center text-sm mb-3">
+        {{ eventData?.event_name }} {{ eventData?.event_year ? '(' + eventData.event_year + ')' : '' }}
+        <br />
+        {{ eventData?.event_location || '' }}
+      </p>
+
+      <div v-for="group in sortedGroupsForPrint" :key="'print-' + group.id" class="mb-4">
+        <h5 class="mb-1">
+          {{ group.full_name }}
+          <small class="text-muted">
+            • {{ group.is_team ? 'Tim' : 'Individu' }}
+          </small>
+        </h5>
+
+        <table class="table table-bordered table-sm text-sm mb-0">
+          <thead>
+            <tr>
+              <th style="width:40px">#</th>
+              <th>Komponen</th>
+              <th style="width:90px" class="text-center">Bobot (%)</th>
+              <th style="width:100px" class="text-center">Max Nilai</th>
+              <th style="width:80px" class="text-center">Urutan</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-if="componentsList(group).length === 0">
+              <td colspan="5" class="text-center text-muted">
+                Tidak ada komponen
+              </td>
+            </tr>
+
+            <tr
+              v-for="(fc, idx) in sortedComponents(group)"
+              :key="'pfc-' + fc.id"
+            >
+              <td class="text-center">{{ idx + 1 }}</td>
+              <td>{{ fc.field_name }}</td>
+              <td class="text-center">{{ fc.weight ?? '-' }}</td>
+              <td class="text-center">{{ fc.max_score ?? '-' }}</td>
+              <td class="text-center">{{ fc.order_number ?? '-' }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
 
     <!-- MODAL 1: KELOLA KOMPONEN BIDANG PER GOLONGAN EVENT -->
     <div
@@ -404,6 +467,15 @@
 
   </section>
 </template>
+
+<style scoped>
+  @media print {
+  body {
+    background: #fff !important;
+  }
+}
+
+</style>
 
 <script setup>
 import { ref, watch, onMounted, computed } from 'vue'
@@ -681,6 +753,80 @@ const generateFromTemplate = async () => {
     isGenerating.value = false
   }
 }
+
+const sortedGroupsForPrint = computed(() => {
+  return [...groups.value].sort((a, b) => {
+    const oa = a.order_number ?? 9999
+    const ob = b.order_number ?? 9999
+    return oa - ob
+  })
+})
+
+const sortedComponents = (group) => {
+  return [...componentsList(group)].sort((a, b) => {
+    const oa = a.order_number ?? 9999
+    const ob = b.order_number ?? 9999
+    return oa - ob
+  })
+}
+
+const printTable = () => {
+  const printContents = document.getElementById('print-area')?.innerHTML
+  if (!printContents) return
+
+  const win = window.open('', '', 'height=800,width=1000')
+
+  win.document.write(`
+    <html>
+      <head>
+        <title>Print Komponen Penilaian</title>
+        <style>
+          body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+          }
+          h3, h5 {
+            margin-bottom: 6px;
+          }
+          table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 12px;
+          }
+          th, td {
+            border: 1px solid #000;
+            padding: 4px 6px;
+          }
+          th {
+            background: #f0f0f0;
+          }
+          .text-center {
+            text-align: center;
+          }
+          .text-sm {
+            font-size: 12px;
+          }
+          .text-muted {
+            color: #666;
+          }
+          @page {
+            size: A4;
+            margin: 15mm;
+          }
+        </style>
+      </head>
+      <body>
+        ${printContents}
+      </body>
+    </html>
+  `)
+
+  win.document.close()
+  win.focus()
+  win.print()
+  win.close()
+}
+
 
 // search debounce
 watch(

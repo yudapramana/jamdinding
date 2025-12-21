@@ -10,8 +10,19 @@ export const useSettingStore = defineStore('SettingStore', () => {
         date_format: 'YYYY-MM-DD',
         pagination_limit: 10,
         maintenance: null,
+        environment: 'development',
     });
 
+    const applySettings = (newSettings) => {
+        setting.value = {
+            ...setting.value,
+            ...newSettings,
+        };
+    };
+
+
+    const isProduction = computed(() => setting.value.environment === 'production');
+    const isDevelopment = computed(() => setting.value.environment === 'development');
 
     // ⚠️ tidak perlu ref() di default
     const theme = useStorage('SettingStore:theme', 'light');
@@ -85,6 +96,7 @@ export const useSettingStore = defineStore('SettingStore', () => {
     return {
         setting,
         getSetting,
+        applySettings,
 
         theme,
         changeTheme,
@@ -95,5 +107,9 @@ export const useSettingStore = defineStore('SettingStore', () => {
 
         resetMaintenance,
         showMaintenanceBadge,
+        isProduction,
+        isDevelopment,
     };
+
+
 });

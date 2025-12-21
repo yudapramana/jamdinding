@@ -15,6 +15,8 @@ class __EventBranchController extends Controller
     public function index(Request $request)
     {
         $eventId = $request->get('event_id');
+        $fromCrud   = $request->boolean('from_crud');    // 👈 PENENTU MODE
+
         if (!$eventId) {
             return response()->json([
                 'message' => 'event_id is required.',
@@ -26,6 +28,14 @@ class __EventBranchController extends Controller
 
         $query = EventBranch::where('event_id', $eventId);
 
+        /**
+         * DEFAULT FILTER:
+         * jika BUKAN dari halaman CRUD → hanya tampilkan status ACTIVE
+         */
+        if (!$fromCrud) {
+            $query->where('status', 'active');
+        }
+        
         if ($search) {
             $query->where(function ($q) use ($search) {
                 $q->where('branch_name', 'like', "%{$search}%")
