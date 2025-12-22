@@ -383,7 +383,6 @@ class __EventParticipantController extends Controller
         }
 
         if ($roleSlug !== 'superadmin' && $roleSlug !== 'admin_event') {
-            dd('masuk no lagi');
             if ($event->event_level === 'province') {
                 $query->where('p.province_id', $event->province_id)
                     ->where('p.regency_id', $user->regency_id);
@@ -1048,7 +1047,7 @@ class __EventParticipantController extends Controller
             ->where('event_participants.event_id', $eventId);
 
         // filter wilayah sama dengan index() untuk non-superadmin
-        if ($roleSlug !== 'superadmin') {
+        if ($roleSlug !== 'superadmin' && $roleSlug !== 'admin_event') {
             $user = Auth::user();
 
             if ($event->event_level === 'province') {

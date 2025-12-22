@@ -393,10 +393,11 @@ const optionLabel = (p, catName, contName) => {
     const memberCount = p?.member_count != null ? ` (${p.member_count} anggota)` : ''
     const memberNames =
       p?.member_names && p.member_names.length
-        ? ` — ${p.member_names.join(', ')}${p?.member_count && p.member_names.length < p.member_count ? ', ...' : ''}`
+        ? `  ${p.member_names.join(', ')}${p?.member_count && p.member_names.length < p.member_count ? ', ...' : ''}`
         : ''
     // Putra - Kontingen - Tim/TeamName ...
-    return `${category} - ${contingent} - ${teamName}${memberCount}${memberNames}`
+    //return `${category} - ${contingent} - ${teamName}${memberCount}${memberNames}`
+    return `${memberNames}`
   }
 
   const name = (p?.participant?.full_name || p?.full_name || 'Peserta').toString().trim()

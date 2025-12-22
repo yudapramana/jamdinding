@@ -447,11 +447,18 @@ return new class extends Migration
 
             $table->text('reregistration_notes')->nullable(); // catatan kekurangan / alasan gagal
 
+            // Nomor Peserta
+            $table->string('branch_code', 20)->nullable()->comment('Snapshot kode cabang, contoh FH.01');
+            $table->unsignedTinyInteger('branch_sequence')->nullable()->comment('Urutan peserta per cabang (1-99)');
+            $table->string('participant_number', 30)->nullable()->comment('Nomor peserta final, contoh FH.01.11');
+
             $table->timestamps();
             $table->softDeletes();
 
             // satu peserta hanya boleh 1 entry unique per event (kalau mau dibatasi)
             $table->unique(['event_id', 'participant_id'], 'uq_event_participants_event_peserta');
+            // Dalam 1 event, 1 cabang, Tidak boleh ada urutan sama
+            $table->unique(['event_id', 'event_branch_id', 'branch_sequence'], 'uq_event_branch_sequence');
         });
 
         // 17. participant_verifications

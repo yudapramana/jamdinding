@@ -584,7 +584,7 @@ watch(
       </small>
 
       <!-- ✅ CARD: Deskripsi Mekanisme Penilaian -->
-      <div class="card mt-3" v-if="competitionId">
+      <div class="card mt-3"  v-if="competitionId && isFinalRound && activeCategoryId !== 'all' && medalPreview.length">
         <div class="card-body py-2">
           <div class="d-flex justify-content-between align-items-start">
             <div>
@@ -595,8 +595,8 @@ watch(
 
               <div class="text-muted text-sm">
                 Ranking ditentukan berdasarkan <strong>Final Score</strong>.
-                Jika terjadi nilai sama, sistem memakai urutan bidang dari <strong>event_field_components</strong>
-                (order_number naik; null dianggap paling akhir) sebagai prioritas tie-break.
+                Jika terjadi nilai sama, sistem memakai urutan bidang dari <strong>Komponen Nilai Bidang</strong>
+                (diurutkan berdasarkan urutan prioritas naik; null dianggap paling akhir) sebagai prioritas tie-break.
               </div>
 
               <ul class="text-sm mb-0 mt-2 pl-3">
@@ -802,7 +802,7 @@ watch(
               <table class="table table-bordered table-sm text-sm mb-0">
                 <thead class="thead-light">
                   <tr>
-                    <th rowspan="2" class="text-center align-middle" style="width:50px">#</th>
+                    <th rowspan="2" class="text-center align-middle" style="width:30px">#</th>
                     <th rowspan="2" class="align-middle" style="min-width:160px">Kontingen</th>
                     <!-- <th rowspan="2" class="text-center align-middle" style="width:90px">Jml Anggota</th> -->
                     <th rowspan="2" class="align-middle" style="min-width:260px">Anggota</th>
@@ -909,7 +909,7 @@ watch(
               <table class="table table-bordered table-sm text-sm mb-0">
                 <thead class="thead-light">
                   <tr>
-                    <th rowspan="2" style="width: 50px" class="text-center align-middle">#</th>
+                    <th rowspan="2" style="width: 30px" class="text-center align-middle">#</th>
                     <th rowspan="2" style="min-width: 220px" class="align-middle">Peserta</th>
                     <th rowspan="2" style="min-width: 160px" class="align-middle">Kontingen</th>
 

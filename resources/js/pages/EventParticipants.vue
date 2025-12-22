@@ -59,7 +59,7 @@
 
             <!-- LEFT: perPage + filter status -->
             <div class="d-flex flex-wrap align-items-center">
-              <label class="mb-0 mr-1 text-sm text-muted">Tampilkan</label>
+              <!-- <label class="mb-0 mr-1 text-sm text-muted">Tampilkan</label> -->
               <select
                 v-model.number="perPage"
                 class="form-control form-control-sm w-auto mr-2"
@@ -69,9 +69,9 @@
                 <option :value="50">50</option>
                 <option :value="100">100</option>
               </select>
-              <label class="mb-0 text-sm text-muted mr-3">Entri</label>
+              <label class="mb-0 text-sm text-muted mr-2">Entri</label>
 
-              <strong class="mr-3">|</strong>
+              <strong class="mr-2">|</strong>
 
               <label class="mb-0 mr-1 text-sm text-muted">Status</label>
 
@@ -88,9 +88,9 @@
                 <option value="disqualified">Diskualifikasi</option>
               </select>
 
-              <strong class="mr-3">|</strong>
+              <strong class="mr-2">|</strong>
 
-              <label class="mb-0 mr-1 text-sm text-muted">Cabang / Golongan</label>
+              <label class="mb-0 mr-1 text-sm text-muted">Cabang</label>
               <select
                 v-model="filters.event_group_id"
                 class="form-control form-control-sm w-auto mr-2"
