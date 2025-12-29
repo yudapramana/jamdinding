@@ -13,7 +13,7 @@ return new class extends Migration
          * MASTER DASAR
          */
 
-        // 04. branches
+        // 01. branches
         Schema::create('branches', function (Blueprint $table) {
             $table->id();
             $table->string('code', 50)->nullable();
@@ -24,7 +24,7 @@ return new class extends Migration
             $table->timestamps();
         });
 
-        // 05. groups
+        // 02. groups
         Schema::create('groups', function (Blueprint $table) {
             $table->id();
             $table->string('code', 50)->nullable();
@@ -34,7 +34,7 @@ return new class extends Migration
             $table->timestamps();
         });
 
-        // 06. categories
+        // 03. categories
         Schema::create('categories', function (Blueprint $table) {
             $table->id();
             $table->string('code', 50)->nullable();
@@ -44,7 +44,7 @@ return new class extends Migration
             $table->timestamps();
         });
 
-        // 07. list_fields
+        // 04. list_fields
         Schema::create('list_fields', function (Blueprint $table) {
             $table->id();
             $table->string('code', 50)->nullable();
@@ -54,7 +54,7 @@ return new class extends Migration
             $table->timestamps();
         });
 
-        // 01. events (sinkron dengan schema lama: nama_event, lokasi_event)
+        // 05. events (sinkron dengan schema lama: nama_event, lokasi_event)
         Schema::create('events', function (Blueprint $table) {
             $table->id();
 
@@ -89,7 +89,7 @@ return new class extends Migration
             $table->timestamps();
         });
 
-        // 02. stages
+        // 06. stages
         Schema::create('stages', function (Blueprint $table) {
             $table->id();
             // nama tahapan (Persiapan, Pendaftaran, Verifikasi, dsb)
@@ -106,7 +106,7 @@ return new class extends Migration
             $table->timestamps();
         });
 
-        // 03. event_stages
+        // 07. event_stages
         Schema::create('event_stages', function (Blueprint $table) {
             $table->id();
             $table->foreignId('event_id')->constrained('events')->cascadeOnDelete();
@@ -211,7 +211,7 @@ return new class extends Migration
             );
         });
 
-        // 18. rounds
+        // 12. rounds
         Schema::create('rounds', function (Blueprint $table) {
             $table->id();
             $table->string('name'); // Babak Penyisihan, Semifinal, Final
@@ -223,7 +223,7 @@ return new class extends Migration
          * MASTER EVENT PER EVENT
          */
 
-        // 11. event_branches
+        // 13. event_branches
         Schema::create('event_branches', function (Blueprint $table) {
             $table->id();
 
@@ -241,7 +241,7 @@ return new class extends Migration
             $table->unique(['event_id', 'branch_id'], 'uq_event_branches_event_branch');
         });
 
-        // 12. event_groups
+        // 14. event_groups
         Schema::create('event_groups', function (Blueprint $table) {
             $table->id();
 
@@ -268,7 +268,7 @@ return new class extends Migration
             );
         });
 
-        // 13. event_categories
+        // 15. event_categories
         Schema::create('event_categories', function (Blueprint $table) {
             $table->id();
 
@@ -293,7 +293,7 @@ return new class extends Migration
             );
         });
 
-        // 14. event_field_components
+        // 16. event_field_components
         Schema::create('event_field_components', function (Blueprint $table) {
             $table->id();
 
@@ -321,7 +321,7 @@ return new class extends Migration
          * PESERTA
          */
 
-        // 15. participants (bank data kafilah, pakai referensi wilayah)
+        // 17. participants (bank data kafilah, pakai referensi wilayah)
         Schema::create('participants', function (Blueprint $table) {
             $table->id();
 
@@ -387,7 +387,44 @@ return new class extends Migration
             $table->index(['province_id', 'regency_id']);
         });
 
-        // 16. event_participants
+        // 18.a
+        Schema::create('event_teams', function (Blueprint $table) {
+            $table->id();
+
+            $table->foreignId('event_id')
+                ->constrained()
+                ->cascadeOnDelete();
+
+            $table->foreignId('event_branch_id')->constrained('event_branches')->cascadeOnDelete();
+            $table->foreignId('event_group_id')->constrained('event_groups')->cascadeOnDelete();
+            $table->foreignId('event_category_id')->constrained('event_categories')->cascadeOnDelete();
+
+            // Identitas tim
+            $table->string('team_name')->nullable();
+            $table->string('contingent')->nullable();
+
+            // Nomor peserta tim
+            $table->string('branch_code', 20)->nullable();     // FH-G
+            $table->unsignedInteger('branch_sequence')->nullable();
+            $table->string('participant_number', 30)->nullable(); // FH-G.01
+
+
+            $table->enum('reregistration_status', ['not_yet','verified','rejected'])->default('not_yet');
+            $table->text('reregistration_notes')->nullable();
+            $table->timestamp('reregistered_at')->nullable();
+            $table->foreignId('reregistered_by')->nullable()->constrained('users')->nullOnDelete();
+
+
+
+            $table->timestamps();
+
+            $table->unique(
+                ['event_id','event_group_id','branch_sequence'],
+                'uq_event_teams_event_group_seq'
+            );
+        });
+
+        // 18.b event_participants
         Schema::create('event_participants', function (Blueprint $table) {
             $table->id();
 
@@ -398,6 +435,11 @@ return new class extends Migration
             $table->foreignId('event_branch_id')->constrained('event_branches')->cascadeOnDelete();
             $table->foreignId('event_group_id')->constrained('event_groups')->cascadeOnDelete();
             $table->foreignId('event_category_id')->constrained('event_categories')->cascadeOnDelete();
+
+             $table->foreignId('event_team_id')
+            ->nullable()
+            ->constrained('event_teams')
+            ->nullOnDelete();
 
             // Umur dihitung per event
             $table->integer('age_year');
@@ -452,16 +494,27 @@ return new class extends Migration
             $table->unsignedTinyInteger('branch_sequence')->nullable()->comment('Urutan peserta per cabang (1-99)');
             $table->string('participant_number', 30)->nullable()->comment('Nomor peserta final, contoh FH.01.11');
 
+           
+
+
             $table->timestamps();
             $table->softDeletes();
 
             // satu peserta hanya boleh 1 entry unique per event (kalau mau dibatasi)
             $table->unique(['event_id', 'participant_id'], 'uq_event_participants_event_peserta');
             // Dalam 1 event, 1 cabang, Tidak boleh ada urutan sama
-            $table->unique(['event_id', 'event_branch_id', 'branch_sequence'], 'uq_event_branch_sequence');
+            $table->unique([
+                'event_id',
+                'event_branch_id',
+                'event_group_id',
+                'branch_sequence'
+            ], 'uq_event_branch_group_sequence');
         });
 
-        // 17. participant_verifications
+        
+
+
+        // 19. participant_verifications
         Schema::create('participant_verifications', function (Blueprint $table) {
             $table->id();
 
@@ -526,7 +579,7 @@ return new class extends Migration
          * KOMPETISI & PENILAIAN
          */
 
-        // 19. event_competitions
+        // 20. event_competitions
         Schema::create('event_competitions', function (Blueprint $table) {
             $table->id();
 
@@ -551,7 +604,7 @@ return new class extends Migration
             );
         });
 
-        // 20. event_scoresheets
+        // 21. event_scoresheets
         Schema::create('event_scoresheets', function (Blueprint $table) {
             $table->id();
 
@@ -560,6 +613,10 @@ return new class extends Migration
             $table->foreignId('event_category_id')->nullable()->constrained('event_categories')->nullOnDelete();
 
             $table->foreignId('event_participant_id')->constrained('event_participants')->cascadeOnDelete();
+            $table->foreignId('event_team_id')
+                ->nullable()
+                ->constrained('event_teams')
+                ->cascadeOnDelete();
             $table->foreignId('judge_id')->constrained('users'); // hakim
 
             $table->decimal('total_score', 8, 2)->default(0);
@@ -574,9 +631,14 @@ return new class extends Migration
                 ['event_competition_id', 'event_participant_id', 'judge_id'],
                 'uq_scoresheets_competition_participant_judge'
             );
+
+            $table->unique(
+                ['event_competition_id','event_team_id','judge_id'], 
+                'uq_scoresheets_competition_team_judge'
+            );
         });
 
-        // 21. event_score_items
+        // 22. event_score_items
         Schema::create('event_score_items', function (Blueprint $table) {
             $table->id();
 
@@ -620,7 +682,7 @@ return new class extends Migration
         // });
 
         // 
-        // event_branch_judges
+        // 23. event_branch_judges
         Schema::create('event_branch_judges', function (Blueprint $table) {
             $table->id();
             $table->foreignId('event_branch_id')->constrained('event_branches')->cascadeOnDelete();
@@ -631,7 +693,7 @@ return new class extends Migration
             $table->unique(['event_branch_id','user_id'], 'uq_event_branch_judges_branch_user');
         });
 
-        // event_group_judges
+        // 24. event_group_judges
         Schema::create('event_group_judges', function (Blueprint $table) {
             $table->id();
 
@@ -646,50 +708,165 @@ return new class extends Migration
         });
 
 
-        // 
-
-        // 23. medal_standings
-        Schema::create('medal_standings', function (Blueprint $table) {
+        // 25. Medal Rules
+        Schema::create('medal_rules', function (Blueprint $table) {
             $table->id();
 
-            $table->foreignId('event_id')->constrained('events')->cascadeOnDelete();
-            $table->foreignId('event_group_id')->constrained('event_groups')->cascadeOnDelete();
-            $table->foreignId('event_category_id')->nullable()->constrained('event_categories')->nullOnDelete();
+            $table->unsignedInteger('order_number');
+            // 1,2,3,4,5,6
 
-            $table->unsignedInteger('order_number')->nullable(); // peringkat 1, 2, 3
+            $table->string('medal_code');
+            // champion_1, champion_2, champion_3,
+            // runner_up_1, runner_up_2, runner_up_3
 
-            $table->enum('medal_type', ['gold', 'silver', 'bronze', 'fourth'])->default('gold');
-            $table->enum('medal_point', [5, 3, 1, 0])->default('0');
+            $table->string('medal_name');
+            // Juara 1, Juara 2, Juara 3,
+            // Harapan 1, Harapan 2, Harapan 3
 
+            $table->unsignedInteger('point');
 
-            $table->string('contingent')->nullable(); // siapa kontingen yang dapat medali
+            $table->boolean('is_active')->default(true);
+
+            $table->timestamps();
+
+            $table->unique(['order_number'], 'uq_medal_rules_order');
+            $table->unique(['medal_code'], 'uq_medal_rules_code');
+        });
+
+        // 26. Medal Rules
+        Schema::create('event_medal_rules', function (Blueprint $table) {
+            $table->id();
+
+            $table->foreignId('event_id')
+                ->constrained('events')
+                ->cascadeOnDelete();
+
+            $table->unsignedInteger('order_number');
+            // 1,2,3,4,5,6
+
+            $table->string('medal_code');
+            // champion_1, runner_up_2, dst
+
+            $table->string('medal_name');
+            // Juara 1, Harapan 2, dst
+
+            $table->unsignedInteger('point');
+
+            $table->boolean('is_active')->default(true);
 
             $table->timestamps();
 
             $table->unique(
-                ['event_id', 'event_group_id', 'event_category_id', 'order_number'],
-                'uq_medal_standings_event_group_cat_order'
+                ['event_id', 'order_number'],
+                'uq_event_medal_rules_event_order'
             );
         });
 
-        // 24. event_contingents
+        // 27. medal_standings
+        Schema::create('medal_standings', function (Blueprint $table) {
+            $table->id();
+
+            $table->foreignId('event_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('event_group_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('event_category_id')->nullable()->constrained()->nullOnDelete();
+
+            $table->unsignedInteger('order_number');
+
+            $table->foreignId('event_medal_rule_id')->nullable()->constrained()->restrictOnDelete();
+            $table->foreignId('medal_rule_id')->nullable()->constrained()->restrictOnDelete();
+
+            // ✅ REFERENSI UTAMA (RELATIONAL)
+            $table->string('region_type')->nullable(); // province|regency|district|village
+            $table->unsignedBigInteger('region_id')->nullable();
+
+            // ✅ SNAPSHOT UNTUK HISTORY & PDF
+            $table->string('region_name')->nullable(); // "Provinsi Sumatera Barat"
+
+            $table->timestamps();
+
+            $table->unique(
+                ['event_id','event_group_id','event_category_id','order_number'],
+                'uq_medal_standings_event_group_cat_order'
+            );
+
+            $table->index(['region_type','region_id']);
+        });
+
+
+
+        // 28. event_contingents
         Schema::create('event_contingents', function (Blueprint $table) {
             $table->id();
 
-            $table->foreignId('event_id')->constrained('events')->cascadeOnDelete();
-            $table->string('contingent'); // nama kab/kota/instansi
-            $table->unsignedInteger('total_participant')->default(0);
+            $table->foreignId('event_id')
+                ->constrained('events')
+                ->cascadeOnDelete();
 
-            $table->unsignedInteger('gold_count')->default(0);
-            $table->unsignedInteger('silver_count')->default(0);
-            $table->unsignedInteger('bronze_count')->default(0);
-            $table->unsignedInteger('fourth_count')->default(0);
+            // 🔑 polymorphic region
+            $table->string('region_type'); // province | regency | district | village
+            $table->unsignedBigInteger('region_id');
+
+            $table->unsignedInteger('total_participant')->default(0);
             $table->unsignedInteger('total_point')->default(0);
 
             $table->timestamps();
 
-            $table->unique(['event_id', 'contingent'], 'uq_event_contingents_event_contingent');
+            $table->unique(
+                ['event_id', 'region_type', 'region_id'],
+                'uq_event_contingents_event_region'
+            );
+
+            $table->index(['region_type', 'region_id']);
         });
+
+
+        // 29. Event Continget Medals
+        Schema::create('event_contingent_medals', function (Blueprint $table) {
+            $table->id();
+
+            $table->foreignId('event_contingent_id')
+                ->constrained('event_contingents')
+                ->cascadeOnDelete();
+
+            $table->unsignedInteger('order_number');
+
+            $table->string('medal_code');
+            // champion_1, runner_up_1, dst
+
+            $table->string('medal_name');
+            // Juara 1, Harapan 1, dst
+
+            $table->unsignedInteger('medal_count')->default(0);
+
+            $table->timestamps();
+
+            $table->unique(
+                ['event_contingent_id', 'order_number'],
+                'uq_event_contingent_medals_contingent_order'
+            );
+        });
+
+        // 30. Event Snapshots
+        Schema::create('event_snapshots', function (Blueprint $table) {
+            $table->id();
+
+            $table->foreignId('event_id')
+                ->constrained()
+                ->cascadeOnDelete();
+
+            $table->string('type'); 
+            // leaderboard | ranking | medal
+
+            $table->json('payload'); // FULL RESULT
+            $table->timestamp('published_at');
+
+            $table->timestamps();
+
+            $table->index(['event_id', 'type']);
+        });
+
+
+
     }
 
     public function down(): void

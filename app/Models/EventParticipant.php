@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\Pivot;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -42,6 +43,9 @@ class EventParticipant extends Pivot
         'reregistered_at',
         'reregistered_by',
         'reregistration_notes',
+        'branch_code',
+        'branch_sequence',
+        'participant_number',
     ];
 
     protected $casts = [
@@ -128,5 +132,10 @@ class EventParticipant extends Pivot
         $this->verified_by = $user ? $user->id : auth()->id();
         $this->verified_at = now();
         $this->save();
+    }
+
+    public function team()
+    {
+        return $this->belongsTo(EventTeam::class, 'event_team_id');
     }
 }

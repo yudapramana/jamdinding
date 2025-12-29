@@ -45,7 +45,7 @@
                     Kontingen:
                     <span class="badge badge-light border">{{ ep.contingent || '-' }}</span>
                   </div>
-                  <div class="mb-1" v-if="ep.event_category">
+                  <div class="mb-1">
                     Cabang/Golongan:
                     <span class="badge badge-info">{{ ep.event_category?.full_name || '-' }}</span>
                   </div>
@@ -198,6 +198,30 @@
             </select>
           </div>
 
+          <!-- DRAW NUMBER (HANYA ACC) -->
+          <div v-if="actionMode === 'verified'" class="card mt-4">
+            <div class="card-header py-2 text-center">
+              <strong>Undian Nomor Peserta</strong>
+            </div>
+            <div class="card-body text-center">
+              <div
+                class="display-3 font-weight-bold roulette"
+                :class="numberClass"
+              >
+                {{ currentNumber ?? '--' }}
+              </div>
+
+              <div class="mt-3">
+                <button class="btn btn-success mr-2" @click="startDraw" :disabled="rolling">
+                  Mulai
+                </button>
+                <button class="btn btn-danger" @click="stopDraw" :disabled="!rolling">
+                  Stop
+                </button>
+              </div>
+            </div>
+          </div>
+
         </div>
 
         <!-- FOOTER -->
@@ -221,11 +245,8 @@ import { computed, ref, watch } from 'vue'
 import axios from 'axios'
 import Swal from 'sweetalert2'
 
-
-
 const props = defineProps({ eventParticipant: Object })
-const emit = defineEmits(['updated', 'request-draw'])
-
+const emit = defineEmits(['updated'])
 
 const ep = computed(() => props.eventParticipant || null)
 const p = computed(() => ep.value?.participant || null)
@@ -349,13 +370,15 @@ const submit = async () => {
     return
   }
 
-  if (actionMode.value === 'verified' && !isChecklistOk.value) {
-    Swal.fire(
-      'Checklist belum lengkap',
-      'Lengkapi checklist inti sebelum ACC.',
-      'warning'
-    )
-    return
+  if (actionMode.value === 'verified') {
+    if (!isChecklistOk.value) {
+      Swal.fire('Checklist belum lengkap', 'Lengkapi checklist inti sebelum ACC.', 'warning')
+      return
+    }
+    if (!currentNumber.value) {
+      Swal.fire('Nomor belum ditentukan', 'Lakukan undian nomor terlebih dahulu.', 'warning')
+      return
+    }
   }
 
   isSubmitting.value = true
@@ -369,32 +392,39 @@ const submit = async () => {
       }
     )
 
-    // ✅ Tutup modal
+    Swal.fire('Berhasil', 'Daftar ulang berhasil diproses.', 'success')
+    emit('updated')
     $('#reRegisterModal').modal('hide')
 
-    // ✅ HANYA tampilkan notifikasi sukses
-    await Swal.fire({
-      icon: 'success',
-      title: 'Berhasil',
-      text: 'Daftar ulang peserta berhasil diproses.',
-      timer: 1500,
-      showConfirmButton: false,
+  } catch (error) {
+    // 🔥 Ambil pesan error paling aman
+    let message = 'Gagal memproses daftar ulang.'
+
+    if (error.response) {
+      // Laravel business rule / validation
+      if (error.response.data?.message) {
+        message = error.response.data.message
+      } else if (error.response.data?.errors) {
+        // gabungkan semua error validation
+        message = Object.values(error.response.data.errors)
+          .flat()
+          .join('<br>')
+      }
+    } else if (error.message) {
+      // Network / JS error
+      message = error.message
+    }
+
+    Swal.fire({
+      icon: 'error',
+      title: 'Gagal',
+      html: message, // pakai html agar <br> terbaca
     })
 
-    emit('updated')
-
-  } catch (error) {
-    Swal.fire(
-      'Gagal',
-      error.response?.data?.message || 'Terjadi kesalahan.',
-      'error'
-    )
   } finally {
     isSubmitting.value = false
   }
 }
-
-
 
 
 const badgeClass = (status) => {

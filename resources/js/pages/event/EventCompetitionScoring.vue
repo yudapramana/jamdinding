@@ -385,6 +385,8 @@ const getContingentName = (p) => {
 }
 
 const optionLabel = (p, catName, contName) => {
+  console.log('p');
+  console.log(p);
   const category = (catName || getCategoryName(p) || '-').toString().trim()
   const contingent = (contName || getContingentName(p) || '-').toString().trim()
 
@@ -402,8 +404,10 @@ const optionLabel = (p, catName, contName) => {
 
   const name = (p?.participant?.full_name || p?.full_name || 'Peserta').toString().trim()
   const nik = (p?.participant?.nik || p?.nik || '').toString().trim()
+  const pNumber = (p?.participant?.participant_number).toString().trim()
   // Putra - Kontingen - Nama (NIK optional)
-  return nik ? `${category} - ${contingent} - ${name} (${nik})` : `${category} - ${contingent} - ${name}`
+  // return nik ? `${category} - ${contingent} - ${name} (${nik})` : `${category} - ${contingent} - ${name}`
+  return pNumber ? `${pNumber} - ${name} (${nik})` : `${category} - ${contingent} - ${name}`
 }
 
 const participantOptions = computed(() => {
@@ -620,6 +624,7 @@ const fetchParticipants = async () => {
         per_page: 2000,
         event_group_id: groupId,
         is_team: isTeam.value ? 1 : 0,
+        only_verified: 1,
       },
     })
     participants.value = data.data || data || []

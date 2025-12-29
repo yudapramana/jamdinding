@@ -9,8 +9,14 @@ use App\Models\EventParticipant;
 use App\Models\MedalStanding;
 use App\Models\EventContingent;
 use App\Models\EventFieldComponent;
+use App\Models\EventContingentMedal;
+use App\Models\MedalRule;
+use App\Models\EventMedalRule;
+use App\Models\Event;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use App\Models\EventSnapshot;
+use Carbon\Carbon;
 
 class __EventCompetitionRankingController extends Controller
 {
@@ -678,8 +684,10 @@ class __EventCompetitionRankingController extends Controller
         $competition->load([
             'round:id,name',
             'eventGroup:id,event_id,branch_id,is_team,full_name',
+            'event',
         ]);
 
+        // 1️⃣ Validasi hanya babak FINAL
         $roundName = strtolower(trim($competition->round?->name ?? ''));
         if (!str_contains($roundName, 'final')) {
             return response()->json([
@@ -688,75 +696,297 @@ class __EventCompetitionRankingController extends Controller
         }
 
         $data = $request->validate([
-            'top_n' => ['nullable', 'integer', 'min:1', 'max:4'],
+            'top_n' => ['nullable', 'integer', 'min:1', 'max:10'],
         ]);
 
-        $topN = (int)($data['top_n'] ?? 4);
+        $topN = (int) ($data['top_n'] ?? 6);
 
+        // 2️⃣ Mapping event_level → region_type
+        $regionTypeMap = [
+            'national' => EventContingent::REGION_PROVINCE,
+            'province' => EventContingent::REGION_REGENCY,
+            'regency'  => EventContingent::REGION_DISTRICT,
+            'district' => EventContingent::REGION_VILLAGE,
+        ];
+
+        $regionType = $regionTypeMap[$competition->event->event_level] ?? null;
+        if (!$regionType) {
+            return response()->json([
+                'message' => 'Event level tidak valid untuk publish.',
+            ], 422);
+        }
+
+        // 3️⃣ Ambil ranking dari scoresheet
         $res = $this->buildRankingFromScoresheets($competition, false);
-        $ranking = collect($res['ranking']);
-        $rankingByCategory = $ranking->groupBy('event_category_id');
+        $rankingByCategory = collect($res['ranking'])->groupBy('event_category_id');
 
-        DB::transaction(function () use ($competition, $rankingByCategory, $topN) {
+        EventSnapshot::updateOrCreate(
+            [
+                'event_id' => $competition->event_id,
+                'type'     => 'ranking',
+            ],
+            [
+                'payload' => [
+                    'competition_id' => $competition->id,
+                    'event_group_id' => $competition->event_group_id,
+                    'is_team'        => $this->isTeamMode($competition),
+                    'ranking'        => $res['ranking'],
+                ],
+                'published_at' => now(),
+            ]
+        );
+
+
+        // 4️⃣ Ambil aturan medali
+        $eventMedalRules = EventMedalRule::where('event_id', $competition->event_id)
+            ->where('is_active', true)
+            ->orderBy('order_number')
+            ->get()
+            ->keyBy('order_number');
+
+        $defaultMedalRules = MedalRule::where('is_active', true)
+            ->orderBy('order_number')
+            ->get()
+            ->keyBy('order_number');
+
+        DB::transaction(function () use (
+            $competition,
+            $rankingByCategory,
+            $topN,
+            $eventMedalRules,
+            $defaultMedalRules,
+            $regionType
+        ) {
+
             foreach ($rankingByCategory as $categoryId => $rows) {
 
-                $deleteQ = MedalStanding::query()
-                    ->where('event_id', $competition->event_id)
-                    ->where('event_group_id', $competition->event_group_id);
+                // 5️⃣ Hapus standing lama (per group + category)
+                MedalStanding::where('event_id', $competition->event_id)
+                    ->where('event_group_id', $competition->event_group_id)
+                    ->when(
+                        empty($categoryId) || $categoryId === 'null',
+                        fn ($q) => $q->whereNull('event_category_id'),
+                        fn ($q) => $q->where('event_category_id', $categoryId)
+                    )
+                    ->delete();
 
-                if (is_null($categoryId) || $categoryId === '' || $categoryId === 'null') {
-                    $deleteQ->whereNull('event_category_id');
-                    $categoryId = null;
-                } else {
-                    $deleteQ->where('event_category_id', $categoryId);
-                }
-
-                $deleteQ->delete();
-
+                // 6️⃣ Ambil Top N
                 $top = collect($rows)->take($topN)->values();
+
 
                 foreach ($top as $idx => $row) {
                     $order = $idx + 1;
 
-                    $medal = match ($order) {
-                        1 => 'gold',
-                        2 => 'silver',
-                        3 => 'bronze',
-                        4 => 'fourth',
-                        default => null,
-                    };
-                    if (!$medal) continue;
+                    // 🎖 Ambil rule medali
+                    $rule = $eventMedalRules[$order]
+                        ?? $defaultMedalRules[$order]
+                        ?? null;
 
-                    $point = match ($medal) {
-                        'gold' => 5,
-                        'silver' => 3,
-                        'bronze' => 1,
-                        'fourth' => 0,
-                        default => 0,
-                    };
+                    if (!$rule) {
+                        continue;
+                    }
 
+
+                    if ($this->isTeamMode($competition)) {
+
+                        $contingentName = trim($row['contingent'] ?? '');
+
+                        if ($contingentName === '') {
+                            continue;
+                        }
+
+                        /**
+                         * 🔑 Tentukan region_id berdasarkan event_level
+                         */
+                        $regionId = match ($regionType) {
+                            EventContingent::REGION_PROVINCE =>
+                                DB::table('provinces')->where('name', $contingentName)->value('id'),
+
+                            EventContingent::REGION_REGENCY =>
+                                DB::table('regencies')->where('name', $contingentName)->value('id'),
+
+                            EventContingent::REGION_DISTRICT =>
+                                DB::table('districts')->where('name', $contingentName)->value('id'),
+
+                            EventContingent::REGION_VILLAGE =>
+                                DB::table('villages')->where('name', $contingentName)->value('id'),
+
+                            default => null,
+                        };
+
+
+
+                        if (!$regionId) {
+                            // safety skip (nama tidak ditemukan)
+                            continue;
+                        }
+
+                        /**
+                         * 🔗 Ambil EventContingent
+                         */
+                        $contingent = EventContingent::where([
+                            'event_id'    => $competition->event_id,
+                            'region_type' => $regionType,
+                            'region_id'   => $regionId,
+                        ])->first();
+
+
+                        if (!$contingent) {
+                            continue;
+                        }
+
+                        /**
+                         * 📸 Snapshot nama wilayah
+                         */
+                        $regionName = $contingent->region_name;
+
+
+                    } else {
+
+                        /**
+                         * ==========================
+                         * 🟩 INDIVIDU MODE
+                         * ==========================
+                         */
+                        if (!isset($row['event_participant_id'])) {
+                            continue;
+                        }
+
+                        $participant = EventParticipant::with([
+                            'participant:id,province_id,regency_id,district_id,village_id',
+                        ])->find($row['event_participant_id']);
+
+                        if (!$participant || !$participant->participant) {
+                            continue;
+                        }
+
+                        $regionId = match ($regionType) {
+                            EventContingent::REGION_PROVINCE => $participant->participant->province_id,
+                            EventContingent::REGION_REGENCY  => $participant->participant->regency_id,
+                            EventContingent::REGION_DISTRICT => $participant->participant->district_id,
+                            EventContingent::REGION_VILLAGE  => $participant->participant->village_id,
+                            default => null,
+                        };
+
+                        if (!$regionId) {
+                            continue;
+                        }
+
+                        $regionName = match ($regionType) {
+                            EventContingent::REGION_PROVINCE => DB::table('provinces')->where('id', $regionId)->value('name'),
+                            EventContingent::REGION_REGENCY  => DB::table('regencies')->where('id', $regionId)->value('name'),
+                            EventContingent::REGION_DISTRICT => DB::table('districts')->where('id', $regionId)->value('name'),
+                            EventContingent::REGION_VILLAGE  => DB::table('villages')->where('id', $regionId)->value('name'),
+                        };
+                    }
+
+
+                    // 7️⃣ SIMPAN MEDAL STANDING
                     MedalStanding::create([
-                        'event_id' => $competition->event_id,
-                        'event_group_id' => $competition->event_group_id,
-                        'event_category_id' => $categoryId,
-                        'order_number' => $order,
-                        'medal_type' => $medal,
-                        'medal_point' => (string)$point,
-                        // untuk individu/grup sama-sama kontingen
-                        'contingent' => $row['contingent'] ?? null,
+                        'event_id'            => $competition->event_id,
+                        'event_group_id'      => $competition->event_group_id,
+                        'event_category_id'   => empty($categoryId) || $categoryId === 'null'
+                            ? null
+                            : $categoryId,
+
+                        'order_number'        => $order,
+                        'event_medal_rule_id' => $rule instanceof EventMedalRule ? $rule->id : null,
+                        'medal_rule_id'       => $rule instanceof MedalRule ? $rule->id : null,
+
+                        'region_type'         => $regionType,
+                        'region_id'           => $regionId,
+                        'region_name'         => $regionName,
                     ]);
                 }
             }
 
+            $medals = MedalStanding::where('event_id', $competition->event_id)
+                ->where('event_group_id', $competition->event_group_id)
+                ->get();
+
+            EventSnapshot::updateOrCreate(
+                [
+                    'event_id' => $competition->event_id,
+                    'type'     => 'medal',
+                ],
+                [
+                    'payload' => [
+                        'event_group_id' => $competition->event_group_id,
+                        'medal_standings' => $medals->toArray(),
+                    ],
+                    'published_at' => now(),
+                ]
+            );
+
+
+            $this->loadEventContingentsFromRegion($competition->event);
+            // 🔄 Rebuild klasemen kontingen
             $this->rebuildEventContingentsFromMedals($competition->event_id);
+
+           $leaderboard = $this->buildLeaderboard($competition->event_id);
+
+            EventSnapshot::updateOrCreate(
+                [
+                    'event_id' => $competition->event_id,
+                    'type' => 'leaderboard',
+                ],
+                [
+                    'payload' => $leaderboard,
+                    'published_at' => now(),
+                ]
+            );
+
         });
 
         return response()->json([
-            'message' => 'Published',
+            'message'       => 'Published',
             'published_top' => $topN,
-            'is_team' => $this->isTeamMode($competition) ? 1 : 0,
+            'is_team'       => $this->isTeamMode($competition) ? 1 : 0,
         ]);
     }
+
+
+    private function buildLeaderboard(int $eventId)
+    {
+        return DB::table('event_contingents as ec')
+            ->leftJoin('event_contingent_medals as ecm', 'ecm.event_contingent_id', '=', 'ec.id')
+
+            ->leftJoin('provinces as p', fn($j) =>
+                $j->on('p.id','=','ec.region_id')->where('ec.region_type','province'))
+            ->leftJoin('regencies as r', fn($j) =>
+                $j->on('r.id','=','ec.region_id')->where('ec.region_type','regency'))
+            ->leftJoin('districts as d', fn($j) =>
+                $j->on('d.id','=','ec.region_id')->where('ec.region_type','district'))
+            ->leftJoin('villages as v', fn($j) =>
+                $j->on('v.id','=','ec.region_id')->where('ec.region_type','village'))
+
+            ->where('ec.event_id', $eventId)
+
+            ->selectRaw('
+                COALESCE(p.name, r.name, d.name, v.name) as region_name,
+                ec.total_point,
+
+                SUM(CASE WHEN ecm.order_number = 1 THEN ecm.medal_count ELSE 0 END) as juara_1,
+                SUM(CASE WHEN ecm.order_number = 2 THEN ecm.medal_count ELSE 0 END) as juara_2,
+                SUM(CASE WHEN ecm.order_number = 3 THEN ecm.medal_count ELSE 0 END) as juara_3,
+                SUM(CASE WHEN ecm.order_number = 4 THEN ecm.medal_count ELSE 0 END) as harapan_1,
+                SUM(CASE WHEN ecm.order_number = 5 THEN ecm.medal_count ELSE 0 END) as harapan_2,
+                SUM(CASE WHEN ecm.order_number = 6 THEN ecm.medal_count ELSE 0 END) as harapan_3
+            ')
+            ->groupBy('region_name','ec.total_point')
+            ->orderByDesc('ec.total_point')
+            ->orderByDesc('juara_1')
+            ->orderByDesc('juara_2')
+            ->orderByDesc('juara_3')
+            ->orderByDesc('harapan_1')
+            ->orderByDesc('harapan_2')
+            ->orderByDesc('harapan_3')
+            ->orderBy('region_name')
+            ->get();
+    }
+
+
+
 
     // =========================================================
     // CORE BUILDER: INDIVIDU vs GROUP
@@ -1208,77 +1438,165 @@ class __EventCompetitionRankingController extends Controller
     // =========================================================
     // MEDAL -> EVENT CONTINGENTS REBUILD (unchanged)
     // =========================================================
-    private function rebuildEventContingentsFromMedals(int $eventId): void
+    protected function rebuildEventContingentsFromMedals(int $eventId): void
     {
-        $rows = MedalStanding::query()
-            ->select([
-                'contingent',
-                DB::raw("SUM(CASE WHEN medal_type = 'gold'   THEN 1 ELSE 0 END) as gold_count"),
-                DB::raw("SUM(CASE WHEN medal_type = 'silver' THEN 1 ELSE 0 END) as silver_count"),
-                DB::raw("SUM(CASE WHEN medal_type = 'bronze' THEN 1 ELSE 0 END) as bronze_count"),
-                DB::raw("SUM(CASE WHEN medal_type = 'fourth' THEN 1 ELSE 0 END) as fourth_count"),
-            ])
-            ->where('event_id', $eventId)
-            ->whereNotNull('contingent')
-            ->where('contingent', '!=', '')
-            ->groupBy('contingent')
-            ->get();
+        DB::transaction(function () use ($eventId) {
 
-        $participantsByContingent = EventParticipant::query()
-            ->select('contingent', DB::raw('COUNT(*) as total_participant'))
-            ->where('event_id', $eventId)
-            ->whereNotNull('contingent')
-            ->where('contingent', '!=', '')
-            ->groupBy('contingent')
-            ->pluck('total_participant', 'contingent');
-
-        EventContingent::where('event_id', $eventId)->update([
-            'total_participant' => 0,
-            'gold_count' => 0,
-            'silver_count' => 0,
-            'bronze_count' => 0,
-            'fourth_count' => 0,
-            'total_point' => 0,
-        ]);
-
-        foreach ($rows as $r) {
-            $gold   = (int) $r->gold_count;
-            $silver = (int) $r->silver_count;
-            $bronze = (int) $r->bronze_count;
-            $fourth = (int) $r->fourth_count;
-
-            $totalPoint = ($gold * 5) + ($silver * 3) + ($bronze * 1) + ($fourth * 0);
-            $tp = (int) ($participantsByContingent[$r->contingent] ?? 0);
-
-            EventContingent::updateOrCreate(
-                ['event_id' => $eventId, 'contingent' => $r->contingent],
-                [
-                    'total_participant' => $tp,
-                    'gold_count' => $gold,
-                    'silver_count' => $silver,
-                    'bronze_count' => $bronze,
-                    'fourth_count' => $fourth,
-                    'total_point' => $totalPoint,
-                ]
-            );
-        }
-
-        foreach ($participantsByContingent as $contingent => $tp) {
-            EventContingent::firstOrCreate(
-                ['event_id' => $eventId, 'contingent' => $contingent],
-                [
-                    'total_participant' => (int) $tp,
-                    'gold_count' => 0,
-                    'silver_count' => 0,
-                    'bronze_count' => 0,
-                    'fourth_count' => 0,
-                    'total_point' => 0,
-                ]
-            );
-
+            /**
+             * 1️⃣ RESET TOTAL POINT & MEDAL
+             */
             EventContingent::where('event_id', $eventId)
-                ->where('contingent', $contingent)
-                ->update(['total_participant' => (int) $tp]);
-        }
+                ->update(['total_point' => 0]);
+
+            EventContingentMedal::whereIn(
+                'event_contingent_id',
+                EventContingent::where('event_id', $eventId)->pluck('id')
+            )->delete();
+
+            /**
+             * 2️⃣ AMBIL MEDAL STANDINGS
+             */
+            $rows = DB::table('medal_standings as ms')
+                ->leftJoin('event_medal_rules as emr', 'emr.id', '=', 'ms.event_medal_rule_id')
+                ->leftJoin('medal_rules as mr', 'mr.id', '=', 'ms.medal_rule_id')
+                ->where('ms.event_id', $eventId)
+                ->selectRaw('
+                    ms.region_type,
+                    ms.region_id,
+                    COALESCE(emr.order_number, mr.order_number) as order_number,
+                    COALESCE(emr.medal_code, mr.medal_code)     as medal_code,
+                    COALESCE(emr.medal_name, mr.medal_name)     as medal_name,
+                    COALESCE(emr.point, mr.point, 0)            as point
+                ')
+                ->get();
+
+            if ($rows->isEmpty()) {
+                return;
+            }
+
+            /**
+             * 3️⃣ GROUP BY REGION
+             */
+            $grouped = $rows->groupBy(fn ($r) =>
+                $r->region_type . '|' . $r->region_id
+            );
+
+            foreach ($grouped as $key => $items) {
+                [$regionType, $regionId] = explode('|', $key);
+
+                /**
+                 * 4️⃣ AMBIL EVENT CONTINGENT (HARUS ADA)
+                 */
+                $contingent = EventContingent::where([
+                    'event_id'    => $eventId,
+                    'region_type' => $regionType,
+                    'region_id'   => $regionId,
+                ])->first();
+
+                if (!$contingent) {
+                    // safety net (harusnya tidak terjadi)
+                    continue;
+                }
+
+                /**
+                 * 5️⃣ UPDATE TOTAL POINT
+                 */
+                $contingent->increment('total_point', $items->sum('point'));
+
+                /**
+                 * 6️⃣ MEDAL BREAKDOWN
+                 */
+                $byMedal = $items->groupBy('order_number');
+
+                foreach ($byMedal as $order => $medals) {
+                    $first = $medals->first();
+
+                    EventContingentMedal::updateOrCreate(
+                        [
+                            'event_contingent_id' => $contingent->id,
+                            'order_number'        => $order,
+                        ],
+                        [
+                            'medal_code'  => $first->medal_code,
+                            'medal_name'  => $first->medal_name,
+                            'medal_count' => $medals->count(),
+                        ]
+                    );
+                }
+            }
+        });
     }
+
+
+
+    protected function loadEventContingentsFromRegion(Event $event): void
+    {
+        DB::transaction(function () use ($event) {
+
+            switch ($event->event_level) {
+
+                case 'national':
+                    $regions = DB::table('provinces')->get(['id']);
+                    $regionType = EventContingent::REGION_PROVINCE;
+                    break;
+
+                case 'province':
+                    if (!$event->province_id) {
+                        throw new \RuntimeException('province_id wajib untuk event level province');
+                    }
+
+                    $regions = DB::table('regencies')
+                        ->where('province_id', $event->province_id)
+                        ->get(['id']);
+
+                    $regionType = EventContingent::REGION_REGENCY;
+                    break;
+
+                case 'regency':
+                    if (!$event->regency_id) {
+                        throw new \RuntimeException('regency_id wajib untuk event level regency');
+                    }
+
+                    $regions = DB::table('districts')
+                        ->where('regency_id', $event->regency_id)
+                        ->get(['id']);
+
+                    $regionType = EventContingent::REGION_DISTRICT;
+                    break;
+
+                case 'district':
+                    if (!$event->district_id) {
+                        throw new \RuntimeException('district_id wajib untuk event level district');
+                    }
+
+                    $regions = DB::table('villages')
+                        ->where('district_id', $event->district_id)
+                        ->get(['id']);
+
+                    $regionType = EventContingent::REGION_VILLAGE;
+                    break;
+
+                default:
+                    throw new \RuntimeException('event_level tidak dikenali');
+            }
+
+            foreach ($regions as $r) {
+                EventContingent::updateOrCreate(
+                    [
+                        'event_id'    => $event->id,
+                        'region_type' => $regionType,
+                        'region_id'   => $r->id,
+                    ],
+                    [
+                        // jangan reset poin di sini
+                        'total_participant' => 0,
+                    ]
+                );
+            }
+        });
+    }
+
+
+
+
 }

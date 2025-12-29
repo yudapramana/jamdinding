@@ -7,11 +7,10 @@ use App\Models\Event;
 use App\Models\EventParticipant;
 use App\Models\EventCategory;
 use App\Models\EventGroup;
-use App\Models\EventBranch;
-use App\Models\EventTeam;
 use App\Models\Province;
 use App\Models\Regency;
 use App\Models\District;
+use App\Models\EventBranch;
 use App\Models\Village;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
@@ -20,8 +19,19 @@ use Carbon\Carbon;
 
 class _EventParticipantsSeeder extends Seeder
 {
+    /**
+     * ID event tujuan import.
+     */
     protected int $eventId = 1;
+
+    /**
+     * Event instance (untuk akses tanggal batas umur).
+     */
     protected ?Event $event = null;
+
+    /**
+     * Path file Excel relatif ke folder database/.
+     */
     protected string $excelPath = 'seeders/data/data_participants.xlsx';
 
     public function run(): void
@@ -33,128 +43,68 @@ class _EventParticipantsSeeder extends Seeder
             return;
         }
 
+        // Ambil event
         $this->event = Event::find($this->eventId);
         if (!$this->event) {
-            $this->command?->error("Event ID {$this->eventId} tidak ditemukan.");
+            $this->command?->error("Event dengan ID {$this->eventId} tidak ditemukan.");
             return;
         }
 
-        $this->command?->info("Import peserta: {$this->event->event_name}");
+        $this->command?->info("Import peserta dari: {$fullPath}");
+        $this->command?->info("Event: {$this->event->event_name}");
 
+        // Load Excel
         $spreadsheet = IOFactory::load($fullPath);
-        $rows = $spreadsheet->getActiveSheet()->toArray(null, true, true, true);
+        $sheet       = $spreadsheet->getActiveSheet();
+        $rows        = $sheet->toArray(null, true, true, true);
 
         if (count($rows) < 2) {
-            $this->command?->warn('Sheet kosong / hanya header.');
+            $this->command?->warn('Sheet kosong atau hanya berisi header.');
             return;
         }
 
-        $headers = $this->normalizeHeaders(array_shift($rows));
+        // Baris pertama = header
+        $headerRow = array_shift($rows);
+        $headers   = $this->normalizeHeaders($headerRow);
 
         DB::beginTransaction();
 
         try {
             foreach ($rows as $rowIndex => $row) {
-                $excelRow = $rowIndex + 2;
+                $mapped = $this->mapRowToData($row, $headers, $rowIndex + 2);
 
-                $nik  = $this->getCell($row, $headers, 'nik');
-                $nama = $this->getCell($row, $headers, 'nama_lengkap');
-
-                try {
-                    $mapped = $this->mapRowToData($row, $headers, $excelRow);
-
-                    if (!$mapped) {
-                        $this->command?->warn("SKIP | {$excelRow} | {$nik} | {$nama}");
-                        continue;
-                    }
-
-                    [$participantData, $eventParticipantData] = $mapped;
-
-                    /* =========================
-                     * PARTICIPANT
-                     * ========================= */
-                    $participant = Participant::updateOrCreate(
-                        ['nik' => $participantData['nik']],
-                        $participantData
-                    );
-
-                    /* =========================
-                     * EVENT TEAM (JIKA GRUP)
-                     * ========================= */
-                    $eventTeamId = null;
-
-                    $eventGroup = EventGroup::find($eventParticipantData['event_group_id']);
-
-                    if ($eventGroup && $eventGroup->is_team) {
-                        $teamName = $eventParticipantData['contingent'];
-
-                        if ($teamName) {
-                            $eventTeam = EventTeam::firstOrCreate(
-                                [
-                                    'event_id'          => $this->eventId,
-                                    'event_branch_id'   => $eventParticipantData['event_branch_id'],
-                                    'event_group_id'    => $eventParticipantData['event_group_id'],
-                                    'event_category_id' => $eventParticipantData['event_category_id'],
-                                    'team_name'         => $teamName,
-                                ],
-                                [
-                                    'contingent' => $teamName,
-                                ]
-                            );
-
-                            $eventTeamId = $eventTeam->id;
-                        }
-                    }
-
-                    /* =========================
-                     * EVENT PARTICIPANT
-                     * ========================= */
-                    EventParticipant::updateOrCreate(
-                        [
-                            'event_id'       => $this->eventId,
-                            'participant_id' => $participant->id,
-                        ],
-                        array_merge(
-                            $eventParticipantData,
-                            [
-                                'participant_id' => $participant->id,
-                                'event_team_id'  => $eventTeamId,
-                            ]
-                        )
-                    );
-
-                } catch (\Throwable $rowError) {
-                    $this->command?->error(
-                        "ERROR | {$excelRow} | {$nik} | {$nama} | {$rowError->getMessage()}"
-                    );
+                if (!$mapped) {
+                    continue;
                 }
+
+                [$participantData, $eventParticipantData] = $mapped;
+
+                // 1. Simpan / update bank-data peserta (UNIQUE by NIK)
+                $participant = Participant::updateOrCreate(
+                    ['nik' => $participantData['nik']],
+                    $participantData
+                );
+
+                // 2. Simpan / update relasi di event_participants
+                EventParticipant::updateOrCreate(
+                    [
+                        'event_id'       => $this->eventId,
+                        'participant_id' => $participant->id,
+                    ],
+                    array_merge($eventParticipantData, [
+                        'participant_id' => $participant->id,
+                    ])
+                );
             }
 
             DB::commit();
-            $this->command?->info('✔ Import peserta & tim selesai.');
+            $this->command?->info('✔ Import peserta selesai.');
         } catch (\Throwable $e) {
             DB::rollBack();
-            $this->command?->error('FATAL | ' . $e->getMessage());
+            $this->command?->error('Terjadi error saat import: ' . $e->getMessage());
             throw $e;
         }
     }
-
-    /**
-     * Helper kecil untuk ambil nilai kolom (khusus logging).
-     */
-    protected function getCell(array $row, array $headers, string $key): string
-    {
-        foreach ($headers as $col => $name) {
-            if ($name === $key) {
-                return trim((string) ($row[$col] ?? '-'));
-            }
-        }
-        return '-';
-    }
-
-    /* =======================================================
-     * ================= HELPER ASLI (UTUH) ===================
-     * ======================================================= */
 
     protected function normalizeHeaders(array $headerRow): array
     {
@@ -449,12 +399,17 @@ class _EventParticipantsSeeder extends Seeder
         $currentYear2 = (int) date('y');
         $fullYear     = $year2 <= $currentYear2 ? 2000 + $year2 : 1900 + $year2;
 
+        $date = sprintf('%04d-%02d-%02d', $fullYear, $month, $day);
+
         return [
-            'date'   => sprintf('%04d-%02d-%02d', $fullYear, $month, $day),
+            'date'   => $date,
             'gender' => $gender,
         ];
     }
 
+    /**
+     * Hitung umur (tahun, bulan, hari) terhadap age_limit_date / start_date event.
+     */
     protected function calculateAgeComponents(string $dateOfBirth): array
     {
         if (!$this->event) {
@@ -462,6 +417,8 @@ class _EventParticipantsSeeder extends Seeder
         }
 
         $birth = Carbon::parse($dateOfBirth);
+
+        // cutoff: age_limit_date kalau ada, kalau tidak: start_date
         $cutoffDate = $this->event->age_limit_date ?? $this->event->start_date ?? null;
         if (!$cutoffDate) {
             return [null, null, null];
@@ -470,14 +427,23 @@ class _EventParticipantsSeeder extends Seeder
         $cutoff = Carbon::parse($cutoffDate);
 
         if ($birth->gt($cutoff)) {
+            // Lahir setelah tanggal batas → umur negatif, anggap 0
             return [0, 0, 0];
         }
 
         $diff = $birth->diff($cutoff);
 
-        return [$diff->y, $diff->m, $diff->d];
+        return [
+            $diff->y, // year
+            $diff->m, // month
+            $diff->d, // day
+        ];
     }
 
+    /**
+     * Normalisasi nama bank dari Excel ke enum di DB.
+     * Kalau tidak cocok, return null + beri warning (sekali per value).
+     */
     protected function normalizeBankName(?string $raw): ?string
     {
         if (!$raw) {
@@ -502,6 +468,7 @@ class _EventParticipantsSeeder extends Seeder
             'BANK NTT','BANK PAPUA','BANK MALUKU MALUT',
         ];
 
+        // Mapping bentuk umum
         $map = [
             'BANK BRI'                 => 'BRI',
             'BANK RAKYAT INDONESIA'    => 'BRI',
@@ -527,6 +494,11 @@ class _EventParticipantsSeeder extends Seeder
             $rawUpper = $map[$rawUpper];
         }
 
-        return in_array($rawUpper, $allowed, true) ? $rawUpper : null;
+        if (!in_array($rawUpper, $allowed, true)) {
+            $this->command?->warn("Nama bank '{$raw}' tidak cocok dengan enum, diset NULL.");
+            return null;
+        }
+
+        return $rawUpper;
     }
 }

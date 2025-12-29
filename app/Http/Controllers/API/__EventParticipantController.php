@@ -128,6 +128,7 @@ class __EventParticipantController extends Controller
                 'event_participants.event_group_id',
                 'event_participants.event_category_id',
                 'event_participants.contingent',
+                'event_participants.participant_number',
                 'p.full_name',
             ])->groupBy(function ($r) {
                 return (int)$r->event_group_id . '|' . (int)$r->event_category_id . '|' . (string)$r->contingent;
@@ -149,6 +150,7 @@ class __EventParticipantController extends Controller
                     'id' => (string) $t->id, // representative event_participant_id
                     'contingent' => $t->contingent,
                     'team_name' => $t->contingent,
+                    'participant' => $t,
                     'event_category_id' => (int) $t->event_category_id,
                     'event_category' => [
                         'id' => (int) $t->event_category_id,
@@ -195,6 +197,7 @@ class __EventParticipantController extends Controller
                 'participant' => [
                     'full_name' => $ep->participant?->full_name,
                     'nik' => $ep->participant?->nik,
+                    'participant_number' => $ep->participant_number,
                 ],
                 'event_category' => [
                     'id' => (int) $ep->event_category_id,
@@ -362,13 +365,18 @@ class __EventParticipantController extends Controller
         $with[] = 'latestVerification.verifier';
         }
         $query = EventParticipant::query()
-            ->with($with)
-            ->when($eventId, function ($q) use ($eventId) {
-                $q->where('event_id', $eventId);
-            })
-            ->join('participants as p', 'p.id', '=', 'event_participants.participant_id')
-            ->select('event_participants.*')
-            ->orderBy('p.full_name');
+                    ->with($with)
+                    ->when($eventId, function ($q) use ($eventId) {
+                        $q->where('event_id', $eventId);
+                    })
+                    ->join('participants as p', 'p.id', '=', 'event_participants.participant_id')
+                    ->select('event_participants.*')
+                    ->orderBy('p.gender')
+                    ->orderBy('event_participants.contingent')
+                    ->orderBy('event_participants.event_category_id')
+                    ->orderBy('event_participants.participant_number')
+                    ->orderBy('p.full_name');
+
 
         if ($registrationStatus) {
             $query->where('registration_status', $registrationStatus);

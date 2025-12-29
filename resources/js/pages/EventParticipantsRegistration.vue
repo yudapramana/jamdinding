@@ -276,62 +276,7 @@
 
             <hr class="my-2">
 
-            <!-- STATUS VERIFIKASI -->
-            <div class="form-group mb-3">
-              <label class="d-block mb-1"><strong>Status Verifikasi Sesi Ini</strong></label>
-              <div class="form-check form-check-inline">
-                <input
-                  class="form-check-input"
-                  type="radio"
-                  id="statusVerified"
-                  value="verified"
-                  v-model="verificationForm.status"
-                >
-                <label class="form-check-label" for="statusVerified">Terverifikasi</label>
-              </div>
-              <div class="form-check form-check-inline">
-                <input
-                  class="form-check-input"
-                  type="radio"
-                  id="statusRejected"
-                  value="rejected"
-                  v-model="verificationForm.status"
-                >
-                <label class="form-check-label" for="statusRejected">Ditolak</label>
-              </div>
-            </div>
-
-            <!-- KEPUTUSAN TERHADAP PENDAFTARAN (event_participants.registration_status) -->
-            <div class="form-group mb-3">
-              <label class="d-block mb-1"><strong>Keputusan Terhadap Pendaftaran</strong></label>
-
-              <div class="row">
-                <div class="col-md-6">
-                  <select class="form-control" v-model="verificationForm.registration_status">
-                    <option value="bank_data">Bank data</option>
-                    <option value="process">Proses</option>
-                    <option value="verified">Diterima</option>
-                    <option value="need_revision">Perbaiki</option>
-                    <option value="rejected">Tolak</option>
-                    <option value="disqualified">Diskualifikasi</option>
-                  </select>
-                </div>
-
-                <div class="col-md-6">
-                  <small class="form-text text-muted">
-                    Status ini akan mengubah kolom <code>registration_status</code> pada tabel
-                    <code>event_participants</code> (berdasarkan <code>event_participant_id</code>).
-                    <br>
-                    Disarankan:
-                    <ul class="mb-0 pl-3">
-                      <li><code>verified</code> untuk peserta yang lulus verifikasi</li>
-                      <li><code>need_revision</code> jika masih ada kekurangan</li>
-                      <li><code>rejected</code> bila tidak memenuhi syarat</li>
-                    </ul>
-                  </small>
-                </div>
-              </div>
-            </div>
+            
 
             <!-- ====================== -->
             <!-- 1. DOKUMEN UNGGAHAN -->
@@ -919,6 +864,65 @@
               </div>
             </div>
 
+
+            <!-- STATUS VERIFIKASI -->
+            <div class="form-group mb-3">
+              <label class="d-block mb-1"><strong>Status Verifikasi Sesi Ini</strong></label>
+              <div class="form-check form-check-inline">
+                <input
+                  class="form-check-input"
+                  type="radio"
+                  id="statusVerified"
+                  value="verified"
+                  v-model="verificationForm.status"
+                >
+                <label class="form-check-label" for="statusVerified">Terverifikasi</label>
+              </div>
+              <div class="form-check form-check-inline">
+                <input
+                  class="form-check-input"
+                  type="radio"
+                  id="statusRejected"
+                  value="rejected"
+                  v-model="verificationForm.status"
+                >
+                <label class="form-check-label" for="statusRejected">Ditolak</label>
+              </div>
+            </div>
+
+            <!-- KEPUTUSAN TERHADAP PENDAFTARAN (event_participants.registration_status) -->
+            <div class="form-group mb-3">
+              <label class="d-block mb-1"><strong>Keputusan Terhadap Pendaftaran</strong></label>
+
+              <div class="row">
+                <div class="col-md-6">
+                  <select class="form-control" v-model="verificationForm.registration_status">
+                    <option value="bank_data">Bank data</option>
+                    <option value="process">Proses</option>
+                    <option value="verified">Diterima</option>
+                    <option value="need_revision">Perbaiki</option>
+                    <option value="rejected">Tolak</option>
+                    <option value="disqualified">Diskualifikasi</option>
+                  </select>
+                </div>
+
+                <div class="col-md-6">
+                  <small class="form-text text-muted">
+                    Status ini akan mengubah kolom <code>registration_status</code> pada tabel
+                    <code>event_participants</code> (berdasarkan <code>event_participant_id</code>).
+                    <br>
+                    Disarankan:
+                    <ul class="mb-0 pl-3">
+                      <li><code>verified</code> untuk peserta yang lulus verifikasi</li>
+                      <li><code>need_revision</code> jika masih ada kekurangan</li>
+                      <li><code>rejected</code> bila tidak memenuhi syarat</li>
+                    </ul>
+                  </small>
+                </div>
+              </div>
+            </div>
+
+            
             <!-- CATATAN -->
             <div class="form-group mb-0">
               <label for="verificationNotes"><strong>Catatan Verifikasi (opsional)</strong></label>

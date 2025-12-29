@@ -27,13 +27,14 @@ const canJudgesMenu = computed(() => authUserStore.can('manage.event.judges'))
 const canScoringMenu = computed(() => authUserStore.can('manage.event.scoring'))
 const canScoresMenu = computed(() => authUserStore.can('manage.event.scores'))
 const canRankingMenu = computed(() => authUserStore.can('manage.event.ranking'))
-const canResultsMenu = computed(() => authUserStore.can('manage.event.results'))
+const canContingentMenu = computed(() => authUserStore.can('manage.event.contingent'))
 
 // Submenu visibility (avoid empty sections)
 const showCoreSection = computed(() =>
   authUserStore.can('manage.core.branches-groups-categories') ||
   authUserStore.can('manage.core.fields') ||
-  authUserStore.can('manage.core.permissions')
+  authUserStore.can('manage.core.permissions') ||
+  authUserStore.can('manage.core.medal-rules')
 )
 
 const showMasterSection = computed(() =>
@@ -49,7 +50,8 @@ const showEventSection = computed(() =>
   authUserStore.can('manage.event.branches') ||
   authUserStore.can('manage.event.groups') ||
   authUserStore.can('manage.event.categories') ||
-  authUserStore.can('manage.event.user')
+  authUserStore.can('manage.event.user') ||
+  authUserStore.can('manage.event.medal-rules')
 )
 
 const showParticipantSection = computed(() =>
@@ -83,8 +85,8 @@ const showRankingSection = computed(() =>
   authUserStore.can('manage.event.ranking.index')
 )
 
-const showResultsSection = computed(() =>
-  authUserStore.can('manage.event.results.index')
+const showContingentSection = computed(() =>
+  authUserStore.can('manage.event.contingent.standings')
 )
 
 // ======================
@@ -123,7 +125,7 @@ const openMenu = ref({
   scoring: false,
   scores: false,
   ranking: false,
-  results: false,
+  contingent: false,
 })
 
 const toggleMenu = (key) => {
@@ -152,6 +154,7 @@ const syncOpenByRoute = () => {
     'admin.event.groups',
     'admin.event.categories',
     'admin.event.users',
+    'admin.event.medal-rules',
   ])
 
   openMenu.value.participant = isAnyNameActive([
@@ -185,8 +188,8 @@ const syncOpenByRoute = () => {
     'admin.event.ranking.index',
   ])
 
-  openMenu.value.results = isAnyNameActive([
-    'admin.event.results.index',
+  openMenu.value.contingent = isAnyNameActive([
+    'admin.event.contingent.standing',
   ])
 }
 
@@ -270,6 +273,18 @@ watch(
                     <p>Hak Akses Role</p>
                   </router-link>
                 </li>
+
+                <!-- ATURAN MEDALI -->
+                <li class="nav-item" v-if="authUserStore.can('manage.core.medal-rules')">
+                  <router-link
+                    :to="{ name: 'admin.core.medal-rules' }"
+                    class="nav-link"
+                    :class="{ active: isNameActive('admin.core.medal-rules') }"
+                  >
+                    <i class="far fa-circle nav-icon"></i>
+                    <p>Aturan Medali</p>
+                  </router-link>
+                </li>
               </ul>
             </li>
           </template>
@@ -349,6 +364,14 @@ watch(
                 <li class="nav-item" v-if="authUserStore.can('manage.event.user')">
                   <router-link :to="{ name: 'admin.event.users' }" class="nav-link" :class="{ active: isNameActive('admin.event.users') }">
                     <i class="far fa-circle nav-icon"></i><p>User Event</p>
+                  </router-link>
+                </li>
+
+                <li class="nav-item" v-if="authUserStore.can('manage.event.medal-rules')">
+                  <router-link :to="{ name: 'admin.event.medal-rules' }" class="nav-link" :class="{ active: isNameActive('admin.event.medal-rules') }"
+                  >
+                    <i class="far fa-circle nav-icon"></i>
+                    <p>Aturan Medali Event</p>
                   </router-link>
                 </li>
               </ul>
@@ -528,13 +551,13 @@ watch(
             </li>
           </template>
 
-          <!-- RESULTS -->
-          <template v-if="canResultsMenu && showResultsSection">
-            <li class="nav-item" v-if="authUserStore.can('manage.event.results.index')">
+          <!-- CONTINGENTS -->
+          <template v-if="canContingentMenu && showContingentSection">
+            <li class="nav-item" v-if="authUserStore.can('manage.event.contingent.standings')">
               <router-link
-                :to="{ name: 'admin.event.results.index' }"
+                :to="{ name: 'admin.event.contingent.standings' }"
                 class="nav-link"
-                :class="{ active: isNameActive('admin.event.results.index') }"
+                :class="{ active: isNameActive('admin.event.contingent.standings') }"
               >
                 <i class="nav-icon fas fa-award"></i>
                 <p>Perolehan Juara</p>

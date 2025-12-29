@@ -53,6 +53,8 @@ class DatabaseSeeder extends Seeder
         $this->call(__MasterCategorySeeder::class);
         $this->call(__MasterFieldComponentsSeeder::class);
         $this->call(__RoundSeeder::class);
+        $this->call(__MedalRuleSeeder::class);
+
 
 
         $this->call(_EventBranchSeeder::class);
@@ -63,6 +65,8 @@ class DatabaseSeeder extends Seeder
         $this->call(_RolePermissionSeeder::class);
         $this->call(_UsersbyEventSeeder::class);
         $this->call(_JudgeUsersFromEventBranchesSeeder::class);
+        $this->call(_EventMedalRuleSeeder::class);
+        
 
 
 

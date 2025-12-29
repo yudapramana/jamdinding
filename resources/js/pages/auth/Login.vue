@@ -6,6 +6,19 @@ import { useAuthUserStore } from '../../stores/AuthUserStore'
 import { useMasterDataStore } from '../../stores/MasterDataStore'
 import { TurnstileWidget } from '@delaneydev/laravel-turnstile-vue'
 
+const captcha = ref('')
+const captchaUrl = ref('/captcha?' + Date.now())
+
+const refreshCaptcha = () => {
+  captcha.value = ''
+  captchaUrl.value = '/captcha?' + Date.now()
+}
+
+// 🔐 Button disabled logic
+const isCaptchaFilled = computed(() => {
+  return form.captcha && form.captcha.length >= 4
+})
+
 // Stores
 const authUserStore = useAuthUserStore()
 const masterDataStore = useMasterDataStore()
@@ -58,8 +71,10 @@ onBeforeUnmount(() => {
 const form = reactive({
   username: '',
   password: '',
+  captcha: '',
   remember: true,
 })
+
 
 // other states
 const showPassword = ref(false)
@@ -255,6 +270,35 @@ const handleSubmit = async () => {
                   </div>
                 </div>
 
+                <div class="input-group mb-2">
+                  <input
+                    v-model="form.captcha"
+                    type="text"
+                    class="form-control text-uppercase"
+                    placeholder="Masukkan kode captcha"
+                    required
+                  />
+                </div>
+
+                <div class="d-flex align-items-center mb-3">
+                  <img
+                    :src="captchaUrl"
+                    alt="Captcha"
+                    class="captcha-img"
+                    @click="refreshCaptcha"
+                    title="Klik untuk refresh captcha"
+                  />
+                  <button
+                    type="button"
+                    class="btn btn-link btn-sm ml-2"
+                    @click="refreshCaptcha"
+                  >
+                    <i class="fas fa-sync-alt"></i>
+                  </button>
+                </div>
+
+
+
                 <!-- <div class="text-center row justify-content-center">
                   <div class="form-group recaptcha-container mx-auto">
                     <TurnstileWidget
@@ -276,13 +320,14 @@ const handleSubmit = async () => {
                     <button
                       type="submit"
                       class="btn btn-success btn-block"
-                      :disabled="loading"
+                      :disabled="loading || !isCaptchaFilled"
                     >
-                      <!-- :disabled="loading || !captchaToken" -->
-
                       <span v-if="loading">Memuat...</span>
                       <span v-else>MASUK</span>
                     </button>
+                      <!-- :disabled="loading || !captchaToken" -->
+
+                    
                   </div>
                 </div>
               </form>
@@ -506,4 +551,12 @@ const handleSubmit = async () => {
     font-size: 1.2rem;
   }
 }
+
+.captcha-img {
+  height: 40px;
+  border-radius: 6px;
+  border: 1px solid #d1d5db;
+  cursor: pointer;
+}
+
 </style>

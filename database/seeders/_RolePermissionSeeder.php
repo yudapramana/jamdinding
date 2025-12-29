@@ -18,6 +18,7 @@ class _RolePermissionSeeder extends Seeder
             ['name' => 'Manage Core Branch Branch Group Categories',    'slug' => 'manage.core.branches-groups-categories'],
             ['name' => 'Manage Core Fields',                            'slug' => 'manage.core.fields'],
             ['name' => 'Manage Core Permission',                        'slug' => 'manage.core.permissions'],
+            ['name' => 'Manage Core Medal Rules',                       'slug' => 'manage.core.medal-rules'],
 
             // Menu Master
             ['name' => 'Manage Menu Master',                            'slug' => 'manage.master'],
@@ -36,6 +37,7 @@ class _RolePermissionSeeder extends Seeder
             ['name' => 'Manage Event Group',                            'slug' => 'manage.event.groups'],
             ['name' => 'Manage Event Category',                         'slug' => 'manage.event.categories'],
             ['name' => 'Manage Event User',                             'slug' => 'manage.event.user'],
+            ['name' => 'Manage Event Medal Rules',                      'slug' => 'manage.event.medal-rules'],
 
             // Menu Participant
             ['name' => 'Manage Event Participant Menu',                 'slug' => 'manage.event.participant'],
@@ -74,9 +76,9 @@ class _RolePermissionSeeder extends Seeder
             ['name' => 'Manage Event Ranking Index',                    'slug' => 'manage.event.ranking.index'],
 
             // Menu Result
-            ['name' => 'Manage Event Results',                          'slug' => 'manage.event.results'],
+            ['name' => 'Manage Event Contingent',                       'slug' => 'manage.event.contingent'],
             // SubMenu Result 
-            ['name' => 'Manage Event Results Index',                    'slug' => 'manage.event.results.index'],
+            ['name' => 'Manage Event Contingent Standings',             'slug' => 'manage.event.contingent.standings'],
         ];
 
         // Simpan / ambil permissions, index by slug

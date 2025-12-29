@@ -9,12 +9,16 @@ use App\Http\Controllers\API\__EventCompetitionRankingController;
 use App\Http\Controllers\API\__EventCompetitionScoresController;
 use App\Http\Controllers\API\__EventCompetitionScoringController;
 use App\Http\Controllers\API\__EventContingentController;
+use App\Http\Controllers\Api\__EventContingentStandingsController;
 use App\Http\Controllers\API\__EventController;
 use App\Http\Controllers\API\__EventFieldComponentController;
 use App\Http\Controllers\Api\__EventGroupController;
 use App\Http\Controllers\API\__EventJudgePanelController;
+use App\Http\Controllers\Api\__EventMedalRuleController;
 use App\Http\Controllers\API\__EventParticipantController;
 use App\Http\Controllers\API\__EventStageController;
+use App\Http\Controllers\API\__EventTeamNumberController;
+use App\Http\Controllers\API\__EventTeamReRegistrationController;
 use App\Http\Controllers\Api\__GroupController;
 use App\Http\Controllers\API\__JudgeUserController;
 use App\Http\Controllers\Api\__ListFieldController;
@@ -22,6 +26,7 @@ use App\Http\Controllers\Api\__MasterBranchController;
 use App\Http\Controllers\Api\__MasterCategoryController;
 use App\Http\Controllers\Api\__MasterFieldComponentController;
 use App\Http\Controllers\API\__MasterGroupController;
+use App\Http\Controllers\Api\__MedalRuleController;
 use App\Http\Controllers\API\__ParticipantController;
 use App\Http\Controllers\API\__StageController;
 use App\Http\Controllers\API\__UserController;
@@ -99,7 +104,9 @@ Route::middleware(['auth:sanctum']) // kalau belum pakai sanctum, boleh dihapus 
         Route::apiResource('list-fields', __ListFieldController::class)->except(['show']);
         
         // REFERENSI TAHAPAN
-        Route::apiResource('stages', __StageController::class)->middleware('permission:master.manage.stage');
+        Route::apiResource('stages', __StageController::class);
+
+        Route::apiResource('medal-rules', __MedalRuleController::class);
 
         /**
          * MASTER DATA
@@ -247,12 +254,46 @@ Route::middleware(['auth:sanctum']) // kalau belum pakai sanctum, boleh dihapus 
         // details matrix (nilai per field & hakim)
         Route::get('/event-competitions/{competition}/ranking/details', [__EventCompetitionRankingController::class, 'details']);
 
-
-
         Route::get('/events/{event}/contingents', [__EventContingentController::class, 'indexByEvent'])->name('api.v1.events.contingents.index');
 
+        Route::get('event-medal-rules', [__EventMedalRuleController::class, 'index']);
+        Route::post('event-medal-rules', [__EventMedalRuleController::class, 'store']);
+        Route::put('event-medal-rules/{eventMedalRule}', [__EventMedalRuleController::class, 'update']);
+        Route::delete('event-medal-rules/{eventMedalRule}', [__EventMedalRuleController::class, 'destroy']);
 
+        Route::post(
+            'event-medal-rules/generate-from-template',
+            [__EventMedalRuleController::class, 'generateFromTemplate']
+        );
+
+        Route::get(
+            'event-contingent-standings',
+            [__EventContingentStandingsController::class, 'index']
+        );
+
+        Route::get(
+            'event-contingent-standings/export/excel',
+            [__EventContingentStandingsController::class, 'exportExcel']
+        );
+
+        Route::get(
+            'event-contingent-standings/export/pdf',
+            [__EventContingentStandingsController::class, 'exportPdf']
+        );
         
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -313,8 +354,39 @@ Route::middleware(['auth:sanctum']) // kalau belum pakai sanctum, boleh dihapus 
 
 
         
+        Route::get(
+            'event-participants/re-registration/index',
+            [EventParticipantReRegistrationController::class, 'index']
+        );
+
         Route::post(
             'event-participants/{eventParticipant}/re-registration',
             [EventParticipantReRegistrationController::class, 'store']
+        );
+
+        Route::post(
+            'event-participants/{eventParticipant}/draw-number',
+            [EventParticipantReRegistrationController::class, 'drawNumber']
+        );
+
+        Route::post(
+            'event-participants/{eventParticipant}/assign-number',
+            [EventParticipantReRegistrationController::class, 'assignNumber']
+        );
+
+        Route::post(
+            'event-teams/{eventTeam}/draw-number',
+            [__EventTeamNumberController::class, 'drawNumber']
+        );
+
+        Route::post(
+            'event-teams/{eventTeam}/assign-number',
+            [__EventTeamNumberController::class, 'assignNumber']
+        );
+
+
+        Route::post(
+            'event-teams/{eventTeam}/re-registration',
+            [__EventTeamReRegistrationController::class, 'store']
         );
     });

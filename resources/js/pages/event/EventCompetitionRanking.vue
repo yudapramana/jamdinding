@@ -116,7 +116,7 @@ const recalc = async () => {
   }
 }
 
-const publishTop4 = async () => {
+const publishTop6 = async () => {
   if (!competitionId.value) return
   const res = await Swal.fire({
     title: 'Publish Ranking?',
@@ -129,8 +129,8 @@ const publishTop4 = async () => {
 
   loading.value = true
   try {
-    await axios.post(`/api/v1/event-competitions/${competitionId.value}/ranking/publish`, { top_n: 4 })
-    Swal.fire('Published', 'Top 4 berhasil dipublish.', 'success')
+    await axios.post(`/api/v1/event-competitions/${competitionId.value}/ranking/publish`, { top_n: 6 })
+    Swal.fire('Published', 'Top 6 berhasil dipublish.', 'success')
   } catch (e) {
     console.error(e)
     Swal.fire('Gagal', 'Gagal publish ranking.', 'error')
@@ -559,7 +559,7 @@ watch(
           </button>
           <button
             class="btn btn-sm btn-success"
-            @click="publishTop4"
+            @click="publishTop6"
             :disabled="
               loading ||
               !competitionId ||
@@ -569,7 +569,7 @@ watch(
               !canPublish
             "
           >
-            <i class="fas fa-award"></i> Publish Top 4
+            <i class="fas fa-award"></i> Publish Top 6
           </button>
 
           <button class="btn btn-sm btn-outline-success" :disabled="!competitionId || activeCategoryId === 'all'" @click="exportCategory">

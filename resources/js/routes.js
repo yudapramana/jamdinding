@@ -40,6 +40,11 @@ export default [
         component: () => import('./pages/permission/PermissionRoleList.vue'),
       },
       {
+        path: 'core/medal-rules',
+        name: 'admin.core.medal-rules',
+        component: () => import('./pages/core/CoreMedalRules.vue'),
+      },
+      {
         path: 'master/branches',
         name: 'admin.master.branches',
         component: () => import('./pages/master/MasterBranches.vue'),
@@ -89,6 +94,14 @@ export default [
         name: 'admin.event.users',
         component: () => import('./pages/event/EventUserList.vue'),
       },
+      {
+        path: 'event/medal-rules',
+        name: 'admin.event.medal-rules',
+        component: () => import('./pages/event/EventMedalRules.vue'),
+      },
+
+
+
       {
         path: 'event/participants/bank-data',
         name: 'admin.event.participants.bank-data',
@@ -193,9 +206,9 @@ export default [
       },
 
       {
-        path: '/admin/event/results/index',
-        name: 'admin.event.results.index',
-        component: () => import('./pages/event_contingents/EventContingentsIndex.vue'),
+        path: '/admin/event/contingent/standings',
+        name: 'admin.event.contingent.standings',
+        component: () => import('./pages/event_contingents/EventContingentStandings.vue'),
         meta: {
           title: 'Perolehan Juara Kontingen',
         },

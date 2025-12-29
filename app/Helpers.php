@@ -2,6 +2,8 @@
 
 use App\Models\Setting;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Collection;
 
 function setting($key)
 {
@@ -43,4 +45,46 @@ function buildFileName(string $label, ?string $parameter, string $nip, string $e
     $fileName .= '_' . $nip . '.' . $extension;
 
     return $fileName;
+}
+
+
+
+if (! function_exists('paginateCollection')) {
+
+    /**
+     * Paginate a Laravel Collection.
+     *
+     * @param  \Illuminate\Support\Collection  $items
+     * @param  int  $perPage
+     * @param  int|null  $currentPage
+     * @param  array  $options
+     * @return \Illuminate\Pagination\LengthAwarePaginator
+     */
+    function paginateCollection(
+        Collection $items,
+        int $perPage = 10,
+        ?int $currentPage = null,
+        array $options = []
+    ): LengthAwarePaginator {
+
+        $currentPage = $currentPage
+            ?: LengthAwarePaginator::resolveCurrentPage();
+
+        $total = $items->count();
+
+        $results = $items
+            ->slice(($currentPage - 1) * $perPage, $perPage)
+            ->values();
+
+        return new LengthAwarePaginator(
+            $results,
+            $total,
+            $perPage,
+            $currentPage,
+            array_merge([
+                'path'  => LengthAwarePaginator::resolveCurrentPath(),
+                'query' => request()->query(),
+            ], $options)
+        );
+    }
 }

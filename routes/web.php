@@ -33,6 +33,9 @@ use App\Http\Controllers\Auth\PasswordResetWhatsappController;
 use App\Models\Event;
 use App\Models\VervalLog;
 use Illuminate\Http\Request;
+use App\Http\Controllers\Auth\CaptchaController;
+
+
 
 
 
@@ -51,6 +54,10 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Symfony\Component\HttpKernel\Event\RequestEvent;
 
+
+
+
+Route::get('/captcha', [CaptchaController::class, 'generate'])->name('captcha');
 
 Route::get('/testgrup', function () {
 

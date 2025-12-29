@@ -14,6 +14,7 @@
         "laravel/sanctum": "^3.3",
         "laravel/socialite": "^5.23",
         "laravel/tinker": "^2.8",
+        "maatwebsite/excel": "^1.1",
         "masbug/flysystem-google-drive-ext": "^2.4",
         "mpdf/mpdf": "^8.2",
         "njoguamos/laravel-turnstile": "^2.2",
