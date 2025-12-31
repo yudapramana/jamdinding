@@ -38,7 +38,7 @@ const isAppLoading = computed(() =>
 onMounted(async () => {
   if (authUserStore.isAuthenticated) {
     await authUserStore.getAuthUser();
-    await authUserStore.getMyDocuments();
+    // await authUserStore.getMyDocuments();
   }
 });
 </script>

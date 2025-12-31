@@ -51,7 +51,7 @@
             @click="openCreateModal"
             :disabled="!eventId"
           >
-            + Tambah Kategori Event
+            + Tambah Kategori
           </button>
         </div>
       </div>

@@ -2,44 +2,101 @@
 
 namespace Database\Factories;
 
+use App\Models\User;
+use App\Models\Role;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Str;
 
-/**
- * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\User>
- */
 class UserFactory extends Factory
 {
-    /**
-     * The current password being used by the factory.
-     */
-    protected static ?string $password;
+    protected $model = User::class;
 
-    /**
-     * Define the model's default state.
-     *
-     * @return array<string, mixed>
-     */
     public function definition(): array
     {
         return [
-            'organization_id' => 1,
-            'name' => fake()->name(),
-            'email' => fake()->unique()->safeEmail(),
-            'email_verified_at' => now(),
-            'password' => static::$password ??= Hash::make('password'),
-            'remember_token' => Str::random(10),
+            'name'               => $this->faker->name,
+            'email'              => $this->faker->unique()->safeEmail,
+            'username'           => $this->faker->unique()->userName,
+            'email_verified_at'  => now(),
+            'password'           => Hash::make('password123'),
+
+            'avatar'             => null,
+            'id_employee'        => null,
+            'docs_update_state'  => false,
+            'can_multiple_role'  => true,
+
+            // lokasi nullable
+            'province_id'        => null,
+            'regency_id'         => null,
+            'district_id'        => null,
+            'village_id'         => null,
+
+            'remember_token'     => null,
+            'is_active'          => true,
+            'created_at'         => now(),
+            'updated_at'         => now(),
         ];
     }
 
     /**
-     * Indicate that the model's email address should be unverified.
+     * Default: user dengan role ADMIN_EVENT
      */
-    public function unverified(): static
+    public function configure()
     {
-        return $this->state(fn (array $attributes) => [
-            'email_verified_at' => null,
+        return $this->afterCreating(function (User $user) {
+            $roles = Role::whereIn('name', [
+                'ADMIN_EVENT',
+            ])->pluck('id');
+
+            $user->roles()->syncWithoutDetaching($roles);
+        });
+    }
+
+    /**
+     * State: SUPERADMIN + ADMIN_EVENT + PENDAFTARAN
+     */
+    public function superAdmin(): static
+    {
+        return $this->afterCreating(function (User $user) {
+            $roles = Role::whereIn('name', [
+                'SUPERADMIN',
+                'ADMIN_EVENT',
+                'PENDAFTARAN',
+            ])->pluck('id');
+
+            $user->roles()->syncWithoutDetaching($roles);
+        });
+    }
+
+    /**
+     * State: ADMIN_EVENT only
+     */
+    public function adminEvent(): static
+    {
+        return $this->afterCreating(function (User $user) {
+            $roles = Role::where('name', 'ADMIN_EVENT')->pluck('id');
+            $user->roles()->syncWithoutDetaching($roles);
+        });
+    }
+
+    /**
+     * State: PENDAFTARAN
+     */
+    public function pendaftaran(): static
+    {
+        return $this->afterCreating(function (User $user) {
+            $roles = Role::where('name', 'PENDAFTARAN')->pluck('id');
+            $user->roles()->syncWithoutDetaching($roles);
+        });
+    }
+
+    /**
+     * State: inactive user
+     */
+    public function inactive(): static
+    {
+        return $this->state(fn () => [
+            'is_active' => false,
         ]);
     }
 }

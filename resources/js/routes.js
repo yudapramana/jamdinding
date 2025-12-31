@@ -99,6 +99,14 @@ export default [
         name: 'admin.event.medal-rules',
         component: () => import('./pages/event/EventMedalRules.vue'),
       },
+      {
+        path: 'event/kokarde',
+        name: 'admin.event.kokarde',
+        component: () => import('./pages/KokardeExport.vue'),
+        meta: {
+          title: 'Cetak Kokarde Peserta MTQ',
+        },
+      },
 
 
 

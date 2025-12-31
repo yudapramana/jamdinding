@@ -209,7 +209,7 @@
                     <div class="modal-header py-2">
                         <h5 class="modal-title" id="eventBranchModalLabel">
                             <i class="fas fa-sitemap me-2"></i>
-                            {{ isEdit ? 'Edit Cabang Event' : 'Tambah Cabang Event' }}
+                            {{ isEdit ? 'Edit Cabang' : 'Tambah Cabang' }}
                         </h5>
                         <button type="button" class="close" data-dismiss="modal">
                             <span>&times;</span>

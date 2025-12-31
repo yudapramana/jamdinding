@@ -1,115 +1,158 @@
 import axios from "axios";
 import { defineStore } from "pinia";
-import { ref, computed } from "vue";
-import { useStorage } from '@vueuse/core';
+import { computed } from "vue";
+import { useStorage } from "@vueuse/core";
 import { useAuthUserStore } from "./AuthUserStore";
 
-export const useSettingStore = defineStore('SettingStore', () => {
-    const setting = useStorage('SettingStore:setting', {
-        app_name: '',
-        date_format: 'YYYY-MM-DD',
-        pagination_limit: 10,
-        maintenance: null,
-        environment: 'development',
-    });
+const normalizeBool = (v) =>
+  ["1", 1, true, "true", "on"].includes(v);
 
-    const applySettings = (newSettings) => {
-        setting.value = {
-            ...setting.value,
-            ...newSettings,
-        };
+export const useSettingStore = defineStore("SettingStore", () => {
+  /**
+   * =========================
+   * STATE (PERSISTED)
+   * =========================
+   */
+  const setting = useStorage("SettingStore:setting", {
+    app_name: "",
+    date_format: "YYYY-MM-DD",
+    pagination_limit: 10,
+    maintenance: false, // 🔑 SELALU BOOLEAN
+    environment: "development",
+  });
+
+  const loaded = useStorage("SettingStore:loaded", false);
+
+  /**
+   * =========================
+   * APPLY SETTINGS (SINGLE SOURCE OF TRUTH)
+   * =========================
+   */
+  const applySettings = (payload) => {
+    if (!payload) return;
+
+    setting.value = {
+      ...setting.value,
+      ...payload,
+      // 🔑 NORMALISASI FINAL
+      maintenance: normalizeBool(payload.maintenance),
     };
 
+    loaded.value = true;
+  };
 
-    const isProduction = computed(() => setting.value.environment === 'production');
-    const isDevelopment = computed(() => setting.value.environment === 'development');
+  /**
+   * =========================
+   * FETCH FROM API (ONCE)
+   * =========================
+   */
+  const getSetting = async () => {
+    if (loaded.value) return;
 
-    // ⚠️ tidak perlu ref() di default
-    const theme = useStorage('SettingStore:theme', 'light');
-
-    // state sidebar (collapsed / expanded)
-    const sidebarCollapsed = useStorage('SettingStore:sidebarCollapsed', false);
-
-    const changeTheme = () => {
-        theme.value = theme.value === 'light' ? 'dark' : 'light';
-    };
-
-    const applySidebarClass = (collapsed) => {
-        const body = document.body;
-        if (!body) return;
-
-        if (collapsed) {
-        body.classList.add('sidebar-collapse');
-        } else {
-        body.classList.remove('sidebar-collapse');
-        }
-    };
-
-    const toggleMenuIcon = () => {
-        sidebarCollapsed.value = !sidebarCollapsed.value;
-        applySidebarClass(sidebarCollapsed.value);
-    };
-
-    // Saat store pertama kali dipakai, sinkronkan class body dengan value dari localStorage
-    applySidebarClass(sidebarCollapsed.value);
-
-    const getSetting = async () => {
-        // console.log('setting.value.app_name');
-        // console.log(setting.value.app_name);
-        if ((!setting.value.app_name) || (setting.value.maintenance == null)) {
-            console.log('tidak masuk sini kan ya');
-            await axios.get('/api/settings')
-                .then((response) => {
-                    setting.value = response.data;
-                }).catch((error) => {
-                    // Bersihkan data
-                    localStorage.clear();
-                    sessionStorage.clear();
-                    document.cookie.split(";").forEach(cookie => {
-                        const eqPos = cookie.indexOf("=");
-                        const name = eqPos > -1 ? cookie.substr(0, eqPos) : cookie;
-                        document.cookie = name + "=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/";
-                    });
-                });
-        } else {
-            // do nothing;
-        }
-    };
-
-    const resetMaintenance = () => {
-        setting.value.maintenance = null
+    try {
+      const { data } = await axios.get("/api/settings");
+      applySettings(data);
+    } catch (error) {
+      // 🔥 Jika settings gagal → reset total (safety)
+      localStorage.clear();
+      sessionStorage.clear();
+      document.cookie.split(";").forEach((cookie) => {
+        const eqPos = cookie.indexOf("=");
+        const name = eqPos > -1 ? cookie.substr(0, eqPos) : cookie;
+        document.cookie =
+          name + "=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/";
+      });
+      location.reload();
     }
+  };
 
-    // Ambil store auth (asumsikan ada dan bernama useAuthUserStore)
-    const authUserStore = useAuthUserStore();
+  /**
+   * =========================
+   * ENV COMPUTED
+   * =========================
+   */
+  const isProduction = computed(
+    () => setting.value.environment === "production"
+  );
 
-     // Computed untuk menampilkan badge maintenance:
-    // true jika maintenance aktif dan user BUKAN SUPERADMIN
-    const showMaintenanceBadge = computed(() => {
-        // Pastikan struktur user ada sebelum akses role
-        const role = authUserStore?.user?.role ?? null;
-        return Boolean(setting.value.maintenance) && role !== 'SUPERADMIN';
-    });
+  const isDevelopment = computed(
+    () => setting.value.environment === "development"
+  );
 
-    // return { setting, getSetting, theme, changeTheme, toggleMenuIcon, resetMaintenance, showMaintenanceBadge };
+  /**
+   * =========================
+   * THEME & SIDEBAR
+   * =========================
+   */
+  const theme = useStorage("SettingStore:theme", "light");
+  const sidebarCollapsed = useStorage(
+    "SettingStore:sidebarCollapsed",
+    false
+  );
 
-    return {
-        setting,
-        getSetting,
-        applySettings,
+  const changeTheme = () => {
+    theme.value = theme.value === "light" ? "dark" : "light";
+  };
 
-        theme,
-        changeTheme,
+  const applySidebarClass = (collapsed) => {
+    const body = document.body;
+    if (!body) return;
 
-        sidebarCollapsed,
-        toggleMenuIcon,
-        applySidebarClass,
+    body.classList.toggle("sidebar-collapse", collapsed);
+  };
 
-        resetMaintenance,
-        showMaintenanceBadge,
-        isProduction,
-        isDevelopment,
-    };
+  const toggleMenuIcon = () => {
+    sidebarCollapsed.value = !sidebarCollapsed.value;
+    applySidebarClass(sidebarCollapsed.value);
+  };
 
+  // Sync class saat load
+  applySidebarClass(sidebarCollapsed.value);
 
+  /**
+   * =========================
+   * MAINTENANCE BADGE
+   * =========================
+   */
+  const authUserStore = useAuthUserStore();
+
+  const showMaintenanceBadge = computed(() => {
+    const role = authUserStore?.user?.role ?? null;
+    return setting.value.maintenance === true && role !== "SUPERADMIN";
+  });
+
+  /**
+   * =========================
+   * UTIL
+   * =========================
+   */
+  const resetMaintenance = () => {
+    setting.value.maintenance = false;
+  };
+
+  return {
+    // state
+    setting,
+    loaded,
+
+    // core
+    getSetting,
+    applySettings,
+
+    // env
+    isProduction,
+    isDevelopment,
+
+    // ui
+    theme,
+    changeTheme,
+
+    sidebarCollapsed,
+    toggleMenuIcon,
+    applySidebarClass,
+
+    // maintenance
+    resetMaintenance,
+    showMaintenanceBadge,
+  };
 });

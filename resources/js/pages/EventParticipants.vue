@@ -54,69 +54,69 @@
     <div class="container-fluid">
 
       <div class="card">
-        <div class="card-header">
-          <div class="d-flex flex-wrap justify-content-between align-items-center w-100">
+        <div class="card-header py-2">
+          <div class="d-flex flex-wrap align-items-center justify-content-between">
 
-            <!-- LEFT: perPage + filter status -->
-            <div class="d-flex flex-wrap align-items-center">
-              <!-- <label class="mb-0 mr-1 text-sm text-muted">Tampilkan</label> -->
+            <!-- LEFT: FILTERS -->
+            <div class="d-flex flex-wrap align-items-center gap-2">
+
+              <!-- PER PAGE -->
               <select
                 v-model.number="perPage"
-                class="form-control form-control-sm w-auto mr-2"
+                class="form-control form-control-sm w-auto"
               >
                 <option :value="10">10</option>
                 <option :value="25">25</option>
                 <option :value="50">50</option>
                 <option :value="100">100</option>
               </select>
-              <label class="mb-0 text-sm text-muted mr-2">Entri</label>
+              <span class="text-xs text-muted">entri</span>
 
-              <strong class="mr-2">|</strong>
-
-              <label class="mb-0 mr-1 text-sm text-muted">Status</label>
-
+              <!-- STATUS -->
               <select
                 v-model="filters.registration_status"
-                class="form-control form-control-sm w-auto mr-2"
+                class="form-control form-control-sm w-auto"
+                title="Status"
               >
-                <option value="">Semua</option>
+                <option value="">Status</option>
                 <option value="bank_data">Bank Data</option>
-                <option value="process">Menunggu Verifikasi</option>
-                <option value="verified">Terverifikasi</option>
-                <option value="need_revision">Perbaikan</option>
+                <option value="process">Proses</option>
+                <option value="verified">Verified</option>
+                <option value="need_revision">Revisi</option>
                 <option value="rejected">Ditolak</option>
                 <option value="disqualified">Diskualifikasi</option>
               </select>
 
-              <strong class="mr-2">|</strong>
-
-              <label class="mb-0 mr-1 text-sm text-muted">Cabang</label>
+              <!-- CABANG / GOLONGAN -->
               <select
                 v-model="filters.event_group_id"
-                class="form-control form-control-sm w-auto mr-2"
+                class="form-control form-control-sm w-auto"
+                title="Cabang / Golongan"
               >
-                <option value="">Semua</option>
+                <option value="">Semua Cabang</option>
                 <option
-                  v-for="g in eventGroups"
+                  v-for="g in masterDataStore.eventGroups"
                   :key="g.id"
                   :value="String(g.id)"
                 >
-                  {{ g.full_name || g.name || g.group_name || ('Golongan #' + g.id) }}
+                  {{ g.full_name || g.name || g.group_name || ('Gol #' + g.id) }}
                 </option>
               </select>
 
             </div>
 
-            <!-- RIGHT: search -->
+            <!-- RIGHT: SEARCH -->
             <input
               v-model="search"
               type="text"
-              class="form-control form-control-sm w-auto mt-2 mt-sm-0"
-              style="min-width: 240px"
-              placeholder="Cari NIK / Nama / Kontingen..."
+              class="form-control form-control-sm mt-2 mt-md-0"
+              style="width: 220px"
+              placeholder="Cari nama / NIK / kontingen"
             />
+
           </div>
         </div>
+
 
         <div class="card-body table-responsive p-0">
           <table class="table table-bordered table-hover text-sm mb-0">
@@ -1540,6 +1540,7 @@ import axios from 'axios'
 import Swal from 'sweetalert2'
 import { useAuthUserStore } from '../stores/AuthUserStore'
 import { useSettingStore } from '../stores/SettingStore'
+import { useMasterDataStore } from '../stores/MasterDataStore'
 import ViewParticipantModal from './ViewParticipantModal.vue'
 import {
   formatDate,
@@ -1562,6 +1563,7 @@ import {
 // AUTH & EVENT CONTEXT
 // ==================================================
 const authUserStore = useAuthUserStore()
+const masterDataStore = useMasterDataStore()
 
 const currentUser = computed(() => authUserStore.user || {})
 const eventInfo = computed(() => authUserStore.eventData || null)
@@ -1872,11 +1874,9 @@ const fetchItems = async (page = 1) => {
 const fetchEventMasterData = async () => {
   if (!eventId.value) return
   try {
-    const { data } = await axios.get(`/api/v1/events/${eventId.value}/simple`)
-    // diasumsikan controller mengembalikan: event, branches, groups, categories
-    eventBranches.value = data.branches || []
-    eventGroups.value = data.groups || []
-    eventCategories.value = data.categories || []
+    eventBranches.value = masterDataStore.eventBranches
+    eventGroups.value = masterDataStore.eventGroups
+    eventCategories.value = masterDataStore.eventCategories
   } catch (error) {
     console.error('Gagal memuat master event (branches/groups/categories):', error)
     Swal.fire('Gagal', 'Gagal memuat daftar cabang event & golongan.', 'error')
@@ -3164,6 +3164,10 @@ onMounted(async () => {
 
 .badge-file:hover {
   opacity: 0.8;
+}
+
+.gap-2 {
+  gap: .5rem;
 }
 
 </style>

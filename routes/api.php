@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Admin\MasterController;
 use App\Http\Controllers\Api\__BranchController;
 use App\Http\Controllers\Api\__CategoryController;
 use App\Http\Controllers\Api\__EventBranchController;
@@ -14,6 +15,7 @@ use App\Http\Controllers\API\__EventController;
 use App\Http\Controllers\API\__EventFieldComponentController;
 use App\Http\Controllers\Api\__EventGroupController;
 use App\Http\Controllers\API\__EventJudgePanelController;
+use App\Http\Controllers\Api\__EventKokardeController;
 use App\Http\Controllers\Api\__EventMedalRuleController;
 use App\Http\Controllers\API\__EventParticipantController;
 use App\Http\Controllers\API\__EventStageController;
@@ -84,12 +86,15 @@ Route::post('/auth/wa/request-reset', [PasswordResetWhatsappController::class, '
     ->name('api.password.wa.request');
 
 Route::prefix('v1')->group(function () {
-    Route::get('/public-events', [PublicEventController::class, 'index']);
+    Route::middleware(['throttle:60,1'])->get('/public-events', [PublicEventController::class, 'index']);
 });
 
 Route::middleware(['auth:sanctum']) // kalau belum pakai sanctum, boleh dihapus dulu
     ->prefix('v1')
     ->group(function () {
+
+
+        Route::get('master', [MasterController::class, 'index']);
 
         /**
          * REFERENCE DATA
@@ -281,6 +286,10 @@ Route::middleware(['auth:sanctum']) // kalau belum pakai sanctum, boleh dihapus 
             [__EventContingentStandingsController::class, 'exportPdf']
         );
         
+        Route::get(
+            '/event-kokarde/export/pdf',
+            [__EventKokardeController::class, 'exportPdf']
+        );
 
 
 

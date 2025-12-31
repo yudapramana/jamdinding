@@ -43,7 +43,7 @@
             @click="openCreateModal"
             :disabled="!eventId"
           >
-            + Tambah Golongan Event
+            + Tambah Golongan
           </button>
         </div>
       </div>

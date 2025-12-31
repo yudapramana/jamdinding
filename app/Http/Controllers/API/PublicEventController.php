@@ -5,6 +5,7 @@ namespace App\Http\Controllers\API;
 use App\Http\Controllers\Controller;
 use App\Models\Event;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 
 class PublicEventController extends Controller
 {
@@ -13,23 +14,19 @@ class PublicEventController extends Controller
      */
     public function index(Request $request)
     {
-      // Silakan sesuaikan field & filter-nya dengan struktur tabel abang
-      $query = Event::query()
-          // contoh: hanya event aktif & ditandai publik
-          ->where('is_active', true)
-          // bisa juga tambah whereDate, dsb. kalau mau
-          ->orderBy('start_date', 'desc');
+        $limit = (int) $request->get('limit', 6); // default 6
+        $cacheKey = 'public_events_limit_' . $limit;
 
-      // optional limit dari query string ?limit=6
-      if ($request->filled('limit')) {
-          $query->limit((int) $request->get('limit'));
-      }
+        $events = Cache::remember($cacheKey, 60, function () use ($limit) {
+            return Event::query()
+                ->where('is_active', true)
+                ->orderBy('start_date', 'desc')
+                ->limit($limit)
+                ->get();
+        });
 
-      $events = $query->get();
-
-      // Response bentuk { data: [...] } supaya konsisten
-      return response()->json([
-          'data' => $events,
-      ]);
+        return response()->json([
+            'data' => $events,
+        ]);
     }
 }

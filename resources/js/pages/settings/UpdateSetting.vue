@@ -1,185 +1,222 @@
 <script setup>
-import { onMounted, ref } from 'vue';
-import { useToastr } from '@/toastr';
-import { useSettingStore } from '../../stores/SettingStore';
+import { ref, onMounted } from 'vue'
+import axios from 'axios'
+import { useToastr } from '@/toastr'
+import { useSettingStore } from '../../stores/SettingStore'
 
+const toastr = useToastr()
 const settingStore = useSettingStore()
 
-
+/**
+ * =========================
+ * LOCAL FORM STATE
+ * =========================
+ * - maintenance: BOOLEAN
+ */
 const settings = ref({
   app_name: '',
-  date_format: '',
+  date_format: 'YYYY-MM-DD',
   pagination_limit: 10,
-  maintenance: '0',
+  maintenance: false,
   environment: 'development',
-});
+})
 
-const original = ref({}); // simpan nilai awal dari server
-const errors = ref(null);
-const toastr = useToastr();
+const original = ref({})
+const errors = ref(null)
 
-const isOn = (v) => v === true || v === 1 || v === '1' || v === 'true' || v === 'on';
-
+/**
+ * =========================
+ * FETCH SETTINGS
+ * =========================
+ */
 const getSettings = async () => {
-  const { data } = await axios.get('/api/settings');
-  settings.value = data;
-  original.value = { ...data }; // snapshot awal
-};
+  try {
+    const { data } = await axios.get('/api/settings')
 
+    // 🔑 Frontend selalu BOOLEAN
+    settings.value = {
+      ...data,
+      maintenance: ['1', 1, true, 'true', 'on'].includes(data.maintenance),
+    }
+
+    original.value = { ...settings.value }
+
+    // 🔑 APPLY KE STORE (SINGLE SOURCE OF TRUTH)
+    settingStore.applySettings(settings.value)
+
+  } catch (error) {
+    toastr.error('Gagal memuat pengaturan aplikasi.')
+  }
+}
+
+/**
+ * =========================
+ * UPDATE SETTINGS
+ * =========================
+ */
 const updateSettings = async () => {
-  errors.value = null;
+  errors.value = null
 
-  const prevOn = isOn(original.value.maintenance);
-  const nextOn = isOn(settings.value.maintenance);
+  const prevOn = original.value.maintenance === true
+  const nextOn = settings.value.maintenance === true
 
-  // Konfirmasi hanya saat OFF -> ON
+  // Konfirmasi hanya saat OFF → ON
   if (!prevOn && nextOn) {
     const ok = confirm(
-      'Turn ON maintenance mode? This will log out ALL users immediately.'
-    );
-    if (!ok) return;
+      'Turn ON maintenance mode?\n\nSemua user akan otomatis logout.'
+    )
+    if (!ok) return
   }
 
   try {
-    const { data } = await axios.post('/api/settings', settings.value);
-
-    toastr.success('Settings updated successfully!');
-
-    // 🔑 UPDATE SNAPSHOT
-    original.value = { ...settings.value };
-
-    // 🔥 UPDATE PINIA STORE (INI PENTING)
-    settingStore.setting = {
-      ...settingStore.setting,
+    // 🔑 Backend tetap terima string
+    const payload = {
       ...settings.value,
-    };
+      maintenance: settings.value.maintenance ? '1' : '0',
+    }
 
-    /**
-     * OPTIONAL:
-     * Kalau maintenance ON dan mau force reload:
-     */
-     if (!prevOn && nextOn) {
-        location.reload();
-     }
+    await axios.post('/api/settings', payload)
+
+    toastr.success('Pengaturan berhasil diperbarui')
+
+    original.value = { ...settings.value }
+
+    // 🔑 UPDATE STORE (BOOLEAN)
+    settingStore.applySettings(settings.value)
+
+    // Optional: reload jika maintenance baru ON
+    if (!prevOn && nextOn) {
+      location.reload()
+    }
 
   } catch (error) {
     if (error.response?.status === 422) {
-      errors.value = error.response.data.errors;
+      errors.value = error.response.data.errors
+    } else {
+      toastr.error('Gagal menyimpan pengaturan.')
     }
   }
-};
+}
 
-settingStore.applySettings(settings.value)
-
-
-onMounted(getSettings);
+onMounted(getSettings)
 </script>
 
 <template>
-    <div class="content-header">
-        <div class="container-fluid">
-            <div class="row mb-2">
-                <div class="col-sm-6">
-                    <h1 class="m-0">Settings</h1>
-                </div>
-                <div class="col-sm-6">
-                    <ol class="breadcrumb float-sm-right">
-                        <li class="breadcrumb-item"><a href="#">Home</a></li>
-                        <li class="breadcrumb-item active">Settings</li>
-                    </ol>
-                </div>
-            </div>
+  <div class="content-header">
+    <div class="container-fluid">
+      <div class="row mb-2">
+        <div class="col-sm-6">
+          <h1 class="m-0">Settings</h1>
         </div>
+      </div>
     </div>
+  </div>
 
-
-    <div class="content">
-        <div class="container-fluid">
-            <div class="row">
-                <div class="col-md-6">
-                    <div class="card card-primary">
-                        <div class="card-header">
-                            <h3 class="card-title">General Setting</h3>
-                        </div>
-
-                        <form @submit.prevent="updateSettings()">
-                            <div class="card-body">
-                                <div class="form-group">
-                                    <label for="appName">App Display Name</label>
-                                    <input v-model="settings.app_name" type="text" class="form-control" id="appName"
-                                        placeholder="Enter app display name">
-                                    <span class="text-danger text-sm" v-if="errors && errors.app_name">{{ errors.app_name[0]
-                                    }}</span>
-                                </div>
-                                <div class="form-group">
-                                    <label for="dateFormat">Date Format</label>
-                                    <select v-model="settings.date_format" class="form-control">
-                                        <option value="m/d/Y">MM/DD/YYYY</option>
-                                        <option value="d/m/Y">DD/MM/YYYY</option>
-                                        <option value="Y-m-d">YYYY-MM-DD</option>
-                                        <option value="F j, Y">Month DD, YYYY</option>
-                                        <option value="j F Y">DD Month YYYY</option>
-                                    </select>
-                                    <span class="text-danger text-sm" v-if="errors && errors.date_format">{{
-                                        errors.date_format[0] }}</span>
-                                </div>
-                                <div class="form-group">
-                                    <label for="paginationLimit">Pagination Limit</label>
-                                    <input v-model="settings.pagination_limit" type="text" class="form-control"
-                                        id="paginationLimit" placeholder="Enter pagination limit">
-                                    <span class="text-danger text-sm" v-if="errors && errors.pagination_limit">{{
-                                        errors.pagination_limit[0] }}</span>
-                                </div>
-
-                                 <!-- NEW: Maintenance Mode toggle -->
-                                <div class="form-group">
-                                    <div class="custom-control custom-switch">
-                                        <input
-                                            type="checkbox"
-                                            class="custom-control-input"
-                                            id="maintenanceSwitch"
-                                            v-model="settings.maintenance"
-                                            :true-value="'1'"
-                                            :false-value="'0'"
-                                        />
-                                        <label class="custom-control-label" for="maintenanceSwitch">
-                                        Maintenance Mode
-                                        </label>
-                                    </div>
-                                    <small class="form-text text-muted">
-                                        Saat ON, semua user akan langsung di-logout.
-                                    </small>
-                                    <span class="text-danger text-sm" v-if="errors && errors.maintenance">
-                                        {{ errors.maintenance[0] }}
-                                    </span>
-                                </div>
-
-                                <div class="form-group">
-                                    <label>Application Environment</label>
-                                    <select v-model="settings.environment" class="form-control">
-                                        <option value="development">Development</option>
-                                        <option value="production">Production</option>
-                                    </select>
-
-                                    <small class="form-text text-muted">
-                                        Development: debug aktif, bypass tertentu.<br>
-                                        Production: mode aman, fitur sensitif terkunci.
-                                    </small>
-
-                                    <span v-if="errors?.environment" class="text-danger text-sm">
-                                        {{ errors.environment[0] }}
-                                    </span>
-                                </div>
-
-                            </div>
-
-                            <div class="card-footer">
-                                <button type="submit" class="btn btn-primary"><i class="fa fa-save mr-1"></i>Save
-                                    Changes</button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
+  <div class="content">
+    <div class="container-fluid">
+      <div class="row">
+        <div class="col-md-6">
+          <div class="card card-primary">
+            <div class="card-header">
+              <h3 class="card-title">General Setting</h3>
             </div>
+
+            <form @submit.prevent="updateSettings">
+              <div class="card-body">
+                <!-- APP NAME -->
+                <div class="form-group">
+                  <label>App Display Name</label>
+                  <input
+                    v-model="settings.app_name"
+                    type="text"
+                    class="form-control"
+                    placeholder="Enter app display name"
+                  />
+                  <span v-if="errors?.app_name" class="text-danger text-sm">
+                    {{ errors.app_name[0] }}
+                  </span>
+                </div>
+
+                <!-- DATE FORMAT -->
+                <div class="form-group">
+                  <label>Date Format</label>
+                  <select v-model="settings.date_format" class="form-control">
+                    <option value="m/d/Y">MM/DD/YYYY</option>
+                    <option value="d/m/Y">DD/MM/YYYY</option>
+                    <option value="Y-m-d">YYYY-MM-DD</option>
+                    <option value="F j, Y">Month DD, YYYY</option>
+                    <option value="j F Y">DD Month YYYY</option>
+                  </select>
+                  <span v-if="errors?.date_format" class="text-danger text-sm">
+                    {{ errors.date_format[0] }}
+                  </span>
+                </div>
+
+                <!-- PAGINATION -->
+                <div class="form-group">
+                  <label>Pagination Limit</label>
+                  <input
+                    v-model.number="settings.pagination_limit"
+                    type="number"
+                    min="1"
+                    class="form-control"
+                  />
+                  <span v-if="errors?.pagination_limit" class="text-danger text-sm">
+                    {{ errors.pagination_limit[0] }}
+                  </span>
+                </div>
+
+                <!-- MAINTENANCE MODE -->
+                <div class="form-group">
+                  <div class="custom-control custom-switch">
+                    <input
+                      type="checkbox"
+                      class="custom-control-input"
+                      id="maintenanceSwitch"
+                      v-model="settings.maintenance"
+                    />
+                    <label class="custom-control-label" for="maintenanceSwitch">
+                      Maintenance Mode
+                    </label>
+                  </div>
+                  <small class="form-text text-muted">
+                    Saat ON, semua user akan otomatis logout.
+                  </small>
+                  <span v-if="errors?.maintenance" class="text-danger text-sm">
+                    {{ errors.maintenance[0] }}
+                  </span>
+                </div>
+
+                <!-- ENVIRONMENT -->
+                <div class="form-group">
+                  <label>Application Environment</label>
+                  <select v-model="settings.environment" class="form-control">
+                    <option value="development">Development</option>
+                    <option value="production">Production</option>
+                  </select>
+
+                  <small class="form-text text-muted">
+                    Development: debug aktif.<br />
+                    Production: mode aman.
+                  </small>
+
+                  <span v-if="errors?.environment" class="text-danger text-sm">
+                    {{ errors.environment[0] }}
+                  </span>
+                </div>
+              </div>
+
+              <div class="card-footer">
+                <button type="submit" class="btn btn-primary">
+                  <i class="fa fa-save mr-1"></i>
+                  Save Changes
+                </button>
+              </div>
+            </form>
+
+          </div>
         </div>
-</div></template>
+      </div>
+    </div>
+  </div>
+</template>

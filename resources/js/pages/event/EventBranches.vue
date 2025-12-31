@@ -33,7 +33,7 @@
             @click="openCreateModal"
             :disabled="!eventId"
           >
-            + Tambah Cabang Event
+            + Tambah Cabang
           </button>
         </div>
       </div>

@@ -1,183 +1,140 @@
-import axios from 'axios';
-import { defineStore } from 'pinia';
-import { ref, reactive } from 'vue';
-import { useLoadingStore } from "./LoadingStore";
-import { useStorage } from '@vueuse/core';
-import { useAuthUserStore } from "./AuthUserStore.js";
+import axios from 'axios'
+import { defineStore } from 'pinia'
+import { ref } from 'vue'
+import { useStorage } from '@vueuse/core'
+import { useAuthUserStore } from './AuthUserStore'
 
 export const useMasterDataStore = defineStore('MasterDataStore', () => {
-    const orgId = useStorage('MasterDataStore:orgId', ref(''));
-    const userId = useStorage('MasterDataStore:userId', ref(''));
 
-    const orgList = useStorage('MasterDataStore:orgList', ref([]));
-    const userList = useStorage('MasterDataStore:userList', ref({}));
-    const doctypeList = useStorage('MasterDataStore:doctypeList', ref([]));
-    const workunitList = useStorage('MasterDataStore:workunitList', ref([]));
-    const workUnitMonitorList = useStorage('MasterDataStore:workUnitMonitorList', ref([]));
-    const selfWorkUnitMonitorList = useStorage('MasterDataStore:selfWorkUnitMonitorList', ref([]));
-    const docParameters = useStorage('MasterDataStore:docParameters', ref([1, 2, 3, 4, 5, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025, 'D2', 'D3', 'S1', 'S2', 'S3', 'IIa', 'IIb', 'IIc', 'IId', 'IIIa', 'IIIb', 'IIIc', 'IIId', 'IVa', 'IVb', 'IVc', 'IVd', 'Suami', 'Istri']));
+  const authUserStore = useAuthUserStore()
 
-    const loadingStore = useLoadingStore();
-    const authUserStore = useAuthUserStore();
+  /* =========================
+   * STATE (PERSISTED)
+   * ========================= */
+  const eventStages     = useStorage('md:eventStages', [])
+  const eventBranches   = useStorage('md:eventBranches', [])
+  const eventGroups     = useStorage('md:eventGroups', [])
+  const eventCategories = useStorage('md:eventCategories', [])
 
-    const getWorkUnitMonitorList = async () => {
+  const loading = ref(false)
 
-        console.log('getWorkUnitMonitorList start');
-        if (workUnitMonitorList.value.length == 0) {
-            console.log('getWorkUnitMonitorList runned');
-            loadingStore.toggleLoading();
-            await axios.get('/api/work-units/monitor')
-                .then((response) => {
-                    // workUnitMonitorList.value = response.data.data;
-                    workUnitMonitorList.value = response;
-                    loadingStore.toggleLoading();
-                    console.log('workUnitMonitorList hasbeenfetched');
-                }).catch((error) => {
-                    loadingStore.toggleLoading();
-                    authUserStore.handleAuthError(error);
-                });
-        }
-    };
+  /* =========================
+   * INTERNAL HELPER
+   * ========================= */
+  const fetchMaster = async (type, params = {}) => {
+    if (!authUserStore.eventData?.id) return []
 
-    const getSelfWorkUnitMonitorList = async () => {
-
-        console.log('getSelfWorkUnitMonitorList start');
-        if (selfWorkUnitMonitorList.value.length == 0) {
-            console.log('getSelfWorkUnitMonitorList runned');
-            loadingStore.toggleLoading();
-            await axios.get('/api/work-units/self-monitor')
-                .then((response) => {
-                    // selfWorkUnitMonitorList.value = response.data.data;
-                    selfWorkUnitMonitorList.value = response;
-                    loadingStore.toggleLoading();
-                    console.log('selfWorkUnitMonitorList hasbeenfetched');
-                }).catch((error) => {
-                    loadingStore.toggleLoading();
-                    authUserStore.handleAuthError(error);
-                });
-        }
-    };
-
-    const getWorkunitList = async () => {
-
-
-        if (workunitList.value.length == 0) {
-            loadingStore.toggleLoading();
-            await axios.get('/api/master', {
-                params: {
-                    type: 'workunits',
-                }
-            })
-                .then((response) => {
-                    workunitList.value = response.data.data;
-                    loadingStore.toggleLoading();
-                    console.log('workunitList hasbeenfetched');
-                }).catch((error) => {
-                    loadingStore.toggleLoading();
-                    authUserStore.handleAuthError(error);
-                });
-        }
-    };
-
-    const getDoctypeList = async (userId = null) => {
-        console.log('doctypeList.value.length:', doctypeList.value.length);
-        // console.log('doctypeList.value:', doctypeList.value);
-    
-        if (doctypeList.value.length === 0 || authUserStore.user.role == 'SUPERADMIN' || authUserStore.user.role == 'ADMIN') {
-            loadingStore.toggleLoading();
-    
-            try {
-                const response = await axios.get('/api/master', {
-                    params: {
-                        type: 'doctypes',
-                        ...(userId && { user_id: userId }) // tambahkan user_id jika ada
-                    }
-                });
-    
-                doctypeList.value = response.data.data;
-                // console.log('doctypeList has been fetched:', doctypeList.value);
-            } catch (error) {
-                console.error('doctypeList fetch error:', error);
-                authUserStore.handleAuthError(error);
-            } finally {
-                loadingStore.toggleLoading();
-            }
-        }
-    };
-
-    const getUserList = async (org) => {
-        // console.log('orgId');
-        // console.log(org);
-
-        loadingStore.toggleLoading();
-        await axios.get('/api/master', {
-            params: {
-                type: 'users',
-                id: org
-            }
-        })
-            .then((response) => {
-                userList.value = response.data.data;
-                loadingStore.toggleLoading();
-            }).catch((error) => {
-                loadingStore.toggleLoading();
-                authUserStore.handleAuthError(error);
-            });
-    };
-
-
-    const employeesCacheByUnit = reactive({});          // { [unitId]: Employee[] }
-
-    // ===== Actions =====
-    function setEmployees(unitId, list) {
-        employeesCacheByUnit[String(unitId)] = Array.isArray(list) ? list : [];
-        // persist ke sessionStorage
-        try {
-        sessionStorage.setItem('empCache', JSON.stringify(employeesCacheByUnit));
-        } catch (_) {}
+    // 🔎 Tentukan storage target
+    const storageMap = {
+      event_stages: eventStages,
+      event_branches: eventBranches,
+      event_groups: eventGroups,
+      event_categories: eventCategories,
     }
 
-    function hydrateEmployeesCache() {
-        try {
-        const raw = sessionStorage.getItem('empCache');
-        if (!raw) return;
-        const parsed = JSON.parse(raw) || {};
-        // reactive-object friendly: assign per-key
-        for (const k of Object.keys(parsed)) {
-            employeesCacheByUnit[k] = parsed[k];
-        }
-        } catch (_) {}
+    const target = storageMap[type]
+
+    // ✅ Jika TANPA filter & data sudah ada → pakai cache
+    const hasFilter = Object.keys(params).length > 0
+    if (!hasFilter && target?.value?.length) {
+      return target.value
     }
 
-    function clearEmployeesCache() {
-        for (const k of Object.keys(employeesCacheByUnit)) {
-        delete employeesCacheByUnit[k];
-        }
-        try {
-        sessionStorage.removeItem('empCache');
-        } catch (_) {}
-    }
+    loading.value = true
+    try {
+      const { data } = await axios.get('/api/v1/master', {
+        params: {
+          type,
+          event_id: authUserStore.eventData.id,
+          ...params,
+        },
+      })
 
-    return {
-        orgId,
-        userId,
-        orgList,
-        userList,
-        doctypeList,
-        workunitList,
-        docParameters,
-        workUnitMonitorList,
-        selfWorkUnitMonitorList,
-        employeesCacheByUnit,
-        getUserList,
-        getDoctypeList,
-        getWorkunitList,
-        getWorkUnitMonitorList,
-        // actions
-        setEmployees,
-        hydrateEmployeesCache,
-        getWorkUnitMonitorList,
-        clearEmployeesCache,
-        getSelfWorkUnitMonitorList
-    };
-});
+      return data.data || []
+    } finally {
+      loading.value = false
+    }
+  }
+
+  /* =========================
+   * ACTIONS
+   * ========================= */
+
+  /* ---------- STAGES ---------- */
+  const loadEventStages = async () => {
+    eventStages.value = await fetchMaster('event_stages')
+  }
+
+  /* ---------- BRANCHES ---------- */
+  const loadEventBranches = async () => {
+    eventBranches.value = await fetchMaster('event_branches')
+  }
+
+  /* ---------- GROUPS ---------- */
+
+  const loadAllEventGroups = async () => {
+    eventGroups.value = await fetchMaster('event_groups')
+  }
+
+  const loadEventGroups = async (eventBranchId = null) => {
+    eventGroups.value = await fetchMaster(
+      'event_groups',
+      eventBranchId ? { event_branch_id: eventBranchId } : {}
+    )
+  }
+
+  /* ---------- CATEGORIES ---------- */
+
+  const loadAllEventCategories = async () => {
+    eventCategories.value = await fetchMaster('event_categories')
+  }
+
+  const loadEventCategories = async (eventGroupId = null) => {
+    eventCategories.value = await fetchMaster(
+      'event_categories',
+      eventGroupId ? { event_group_id: eventGroupId } : {}
+    )
+  }
+
+  /* ---------- PRELOAD ---------- */
+  const preloadMasterMTQ = async () => {
+    if (!authUserStore.eventData?.id) return
+
+    await Promise.all([
+      loadEventStages(),
+      loadEventBranches(),
+      loadAllEventGroups(),
+      loadAllEventCategories(),
+    ])
+  }
+
+  /* ---------- RESET ---------- */
+  const clearMaster = () => {
+    eventStages.value     = []
+    eventBranches.value   = []
+    eventGroups.value     = []
+    eventCategories.value = []
+  }
+
+  return {
+    // state
+    eventStages,
+    eventBranches,
+    eventGroups,
+    eventCategories,
+    loading,
+
+    // actions
+    loadEventStages,
+    loadEventBranches,
+
+    loadAllEventGroups,
+    loadEventGroups,
+
+    loadAllEventCategories,
+    loadEventCategories,
+
+    preloadMasterMTQ,
+    clearMaster,
+  }
+})

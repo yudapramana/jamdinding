@@ -28,60 +28,67 @@
     <div class="container-fluid">
       <div class="card">
         <!-- HEADER -->
-        <div class="card-header">
-          <div class="d-flex flex-wrap justify-content-between align-items-center w-100">
-            <!-- LEFT -->
-            <div class="d-flex flex-wrap align-items-center">
-              <label class="mb-0 mr-1 text-sm text-muted">Tampilkan</label>
-              <select v-model.number="perPage" class="form-control form-control-sm w-auto mr-2">
+        <div class="card-header py-2">
+          <div class="d-flex flex-wrap align-items-center justify-content-between">
+
+            <!-- LEFT: FILTERS -->
+            <div class="d-flex flex-wrap align-items-center gap-2">
+
+              <!-- PER PAGE -->
+              <span class="text-xs text-muted">Tampil</span>
+              <select
+                v-model.number="perPage"
+                class="form-control form-control-sm w-auto"
+              >
                 <option :value="10">10</option>
                 <option :value="25">25</option>
                 <option :value="50">50</option>
                 <option :value="100">100</option>
               </select>
-              <label class="mb-0 text-sm text-muted mr-3">Entri</label>
+              <span class="text-xs text-muted">entri</span>
 
-              <strong class="mr-3">|</strong>
-
-              <label class="mb-0 mr-1 text-sm text-muted">Status Daftar Ulang</label>
+              <!-- STATUS DAFTAR ULANG -->
               <select
                 v-model="filters.reregistration_status"
-                class="form-control form-control-sm w-auto mr-2"
+                class="form-control form-control-sm w-auto"
+                title="Status Daftar Ulang"
               >
-                <option value="">Semua</option>
+                <option value="">Semua Status</option>
                 <option value="not_yet">Belum Hadir</option>
                 <option value="verified">Terverifikasi</option>
                 <option value="rejected">Diskualifikasi</option>
               </select>
+
+              <!-- CABANG -->
+              <select
+                v-model="filters.event_group_id"
+                class="form-control form-control-sm w-auto"
+                title="Cabang / Golongan"
+              >
+                <option value="">Cabang</option>
+                <option
+                  v-for="g in masterDataStore.eventGroups"
+                  :key="g.id"
+                  :value="String(g.id)"
+                >
+                  {{ g.full_name || g.name || g.group_name || ('Gol #' + g.id) }}
+                </option>
+              </select>
+
             </div>
 
-            <strong class="mr-2">|</strong>
-
-            <label class="mb-0 mr-1 text-sm text-muted">Cabang</label>
-            <select
-              v-model="filters.event_group_id"
-              class="form-control form-control-sm w-auto mr-2"
-            >
-              <option value="">--Belum Dipilih--</option>
-              <option
-                v-for="g in eventGroups"
-                :key="g.id"
-                :value="String(g.id)"
-              >
-                {{ g.full_name || g.name || g.group_name || ('Golongan #' + g.id) }}
-              </option>
-            </select>
-
-            <!-- RIGHT -->
+            <!-- RIGHT: SEARCH -->
             <input
               v-model="search"
               type="text"
-              class="form-control form-control-sm w-auto mt-2 mt-sm-0"
-              style="min-width: 260px"
-              placeholder="Cari nama / NIK / kontingen..."
+              class="form-control form-control-sm mt-2 mt-md-0"
+              style="width: 260px"
+              placeholder="Cari nama / NIK / kontingen…"
             />
+
           </div>
         </div>
+
 
         <!-- TABLE -->
         <div class="card-body table-responsive p-0">
@@ -212,7 +219,7 @@
                           NIK: {{ member.participant?.nik || '-' }}
                         </div>
 
-                        <span
+                        <button @click="openViewModal(member)"
                           class="badge mt-1"
                           :class="member.reregistration_status === 'verified'
                             ? 'badge-success'
@@ -227,7 +234,8 @@
                           {{ member.reregistration_status === 'verified'
                             ? 'Terverifikasi'
                             : 'Diskualifikasi' }}
-                        </span>
+                        </button>
+                        
                       </div>
 
                     </div>
@@ -389,6 +397,7 @@ import { useDebounceFn } from '@vueuse/core'
 import axios from 'axios'
 import Swal from 'sweetalert2'
 import { useAuthUserStore } from '../stores/AuthUserStore'
+import { useMasterDataStore } from '../stores/MasterDataStore'
 import ViewParticipantModal from './ViewParticipantModal.vue'
 import ReRegisterModal from './ReRegisterModal.vue'
 import { reregistrationBadgeClass, reregistrationStatusLabel } from './EventParticipantHelpers'
@@ -406,6 +415,7 @@ const openReRegisterTeamModal = (team) => {
 
 // AUTH
 const authUserStore = useAuthUserStore()
+const masterDataStore = useMasterDataStore()
 const eventData = computed(() => authUserStore.eventData || null)
 const eventId = computed(() => eventData.value?.id || null)
 
@@ -477,11 +487,9 @@ const canDrawNumber = (item) => {
 const fetchEventMasterData = async () => {
   if (!eventId.value) return
   try {
-    const { data } = await axios.get(`/api/v1/events/${eventId.value}/simple`)
-    // diasumsikan controller mengembalikan: event, branches, groups, categories
-    eventBranches.value = data.branches || []
-    eventGroups.value = data.groups || []
-    eventCategories.value = data.categories || []
+    eventBranches.value = masterDataStore.eventBranches
+    eventGroups.value = masterDataStore.eventGroups
+    eventCategories.value = masterDataStore.eventCategories
   } catch (error) {
     console.error('Gagal memuat master event (branches/groups/categories):', error)
     Swal.fire('Gagal', 'Gagal memuat daftar cabang event & golongan.', 'error')
@@ -631,4 +639,12 @@ onMounted(async () => {
 .gender-badge { width: 22px; text-align: center; }
 
 .progress.progress-sm { height: 16px; font-size: 10px; }
+.gap-2 {
+  gap: .5rem;
+}
+
+.text-xs {
+  font-size: 0.75rem;
+}
+
 </style>

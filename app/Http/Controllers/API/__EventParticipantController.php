@@ -10,6 +10,7 @@ use App\Models\EventCategory;
 use App\Models\EventGroup;
 use App\Models\EventParticipant;
 use App\Models\Participant;
+use App\Models\EventTeam;
 use App\Models\Province;
 use App\Models\Regency;
 use App\Models\Village;
@@ -454,59 +455,185 @@ class __EventParticipantController extends Controller
                 'bank_data','process','verified','need_revision','rejected','disqualified'
             ])],
             'registration_notes'    => ['nullable', 'string'],
-            'reregistration_status' => ['nullable', Rule::in([
-                'not_yet','verified','rejected'
-            ])],
+            'reregistration_status' => ['nullable', Rule::in(['not_yet','verified','rejected'])],
             'reregistration_notes'  => ['nullable', 'string'],
         ]);
 
-        // Pastikan satu peserta hanya sekali per event
-        $exists = EventParticipant::where('event_id', $event->id)
-            ->where('participant_id', $validated['participant_id'])
-            ->exists();
+        dd($validated);
 
-        if ($exists) {
-            return response()->json([
-                'message' => 'Peserta ini sudah terdaftar di event ini.'
-            ], 422);
-        }
+        return DB::transaction(function () use ($validated, $event) {
 
-        // Ambil peserta untuk hitung usia
-        $participant = Participant::findOrFail($validated['participant_id']);
-        $dob = Carbon::parse($participant->date_of_birth);
+            /*
+            |--------------------------------------------------------------------------
+            | 1️⃣ CEK DUPLIKASI PESERTA DALAM EVENT
+            |--------------------------------------------------------------------------
+            */
+            $exists = EventParticipant::where('event_id', $event->id)
+                ->where('participant_id', $validated['participant_id'])
+                ->exists();
 
-        // Ambil tanggal referensi umur (pakai tanggal_batas_umur kalau ada, kalau tidak pakai event_date atau now)
-        $refDate = $event->tanggal_batas_umur
-            ?? $event->start_date
-            ?? now();
+            if ($exists) {
+                abort(422, 'Peserta ini sudah terdaftar di event ini.');
+            }
 
-        $ref = Carbon::parse($refDate);
+            /*
+            |--------------------------------------------------------------------------
+            | 2️⃣ AMBIL GROUP & CEK APAKAH TIM
+            |--------------------------------------------------------------------------
+            */
+            $eventGroup = EventGroup::with('eventBranch')->findOrFail($validated['event_group_id']);
+            $isTeam     = (bool) $eventGroup->is_team;
+            $eventBranchId = $eventGroup->event_branch_id;
 
-        $ageYears  = $dob->diffInYears($ref);
-        $tmp       = $dob->copy()->addYears($ageYears);
-        $ageMonths = $tmp->diffInMonths($ref);
-        $tmp2      = $tmp->copy()->addMonths($ageMonths);
-        $ageDays   = $tmp2->diffInDays($ref);
+            /*
+            |--------------------------------------------------------------------------
+            | 3️⃣ HITUNG UMUR PESERTA
+            |--------------------------------------------------------------------------
+            */
+            $participant = Participant::findOrFail($validated['participant_id']);
+            $dob = Carbon::parse($participant->date_of_birth);
 
-        $ep = new EventParticipant();
-        $ep->event_id             = $event->id;
-        $ep->participant_id       = $participant->id;
-        $ep->event_group_id       = $validated['event_group_id'];
-        $ep->event_category_id    = $validated['event_category_id'];
-        $ep->contingent           = $validated['contingent'] ?? null;
-        $ep->registration_status  = $validated['registration_status'];
-        $ep->registration_notes   = $validated['registration_notes'] ?? null;
-        $ep->reregistration_status = $validated['reregistration_status'] ?? 'not_yet';
-        $ep->reregistration_notes = $validated['reregistration_notes'] ?? null;
+            $refDate = $event->tanggal_batas_umur
+                ?? $event->start_date
+                ?? now();
 
-        $ep->age_year  = $ageYears;
-        $ep->age_month = $ageMonths;
-        $ep->age_day   = $ageDays;
+            $ref = Carbon::parse($refDate);
 
-        $ep->save();
+            $ageYears  = $dob->diffInYears($ref);
+            $tmp       = $dob->copy()->addYears($ageYears);
+            $ageMonths = $tmp->diffInMonths($ref);
+            $tmp2      = $tmp->copy()->addMonths($ageMonths);
+            $ageDays   = $tmp2->diffInDays($ref);
 
-        return response()->json($ep, 201);
+            /*
+            |--------------------------------------------------------------------------
+            | 4️⃣ JIKA TIM → CARI / BUAT EVENT_TEAM
+            |--------------------------------------------------------------------------
+            */
+            $eventTeamId = null;
+
+            if ($isTeam) {
+
+                if (empty($validated['contingent'])) {
+                    abort(422, 'Contingent wajib diisi untuk cabang beregu.');
+                }
+
+                // Cari tim existing berdasarkan event + cabang + group + kategori + contingent
+                $team = EventTeam::where('event_id', $event->id)
+                    ->where('event_branch_id', $eventBranchId)
+                    ->where('event_group_id', $eventGroup->id)
+                    ->where('event_category_id', $validated['event_category_id'])
+                    ->where('contingent', $validated['contingent'])
+                    ->lockForUpdate()
+                    ->first();
+
+                // Jika belum ada → buat tim baru
+                if (! $team) {
+
+                    $team = EventTeam::create([
+                        'event_id'           => $event->id,
+                        'event_branch_id'    => $eventBranchId,
+                        'event_group_id'     => $eventGroup->id,
+                        'event_category_id'  => $validated['event_category_id'],
+                        'contingent'         => $validated['contingent'],
+                    ]);
+                }
+
+                $eventTeamId = $team->id;
+            }
+
+            /*
+            |--------------------------------------------------------------------------
+            | 5️⃣ SIMPAN EVENT_PARTICIPANT
+            |--------------------------------------------------------------------------
+            */
+            $ep = new EventParticipant();
+            $ep->event_id              = $event->id;
+            $ep->participant_id        = $participant->id;
+            $ep->event_branch_id       = $eventBranchId;
+            $ep->event_group_id        = $eventGroup->id;
+            $ep->event_category_id     = $validated['event_category_id'];
+            $ep->event_team_id         = $eventTeamId;
+
+            $ep->contingent            = $validated['contingent'] ?? null;
+            $ep->registration_status   = $validated['registration_status'];
+            $ep->reregistration_status = $validated['reregistration_status'] ?? 'not_yet';
+
+            $ep->age_year  = $ageYears;
+            $ep->age_month = $ageMonths;
+            $ep->age_day   = $ageDays;
+
+            $ep->save();
+
+            return response()->json($ep, 201);
+        });
     }
+
+
+    // public function store(Request $request, Event $event)
+    // {
+    //     $validated = $request->validate([
+    //         'participant_id'        => ['required', 'exists:participants,id'],
+    //         'event_group_id'        => ['required', 'exists:event_groups,id'],
+    //         'event_category_id'     => ['required', 'exists:event_categories,id'],
+    //         'contingent'            => ['nullable', 'string'],
+    //         'registration_status'   => ['required', Rule::in([
+    //             'bank_data','process','verified','need_revision','rejected','disqualified'
+    //         ])],
+    //         'registration_notes'    => ['nullable', 'string'],
+    //         'reregistration_status' => ['nullable', Rule::in([
+    //             'not_yet','verified','rejected'
+    //         ])],
+    //         'reregistration_notes'  => ['nullable', 'string'],
+    //     ]);
+
+    //     // Pastikan satu peserta hanya sekali per event
+    //     $exists = EventParticipant::where('event_id', $event->id)
+    //         ->where('participant_id', $validated['participant_id'])
+    //         ->exists();
+
+    //     if ($exists) {
+    //         return response()->json([
+    //             'message' => 'Peserta ini sudah terdaftar di event ini.'
+    //         ], 422);
+    //     }
+
+    //     // Ambil peserta untuk hitung usia
+    //     $participant = Participant::findOrFail($validated['participant_id']);
+    //     $dob = Carbon::parse($participant->date_of_birth);
+
+    //     // Ambil tanggal referensi umur (pakai tanggal_batas_umur kalau ada, kalau tidak pakai event_date atau now)
+    //     $refDate = $event->tanggal_batas_umur
+    //         ?? $event->start_date
+    //         ?? now();
+
+    //     $ref = Carbon::parse($refDate);
+
+    //     $ageYears  = $dob->diffInYears($ref);
+    //     $tmp       = $dob->copy()->addYears($ageYears);
+    //     $ageMonths = $tmp->diffInMonths($ref);
+    //     $tmp2      = $tmp->copy()->addMonths($ageMonths);
+    //     $ageDays   = $tmp2->diffInDays($ref);
+
+    //     $ep = new EventParticipant();
+    //     $ep->event_id             = $event->id;
+    //     $ep->participant_id       = $participant->id;
+    //     $ep->event_group_id       = $validated['event_group_id'];
+    //     $ep->event_category_id    = $validated['event_category_id'];
+    //     $ep->contingent           = $validated['contingent'] ?? null;
+    //     $ep->registration_status  = $validated['registration_status'];
+    //     $ep->registration_notes   = $validated['registration_notes'] ?? null;
+    //     $ep->reregistration_status = $validated['reregistration_status'] ?? 'not_yet';
+    //     $ep->reregistration_notes = $validated['reregistration_notes'] ?? null;
+
+    //     $ep->age_year  = $ageYears;
+    //     $ep->age_month = $ageMonths;
+    //     $ep->age_day   = $ageDays;
+
+    //     $ep->save();
+
+    //     return response()->json($ep, 201);
+    // }
 
     public function show(EventParticipant $eventParticipant)
     {
@@ -879,6 +1006,55 @@ class __EventParticipantController extends Controller
             $eventParticipant->age_year  = $ageYears;
             $eventParticipant->age_month = $ageMonths;
             $eventParticipant->age_day   = $ageDays;
+
+            /*
+            |--------------------------------------------------------------------------
+            | HANDLE TEAM REGISTRATION (JIKA CABANG BEREGU)
+            |--------------------------------------------------------------------------
+            */
+            $eventTeamId = null;
+
+            // pastikan event_group valid
+            if ($fGroup && (bool) $fGroup->is_team === true) {
+
+                if (empty($contingent)) {
+                    throw ValidationException::withMessages([
+                        'event_participant.contingent' => [
+                            'Kontingen wajib diisi untuk cabang beregu.'
+                        ],
+                    ]);
+                }
+
+                // Cari team existing (1 team per contingent per cabang+group+category)
+                $team = EventTeam::where('event_id', $event->id)
+                    ->where('event_branch_id', $eventParticipant->event_branch_id)
+                    ->where('event_group_id', $eventParticipant->event_group_id)
+                    ->where('event_category_id', $eventParticipant->event_category_id)
+                    ->where('contingent', $contingent)
+                    ->lockForUpdate()
+                    ->first();
+
+                // Jika belum ada → buat team baru
+                if (! $team) {
+                    $team = EventTeam::create([
+                        'event_id'          => $event->id,
+                        'event_branch_id'   => $eventParticipant->event_branch_id,
+                        'event_group_id'    => $eventParticipant->event_group_id,
+                        'event_category_id' => $eventParticipant->event_category_id,
+                        'contingent'        => $contingent,
+                        'team_name'         => $contingent,
+
+                        // sesuai permintaan
+                        'branch_sequence'   => null,
+                    ]);
+                }
+
+                $eventTeamId = $team->id;
+            }
+
+            // set ke event_participant (individu = null)
+            $eventParticipant->event_team_id = $eventTeamId;
+
 
             $eventParticipant->save();
 

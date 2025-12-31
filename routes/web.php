@@ -1171,7 +1171,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/api/verval-logs', [VervalLogController::class, 'index']);
 
 
-    Route::get('/api/master', [MasterController::class, 'index']);
+    
 
     Route::get('/api/reports', [ReportController::class, 'index']);
 
