@@ -22,6 +22,9 @@ use Auth;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Str;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Support\Facades\Storage;
+// use Symfony\Component\HttpFoundation\File\UploadedFile;
+use Log;
 
 class __EventParticipantController extends Controller
 {
@@ -718,7 +721,7 @@ class __EventParticipantController extends Controller
      * }
      */
     public function eventParticipant(Request $request)
-    {
+    {   
         // Decode JSON dari FormData
         $participantPayload     = json_decode($request->input('participant', '{}'), true) ?: [];
         $eventParticipantPayload = json_decode($request->input('event_participant', '{}'), true) ?: [];
@@ -728,6 +731,14 @@ class __EventParticipantController extends Controller
             'participant'       => $participantPayload,
             'event_participant' => $eventParticipantPayload,
         ]);
+
+        $event = Event::findOrFail($request['event_participant']['event_id']);
+
+        if (!$event->isStageActive('persiapan')) {
+            return response()->json([
+                'message' => 'Tahap persiapan belum dimulai atau sudah berakhir.'
+            ], 403);
+        }
 
         $participantId      = $participantPayload['id'] ?? null;
         $eventParticipantId = $eventParticipantPayload['id'] ?? null;
@@ -1071,40 +1082,143 @@ class __EventParticipantController extends Controller
     protected function handleAttachments(Request $request, Participant $participant): array
     {
         $fileFields = [
-            'photo_url',
-            'id_card_url',
-            'family_card_url',
-            'bank_book_url',
-            'certificate_url',
-            'other_url',
+            'photo_url'       => ['jpg', 'jpeg', 'png'],
+            'id_card_url'     => ['pdf'],
+            'family_card_url' => ['pdf'],
+            'bank_book_url'   => ['pdf'],
+            'certificate_url' => ['pdf'],
+            'other_url'       => ['pdf'],
         ];
 
+        $disk  = Storage::disk('privatedisk');
         $paths = [];
 
-        foreach ($fileFields as $field) {
-            if ($request->hasFile($field)) {
-                $file      = $request->file($field);
-                $extension = $file->getClientOriginalExtension();
+        foreach ($fileFields as $field => $allowedExtensions) {
 
-                $fileName = $participant->nik . '_' . $field . '.' . $extension;
+            /* ==========================================
+            * 1. FILE BARU DIUPLOAD
+            * ========================================== */
+            if ($request->hasFile($field)) {
+
+                /** @var UploadedFile $file */
+                $file = $request->file($field);
+
+                if (! $file->isValid()) {
+                    throw new \RuntimeException("Upload {$field} gagal.");
+                }
+
+                if ($file->getSize() > 1024 * 1024) {
+                    throw new \RuntimeException("Ukuran {$field} melebihi 1 MB.");
+                }
+
+                $extension = strtolower($file->getClientOriginalExtension());
+                $mime      = $file->getMimeType();
+
+                if (! in_array($extension, $allowedExtensions, true)) {
+                    throw new \RuntimeException("Ekstensi {$field} tidak diizinkan.");
+                }
+
+                $allowedMimeMap = [
+                    'jpg'  => ['image/jpeg'],
+                    'jpeg' => ['image/jpeg'],
+                    'png'  => ['image/png'],
+                    'pdf'  => ['application/pdf'],
+                ];
+
+                if (! in_array($mime, $allowedMimeMap[$extension] ?? [], true)) {
+                    throw new \RuntimeException("Mime type {$field} tidak valid.");
+                }
+
+                /* ===============================
+                * HAPUS FILE LAMA (JIKA ADA)
+                * =============================== */
+                $oldPath = $participant->getRawOriginal($field);
+
+                if ($oldPath) {
+                    // normalisasi: pastikan path relatif ke disk
+                    $oldPath = ltrim($oldPath, '/');
+
+
+                    if (str_starts_with($oldPath, "documents/{$participant->id}/") &&
+                        $disk->exists($oldPath)
+                    ) {
+                        $disk->delete($oldPath);
+                    }
+                }
+
+                /* ===============================
+                * SIMPAN FILE BARU
+                * =============================== */
+                $fileName = Str::uuid()->toString() . '.' . $extension;
 
                 $storedPath = $file->storeAs(
-                    'documents/' . $participant->nik,
+                    "documents/{$participant->id}",
                     $fileName,
                     'privatedisk'
                 );
 
                 $paths[$field] = $storedPath;
-            } elseif ($request->has($field)) {
-                // path lama dari frontend (sudah tanpa /secure/)
-                $oldPath   = $request->input($field);
-                $cleanPath = str_replace('/secure/', '', $oldPath);
-                $paths[$field] = $cleanPath;
+            }
+
+            /* ==========================================
+            * 2. FILE TIDAK DIGANTI → PERTAHANKAN PATH
+            * ========================================== */
+            elseif ($participant->{$field}) {
+
+                $existingPath = ltrim($participant->{$field}, '/');
+
+                if (str_starts_with($existingPath, "documents/{$participant->id}/")) {
+                    $paths[$field] = $existingPath;
+                }
             }
         }
 
+        \Log::info('Participant attachment updated', [
+            'participant_id' => $participant->id,
+            'updated_fields' => array_keys($paths),
+        ]);
+
         return $paths;
     }
+
+
+    // protected function handleAttachments(Request $request, Participant $participant): array
+    // {
+    //     $fileFields = [
+    //         'photo_url',
+    //         'id_card_url',
+    //         'family_card_url',
+    //         'bank_book_url',
+    //         'certificate_url',
+    //         'other_url',
+    //     ];
+
+    //     $paths = [];
+
+    //     foreach ($fileFields as $field) {
+    //         if ($request->hasFile($field)) {
+    //             $file      = $request->file($field);
+    //             $extension = $file->getClientOriginalExtension();
+
+    //             $fileName = $participant->nik . '_' . $field . '.' . $extension;
+
+    //             $storedPath = $file->storeAs(
+    //                 'documents/' . $participant->nik,
+    //                 $fileName,
+    //                 'privatedisk'
+    //             );
+
+    //             $paths[$field] = $storedPath;
+    //         } elseif ($request->has($field)) {
+    //             // path lama dari frontend (sudah tanpa /secure/)
+    //             $oldPath   = $request->input($field);
+    //             $cleanPath = str_replace('/secure/', '', $oldPath);
+    //             $paths[$field] = $cleanPath;
+    //         }
+    //     }
+
+    //     return $paths;
+    // }
 
     public function mutasiWilayah(Request $request, EventParticipant $eventParticipant)
     {
@@ -1193,10 +1307,19 @@ class __EventParticipantController extends Controller
             'registration_status' => ['nullable', Rule::in(['process', 'bank_data', 'verified', 'need_revision'])],
         ]);
 
+        $event = Event::findOrFail($data['event_id']);
+        if (!$event->isStageActive('pendaftaran')) {
+            return response()->json([
+                'message' => 'Tahap pendaftaran belum dimulai atau sudah berakhir.'
+            ], 403);
+        }
+
         $status = $data['registration_status'] ?? 'proses';
 
         EventParticipant::whereIn('id', $data['ids'])
             ->where('event_id', $data['event_id'])
+            ->whereIn('registration_status', ['bank_data','need_revision'])
+            ->whereHas('participant', fn($q)=>$q->where('lampiran_completion_percent','>=',80))
             ->update(['registration_status' => $status]);
 
         return response()->json([

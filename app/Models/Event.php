@@ -4,6 +4,9 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Builder;
+
 
 class Event extends Model
 {
@@ -125,5 +128,57 @@ class Event extends Model
     {
         return $this->hasMany(ParticipantVerification::class);
     }
+
+    /**
+     * Cek apakah stage tertentu sedang aktif untuk event ini
+     *
+     * @param string|int $stage   nama stage (pendaftaran) atau stage_id
+     * @param Carbon|null $at     waktu referensi (default: now)
+     * @return bool
+     */
+    public function isStageActive($stage, ?Carbon $at = null): bool
+    {
+        $at = $at ?: Carbon::now();
+
+        return $this->eventStages()
+            ->where('is_active', true)
+            ->where(function ($q) use ($stage) {
+                if (is_numeric($stage)) {
+                    // berdasarkan stage_id
+                    $q->where('stage_id', $stage);
+                } else {
+                    // berdasarkan nama stage
+                    $q->whereRaw('LOWER(name) = ?', [strtolower($stage)]);
+                }
+            })
+            ->whereDate('start_date', '<=', $at)
+            ->whereDate('end_date', '>=', $at)
+            ->exists();
+    }
+
+    public function activeStage(): ?EventStage
+    {
+        $now = Carbon::now();
+
+        return $this->eventStages()
+            ->where('is_active', true)
+            ->whereDate('start_date', '<=', $now)
+            ->whereDate('end_date', '>=', $now)
+            ->orderBy('order_number')
+            ->first();
+    }
+
+    public function isRegistrationOpen(): bool
+    {
+        return $this->isStageActive('pendaftaran');
+    }
+
+    public function isPreparationOpen(): bool
+    {
+        return $this->isStageActive('persiapan');
+    }
+
+
+
 
 }

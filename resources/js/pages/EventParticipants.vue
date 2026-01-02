@@ -9,12 +9,12 @@
           </p>
 
           <!-- Info event aktif -->
-          <p v-if="eventId" class="mb-0 mt-1 text-sm text-muted">
+          <!-- <p v-if="eventId" class="mb-0 mt-1 text-sm text-muted">
             Event aktif:
             <strong>{{ eventData?.event_name }}</strong>
             <span v-if="eventData?.event_year"> ({{ eventData.event_year }})</span>
             • Lokasi: <strong>{{ eventData?.event_location || '-' }}</strong>
-          </p>
+          </p> -->
         </div>
 
         <div class="btn-group btn-group-sm">
@@ -24,20 +24,20 @@
 
           <button
             class="btn btn-success btn-sm"
-            :disabled="!selectedParticipantIds.length || !eventId"
+            :disabled="!selectedParticipantIds.length || !eventId || !canRegisterParticipant"
             @click="openRegisterModal"
           >
             <i class="fas fa-check-double mr-1"></i>
-            Daftarkan Peserta
+            Daftarkan
           </button>
 
           <button
             class="btn btn-primary btn-sm"
             @click="openCreateModal"
-            :disabled="!eventId"
+            :disabled="!eventId || !canAddParticipant"
           >
             <i class="fas fa-user-plus mr-1"></i>
-            Tambah Peserta
+            Tambah
           </button>
         </div>
 
@@ -1559,6 +1559,31 @@ import {
   createAttachmentHandlers,
 } from './EventParticipantHelpers'
 
+const eventStages = computed(() => masterDataStore.eventStages || [])
+
+const now = () => new Date()
+
+const isStageActive = (stageName) => {
+  const stage = eventStages.value.find(
+    s => s.name.toLowerCase() === stageName.toLowerCase()
+  )
+  if (!stage) return false
+
+  const start = new Date(stage.start_date)
+  const end   = new Date(stage.end_date)
+
+  return now() >= start && now() <= end && stage.is_active
+}
+
+const canAddParticipant = computed(() => {
+  return isStageActive('Persiapan')
+})
+
+const canRegisterParticipant = computed(() => {
+  return isStageActive('Pendaftaran')
+})
+
+
 // ==================================================
 // AUTH & EVENT CONTEXT
 // ==================================================
@@ -1578,10 +1603,9 @@ const settingStore = useSettingStore()
 
 
 const isCheckboxDisabled = (p) => {
-  // 🧪 DEVELOPMENT MODE → selalu aktif
+  if (!canRegisterParticipant.value) return true
   if (settingStore.isDevelopment) return false
 
-  // 🚀 PRODUCTION RULE
   return (
     !['bank_data', 'need_revision'].includes(
       (p.registration_status || '').toLowerCase()
@@ -1589,6 +1613,7 @@ const isCheckboxDisabled = (p) => {
     (p.participant?.lampiran_completion_percent || 0) < 80
   )
 }
+
 
 
 

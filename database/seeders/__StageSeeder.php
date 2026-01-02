@@ -13,7 +13,7 @@ class __StageSeeder extends Seeder
             [
                 'order_number' => 1,
                 'name'         => 'Persiapan',
-                'days'         => 15,
+                'days'         => 120,
                 'description'  => 'Tahapan awal untuk persiapan sistem, dokumen, dan koordinasi panitia.',
                 'is_active'    => true,
             ],

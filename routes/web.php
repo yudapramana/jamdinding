@@ -767,11 +767,22 @@ Route::get('/login/google/redirect', [SocialiteController::class, 'redirect'])
 Route::get('/login/google/callback', [SocialiteController::class, 'callback'])
     ->name('google.callback');
 
+// Route::middleware('auth')->group(function () {
+//     Route::get('/secure/documents/{nip}/{filename}', [PublicDocController::class, 'stream'])
+//         ->where(['nip' => '\d+', 'filename' => '[^/]+'])
+//         ->name('secure.docs.stream');
+// });
+
 Route::middleware('auth')->group(function () {
-    Route::get('/secure/documents/{nip}/{filename}', [PublicDocController::class, 'stream'])
-        ->where(['nip' => '\d+', 'filename' => '[^/]+'])
+    Route::get('/secure/documents/{participant}/{filename}', [PublicDocController::class, 'stream'])
+        ->where([
+            'participant' => '\d+',
+            'filename' => '[^/]+'
+        ])
         ->name('secure.docs.stream');
 });
+
+
 
 Route::get('/get-gdrive-file', function() {
     $path = '199407292022031002/AKYBS_199407292022031002.pdf';

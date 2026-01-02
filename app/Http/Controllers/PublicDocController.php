@@ -3,66 +3,63 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
+use App\Models\Participant;
 
 class PublicDocController extends Controller
 {
-    public function stream(Request $request, string $nik, string $filename)
-    {
-        $user = Auth::user();
 
-        // Sanitasi nama file (hindari traversal)
+   public function stream(Request $request, Participant $participant, string $filename)
+    {
+        // ==========================================
+        // AUTHORIZATION → PARTICIPANT POLICY
+        // ==========================================
+        $this->authorize('viewDocument', $participant);
+
+        // ==========================================
+        // SANITASI FILENAME
+        // ==========================================
         $safeFilename = basename($filename);
-        $relativePath = "documents/{$nik}/{$safeFilename}";
+
+        // path relatif ke disk
+        $relativePath = "documents/{$participant->id}/{$safeFilename}";
 
         $disk = Storage::disk('privatedisk');
 
-        if (!$disk->exists($relativePath)) {
+        if (! $disk->exists($relativePath)) {
             return view('errors.404');
         }
 
-        // Path absolut ke file di storage/app/public
+        // ==========================================
+        // STREAM FILE
+        // ==========================================
         $absolutePath = $disk->path($relativePath);
 
-        // Siapkan response file (inline)
         $response = response()->file($absolutePath, [
-            'Content-Disposition'       => 'inline; filename="'.$safeFilename.'"',
-            'Cache-Control'             => 'private, max-age=3600',
-            "Content-Security-Policy"   => "frame-ancestors 'self'",
+            'Content-Disposition'     => 'inline; filename="'.$safeFilename.'"',
+            'Cache-Control'           => 'private, max-age=3600',
+            'Content-Security-Policy' => "frame-ancestors 'self'",
         ]);
 
-        // Set Last-Modified + dukung 304 Not Modified
+        // ==========================================
+        // SUPPORT 304 NOT MODIFIED
+        // ==========================================
         try {
-            $lastModTs = $disk->lastModified($relativePath); // unix ts
+            $lastModTs = $disk->lastModified($relativePath);
             if ($lastModTs) {
-                $dt = (new \DateTime())->setTimestamp($lastModTs);
-                $response->setLastModified($dt);
+                $response->setLastModified(
+                    (new \DateTime())->setTimestamp($lastModTs)
+                );
+
                 if ($response->isNotModified($request)) {
-                    // Symfony akan set 304 & kosongkan body
                     return $response;
                 }
             }
         } catch (\Throwable $e) {
-            // abaikan jika adapter tidak dukung lastModified
+            // abaikan jika adapter tidak mendukung
         }
 
         return $response;
     }
 
-    private function notFoundOrForbidden(Request $request, int $status, string $message)
-    {
-        // HEAD request: kosongkan body, tetap kirim status
-        if ($request->isMethod('HEAD')) {
-            return response('', $status, ['Content-Type' => 'text/plain']);
-        }
-
-        // XHR/JSON
-        if ($request->expectsJson() || $request->ajax()) {
-            return response()->json(['message' => $message], $status);
-        }
-
-        // HTML biasa
-        return response($message, $status);
-    }
 }
