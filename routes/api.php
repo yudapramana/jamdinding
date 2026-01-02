@@ -1,56 +1,47 @@
 <?php
 
 use App\Http\Controllers\Admin\MasterController;
-use App\Http\Controllers\Api\__BranchController;
-use App\Http\Controllers\Api\__CategoryController;
-use App\Http\Controllers\Api\__EventBranchController;
-use App\Http\Controllers\Api\__EventCategoryController;
-use App\Http\Controllers\API\__EventCompetitionController;
-use App\Http\Controllers\API\__EventCompetitionRankingController;
-use App\Http\Controllers\API\__EventCompetitionScoresController;
-use App\Http\Controllers\API\__EventCompetitionScoringController;
-use App\Http\Controllers\API\__EventContingentController;
-use App\Http\Controllers\Api\__EventContingentStandingsController;
-use App\Http\Controllers\API\__EventController;
-use App\Http\Controllers\API\__EventFieldComponentController;
-use App\Http\Controllers\Api\__EventGroupController;
-use App\Http\Controllers\API\__EventJudgePanelController;
-use App\Http\Controllers\Api\__EventKokardeController;
-use App\Http\Controllers\Api\__EventMedalRuleController;
-use App\Http\Controllers\API\__EventParticipantController;
-use App\Http\Controllers\API\__EventStageController;
-use App\Http\Controllers\API\__EventTeamNumberController;
-use App\Http\Controllers\API\__EventTeamReRegistrationController;
-use App\Http\Controllers\Api\__GroupController;
-use App\Http\Controllers\API\__JudgeUserController;
-use App\Http\Controllers\Api\__ListFieldController;
-use App\Http\Controllers\Api\__MasterBranchController;
-use App\Http\Controllers\Api\__MasterCategoryController;
-use App\Http\Controllers\Api\__MasterFieldComponentController;
-use App\Http\Controllers\API\__MasterGroupController;
-use App\Http\Controllers\Api\__MedalRuleController;
-use App\Http\Controllers\API\__ParticipantController;
-use App\Http\Controllers\API\__StageController;
-use App\Http\Controllers\API\__UserController;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\API\StageController;
-use App\Http\Controllers\API\EventStageController;
-use App\Http\Controllers\API\MasterCompetitionGroupController;
-use App\Http\Controllers\API\MasterCompetitionCategoryController;
-use App\Http\Controllers\API\MasterCompetitionBranchController;
-use App\Http\Controllers\API\EventCompetitionBranchController;
+
 use App\Http\Controllers\API\RoleController;
 use App\Http\Controllers\API\PermissionRoleController;
 use App\Http\Controllers\API\SimpleRoleController;
 use App\Http\Controllers\API\SimplePermissionController;
-use App\Http\Controllers\API\EventController;
-use App\Http\Controllers\API\EventParticipantReRegistrationController;
-use App\Http\Controllers\API\ParticipantController;
+// use App\Http\Controllers\API\EventParticipantReRegistrationController;
 use App\Http\Controllers\API\LocationController;
-use App\Http\Controllers\API\ParticipantVerificationController;
 use App\Http\Controllers\API\PublicEventController;
+use App\Http\Controllers\API\V1\BranchController;
+use App\Http\Controllers\API\V1\CategoryController;
+use App\Http\Controllers\API\V1\EventBranchController;
+use App\Http\Controllers\API\V1\EventCategoryController;
+use App\Http\Controllers\API\V1\EventCompetitionController;
+use App\Http\Controllers\API\V1\EventCompetitionRankingController;
+use App\Http\Controllers\API\V1\EventCompetitionScoresController;
+use App\Http\Controllers\API\V1\EventCompetitionScoringController;
+use App\Http\Controllers\API\V1\EventContingentStandingsController;
+use App\Http\Controllers\API\V1\EventController;
+use App\Http\Controllers\API\V1\EventFieldComponentController;
+use App\Http\Controllers\API\V1\EventGroupController;
+use App\Http\Controllers\API\V1\EventJudgePanelController;
+use App\Http\Controllers\API\V1\EventKokardeController;
+use App\Http\Controllers\API\V1\EventMedalRuleController;
+use App\Http\Controllers\API\V1\EventParticipantController;
+use App\Http\Controllers\API\V1\EventParticipantReRegistrationController;
+use App\Http\Controllers\API\V1\EventStageController;
+use App\Http\Controllers\API\V1\GroupController;
+use App\Http\Controllers\API\V1\JudgeUserController;
+use App\Http\Controllers\API\V1\ListFieldController;
+use App\Http\Controllers\API\V1\MasterBranchController;
+use App\Http\Controllers\API\V1\MasterCategoryController;
+use App\Http\Controllers\API\V1\MasterFieldComponentController;
+use App\Http\Controllers\API\V1\MasterGroupController;
+use App\Http\Controllers\API\V1\MedalRuleController;
+use App\Http\Controllers\API\V1\ParticipantController;
+use App\Http\Controllers\API\V1\ParticipantVerificationController;
+use App\Http\Controllers\API\V1\StageController;
+use App\Http\Controllers\API\V1\UserController;
 use App\Http\Controllers\WhatsAppController;
 use App\Http\Controllers\Auth\PasswordResetWhatsappController;
 
@@ -93,309 +84,197 @@ Route::middleware(['auth:sanctum']) // kalau belum pakai sanctum, boleh dihapus 
     ->prefix('v1')
     ->group(function () {
 
-
         Route::get('master', [MasterController::class, 'index']);
 
         /**
-         * REFERENCE DATA
+         * CORE DATA
          * Data sebagai Referensi untuk master dan transactional data
          */
         // REFERENSI CABANG GOLONGAN
-        Route::apiResource('branches', __BranchController::class)->except(['show']);
-        Route::apiResource('groups', __GroupController::class)->except(['show']);
-        Route::apiResource('categories', __CategoryController::class)->except(['show']);
+        Route::apiResource('branches', BranchController::class)->except(['show']);
+        Route::apiResource('groups', GroupController::class)->except(['show']);
+        Route::apiResource('categories', CategoryController::class)->except(['show']);
 
         // REFERENSI BIDANG PENILAIAN
-        Route::apiResource('list-fields', __ListFieldController::class)->except(['show']);
+        Route::apiResource('list-fields', ListFieldController::class)->except(['show']);
         
         // REFERENSI TAHAPAN
-        Route::apiResource('stages', __StageController::class);
+        Route::apiResource('stages', StageController::class);
 
-        Route::apiResource('medal-rules', __MedalRuleController::class);
+        // REFERENSI PERATURAN MEDALI
+        Route::apiResource('medal-rules', MedalRuleController::class);
+
+        // REFERENSI PERMISSION ROLES
+        Route::apiResource('permission-roles', PermissionRoleController::class);
+        Route::post('/roles/{role}/sync-permissions', [PermissionRoleController::class, 'sync']);
+        Route::get('roles-simple', [SimpleRoleController::class, 'index']); // HELPER ROLES
+        Route::get('permissions-simple', [SimplePermissionController::class, 'index']); // HELPER PERMISSIONS
+
 
         /**
          * MASTER DATA
          * Data jadi yang bisa digunakan untuk transactional data
          */
         // MASTER CABANG GOLONGAN
-        Route::apiResource('master-branches', __MasterBranchController::class)->except(['show']);
-        Route::apiResource('master-groups', __MasterGroupController::class)->except(['show']);
-        Route::apiResource('master-categories', __MasterCategoryController::class)->except(['show']);
+        Route::apiResource('master-branches', MasterBranchController::class)->except(['show']);
+        Route::apiResource('master-groups', MasterGroupController::class)->except(['show']);
+        Route::apiResource('master-categories', MasterCategoryController::class)->except(['show']);
 
         // MASTER KOMPONEN PENILAIAN
-        Route::apiResource('master-field-components', __MasterFieldComponentController::class)->except(['show']);
+        Route::apiResource('master-field-components', MasterFieldComponentController::class)->except(['show']);
 
+        // MASTER PARTICIPANTS
+        Route::get('/participants', [ParticipantController::class, 'index']);
+        Route::get('check-nik', [ParticipantController::class, 'checkNik']);
+        Route::get('/participants/search-by-nik', [ParticipantController::class, 'searchByNik']);
+        Route::post('/participants', [ParticipantController::class, 'store']);
+        Route::get('/participants/{participant}', [ParticipantController::class, 'show']);
+        Route::put('/participants/{participant}', [ParticipantController::class, 'update']);
+        Route::delete('/participants/{participant}', [ParticipantController::class, 'destroy']);
 
         /**
          * MANAGED DATA
          * Data yang di manage / dikelola sebagai bagian transactional data
          */
         // EVENT - PENGATURAN DATA TRANSACTIONAL EVENT
-        Route::apiResource('events', __EventController::class);
+        Route::apiResource('events', EventController::class);
 
         // EVENT - PENGATURAN TAHAPAN EVENT
-        Route::apiResource('event-stages', __EventStageController::class)->except(['index']);
-        // Route::get('events/{event}/stages', [__EventStageController::class, 'index'])->middleware('permission:event.manage.stage');
-        Route::get('events/{event}/stages', [__EventStageController::class, 'index']);
-        // Route::post('events/{event}/stages/generate-default', [__EventStageController::class, 'generateFromMaster'])->middleware('permission:event.manage.stage');
-        Route::post('events/{event}/stages/generate-default', [__EventStageController::class, 'generateFromMaster']);
+        Route::apiResource('event-stages', EventStageController::class)->except(['index']);
+        Route::get('events/{event}/stages', [EventStageController::class, 'index']);
+        Route::post('events/{event}/stages/generate-default', [EventStageController::class, 'generateFromMaster']);
 
         // EVENT - PENGATURAN CABANG LOMBA
-        Route::get('event-branches', [__EventBranchController::class, 'index']);
-        Route::post('event-branches', [__EventBranchController::class, 'store']);
-        Route::put('event-branches/{eventBranch}', [__EventBranchController::class, 'update']);
-        Route::delete('event-branches/{eventBranch}', [__EventBranchController::class, 'destroy']);
-        Route::post('event-branches/generate-from-template', [__EventBranchController::class, 'generateFromTemplate']); // tombol "Generate dari Template"
+        Route::get('event-branches', [EventBranchController::class, 'index']);
+        Route::post('event-branches', [EventBranchController::class, 'store']);
+        Route::put('event-branches/{eventBranch}', [EventBranchController::class, 'update']);
+        Route::delete('event-branches/{eventBranch}', [EventBranchController::class, 'destroy']);
+        Route::post('event-branches/generate-from-template', [EventBranchController::class, 'generateFromTemplate']); // tombol "Generate dari Template"
 
         // EVENT - PENGATURAN GOLONGAN LOMBA
-        Route::get('event-groups', [__EventGroupController::class, 'index']);
-        Route::post('event-groups', [__EventGroupController::class, 'store']);
-        Route::put('event-groups/{eventGroup}', [__EventGroupController::class, 'update']);
-        Route::delete('event-groups/{eventGroup}', [__EventGroupController::class, 'destroy']);
-        Route::post('event-groups/generate-from-template', [__EventGroupController::class, 'generateFromTemplate']); // Generate dari master_groups
+        Route::get('event-groups', [EventGroupController::class, 'index']);
+        Route::post('event-groups', [EventGroupController::class, 'store']);
+        Route::put('event-groups/{eventGroup}', [EventGroupController::class, 'update']);
+        Route::delete('event-groups/{eventGroup}', [EventGroupController::class, 'destroy']);
+        Route::post('event-groups/generate-from-template', [EventGroupController::class, 'generateFromTemplate']); // Generate dari master_groups
         
-        // EVENT - PENGATURAN CABANG GOLONGAN LOMBA
-        Route::get('event-categories', [__EventCategoryController::class, 'index']);
-        Route::post('event-categories', [__EventCategoryController::class, 'store']);
-        Route::put('event-categories/{eventCategory}', [__EventCategoryController::class, 'update']);
-        Route::delete('event-categories/{eventCategory}', [__EventCategoryController::class, 'destroy']);
-        Route::post('event-categories/generate-from-template', [__EventCategoryController::class, 'generateFromTemplate']);
+        // EVENT - PENGATURAN KATEGORI LOMBA (PUTRA | PUTRI)
+        Route::get('event-categories', [EventCategoryController::class, 'index']);
+        Route::post('event-categories', [EventCategoryController::class, 'store']);
+        Route::put('event-categories/{eventCategory}', [EventCategoryController::class, 'update']);
+        Route::delete('event-categories/{eventCategory}', [EventCategoryController::class, 'destroy']);
+        Route::post('event-categories/generate-from-template', [EventCategoryController::class, 'generateFromTemplate']);
 
         // EVENT - PENGATURAN KOMPONEN PENILAIAN LOMBA
-        Route::get('event-field-components', [__EventFieldComponentController::class, 'index']);
-        Route::post('event-field-components', [__EventFieldComponentController::class, 'store']);
-        Route::put('event-field-components/{id}', [__EventFieldComponentController::class, 'update']);
-        Route::delete('event-field-components/{id}', [__EventFieldComponentController::class, 'destroy']);
-        Route::post('event-field-components/generate-from-template', [__EventFieldComponentController::class, 'generateFromTemplate']);
+        Route::get('event-field-components', [EventFieldComponentController::class, 'index']);
+        Route::post('event-field-components', [EventFieldComponentController::class, 'store']);
+        Route::put('event-field-components/{id}', [EventFieldComponentController::class, 'update']);
+        Route::delete('event-field-components/{id}', [EventFieldComponentController::class, 'destroy']);
+        Route::post('event-field-components/generate-from-template', [EventFieldComponentController::class, 'generateFromTemplate']);
 
-        // Participants (bank data)
-        Route::get('/participants', [__ParticipantController::class, 'index']);
-        Route::get('/participants/search-by-nik', [__ParticipantController::class, 'searchByNik']);
-        Route::post('/participants', [__ParticipantController::class, 'store']);
-        Route::get('/participants/{participant}', [__ParticipantController::class, 'show']);
-        Route::put('/participants/{participant}', [__ParticipantController::class, 'update']);
-        Route::delete('/participants/{participant}', [__ParticipantController::class, 'destroy']);
+        // EVENT USERS
+        Route::apiResource('users', UserController::class);
+        Route::post('events/{event}/generate-users', [UserController::class, 'generateUsersByEvent']);
+        Route::get('roles', [RoleController::class, 'index']);
 
-        // Event Participants
-        Route::get('/events/{event}/participants', [__EventParticipantController::class, 'index']);
-        Route::post('/events/{event}/participants', [__EventParticipantController::class, 'store']);
+        // EVENT MEDAL RULES
+        Route::get('event-medal-rules', [EventMedalRuleController::class, 'index']);
+        Route::post('event-medal-rules', [EventMedalRuleController::class, 'store']);
+        Route::put('event-medal-rules/{eventMedalRule}', [EventMedalRuleController::class, 'update']);
+        Route::delete('event-medal-rules/{eventMedalRule}', [EventMedalRuleController::class, 'destroy']);
+        Route::post('event-medal-rules/generate-from-template', [EventMedalRuleController::class, 'generateFromTemplate']);
 
-        Route::get('/events/{event}/simple', [__EventParticipantController::class, 'simple']);
-        Route::get('/events/{event}/participants/simple', [__EventParticipantController::class, 'simpleParticipant']);
+        /**
+         * PARTICIPANT DATA
+         * Data Peserta Event dengan Siklus
+         */
+        // EVENT PARTICIPANT - BANK DATA TO REGISTRATIONS
+        Route::get('/events/{event}/participants', [EventParticipantController::class, 'index']);
+        Route::post('/save-event-participants/', [EventParticipantController::class, 'eventParticipant']);
+        Route::get('/events/{event}/simple', [EventParticipantController::class, 'simple']);
+        Route::get('/events/{event}/participants/simple', [EventParticipantController::class, 'simpleParticipant']);
+        Route::get('/event-participants/{eventParticipant}', [EventParticipantController::class, 'show']);
+        Route::put('/event-participants/{eventParticipant}', [EventParticipantController::class, 'update']);
+        Route::delete('/event-participants/{eventParticipant}', [EventParticipantController::class, 'destroy']);
+        Route::post('event-participants/{eventParticipant}/mutasi-wilayah', [EventParticipantController::class, 'mutasiWilayah']);
+        Route::post('event-participants/bulk-register', [EventParticipantController::class, 'bulkRegister']);
 
-        Route::post('/save-event-participants/', [__EventParticipantController::class, 'eventParticipant']);
-
-        Route::get('/event-participants/{eventParticipant}', [__EventParticipantController::class, 'show']);
-        Route::put('/event-participants/{eventParticipant}', [__EventParticipantController::class, 'update']);
-        Route::delete('/event-participants/{eventParticipant}', [__EventParticipantController::class, 'destroy']);
-        Route::post('event-participants/{eventParticipant}/mutasi-wilayah', [
-            __EventParticipantController::class, 'mutasiWilayah'
-        ]);
-        Route::post('event-participants/bulk-register', [__EventParticipantController::class, 'bulkRegister']);
-        Route::get('get/event-participants/status-counts', [__EventParticipantController::class, 'statusCounts']);
-        Route::get('get/event-participants/{eventParticipant}/biodata-pdf', [__EventParticipantController::class, 'biodataPdf'])
-            ->name('participants.biodata-pdf');
-
+        // EVENT PARTICIPANT - VERIFICATIONS
+        Route::get('get/event-participants/status-counts', [EventParticipantController::class, 'statusCounts']);
+        Route::get('get/event-participants/{eventParticipant}/biodata-pdf', [EventParticipantController::class, 'biodataPdf'])->name('participants.biodata-pdf');
         Route::get('participants/{participant}/verifications', [ParticipantVerificationController::class, 'index']);
         Route::post('participants/{participant}/verifications', [ParticipantVerificationController::class, 'store']);
         Route::get('participants/{participant}/verifications/{verification}', [ParticipantVerificationController::class, 'show']);
-    
-        Route::get('events/{event}/kafilah-pdf', [__EventParticipantController::class, 'kafilahPdf']);
+        
+        // EVENT PARTICIPANT - RE-REGISTRATIONS
+        Route::get('event-participants/re-registration/index', [EventParticipantReRegistrationController::class, 'index']);
+        Route::post('event-participants/{eventParticipant}/re-registration', [EventParticipantReRegistrationController::class, 'store']);
+        Route::post('event-participants/{eventParticipant}/draw-number', [EventParticipantReRegistrationController::class, 'drawNumber']);
+        Route::post('event-participants/{eventParticipant}/assign-number', [EventParticipantReRegistrationController::class, 'assignNumber']);
+        Route::post('event-teams/{eventTeam}/draw-number', [__EventTeamNumberController::class, 'drawNumber']); // EVENT TEAM REREGISTRATION AND DRAW NUMBER
+        Route::post('event-teams/{eventTeam}/assign-number', [__EventTeamNumberController::class, 'assignNumber']);
+        Route::post('event-teams/{eventTeam}/re-registration', [__EventTeamReRegistrationController::class, 'store']);
+        
+        // EVENT PARTICIPANT - FINAL KAFILAH
+        Route::get('events/{event}/kafilah-pdf', [EventParticipantController::class, 'kafilahPdf']);
 
-        //  Judges
-        Route::get('/events/{event}/judge-panels', [__EventJudgePanelController::class, 'index']);
 
+        // EVENT JUDGES
+        Route::get('/events/{event}/judges',  [JudgeUserController::class, 'index']);
+        Route::post('/events/{event}/judges', [JudgeUserController::class, 'store']);
+        Route::put('/judges/{user}',                [JudgeUserController::class, 'update']); // UPDATE
+        Route::delete('/judges/{user}',             [JudgeUserController::class, 'destroy']); // DELETE
+        Route::patch('/judges/{user}/toggle-active',[JudgeUserController::class, 'toggleActive']); // TOGGLE ACTIVE
+
+
+        // EVENT JUDGE PANEL
+        Route::get('/events/{event}/judge-panels', [EventJudgePanelController::class, 'index']);
         // Default cabang (event_branch_judges)
-        Route::get('/event-branches/{eventBranch}/judges', [__EventJudgePanelController::class, 'getBranchJudges']);
-        Route::put('/event-branches/{eventBranch}/judges', [__EventJudgePanelController::class, 'syncBranchJudges']);
-
+        Route::get('/event-branches/{eventBranch}/judges', [EventJudgePanelController::class, 'getBranchJudges']);
+        Route::put('/event-branches/{eventBranch}/judges', [EventJudgePanelController::class, 'syncBranchJudges']);
         // Override golongan (event_group_judges + toggle use_custom_judges)
-        Route::get('/event-groups/{eventGroup}/judges', [__EventJudgePanelController::class, 'getGroupJudges']);
-        Route::put('/event-groups/{eventGroup}/judges', [__EventJudgePanelController::class, 'syncGroupJudges']);
-        Route::patch('/event-groups/{eventGroup}/use-custom-judges', [__EventJudgePanelController::class, 'toggleUseCustom']);
+        Route::get('/event-groups/{eventGroup}/judges', [EventJudgePanelController::class, 'getGroupJudges']);
+        Route::put('/event-groups/{eventGroup}/judges', [EventJudgePanelController::class, 'syncGroupJudges']);
+        Route::patch('/event-groups/{eventGroup}/use-custom-judges', [EventJudgePanelController::class, 'toggleUseCustom']);
 
 
-         // list & create (scoped by event)
-        Route::get('/events/{event}/judges',  [__JudgeUserController::class, 'index']);
-        Route::post('/events/{event}/judges', [__JudgeUserController::class, 'store']);
+        // EVENT COMPETITIONS - TREE 
+        Route::get('/events/{event}/competitions/meta', [EventCompetitionController::class, 'meta']);
+        Route::get('/events/{event}/competitions/tree', [EventCompetitionController::class, 'tree']);
+        Route::post('/events/{event}/competitions', [EventCompetitionController::class, 'store']);
+        Route::get('/event-competitions/{eventCompetition}', [EventCompetitionController::class, 'show']);
+        Route::put('/event-competitions/{eventCompetition}', [EventCompetitionController::class, 'update']);
+        Route::delete('/event-competitions/{eventCompetition}', [EventCompetitionController::class, 'destroy']);
 
-        // update / delete / toggle active
-        Route::put('/judges/{user}',                [__JudgeUserController::class, 'update']);
-        Route::delete('/judges/{user}',             [__JudgeUserController::class, 'destroy']);
-        Route::patch('/judges/{user}/toggle-active',[__JudgeUserController::class, 'toggleActive']);
+        // EVENT COMPETITIONS - SCORING
+        Route::get('/event-competitions/{competition}/scoring/form', [EventCompetitionScoringController::class, 'form']);
+        Route::post('/event-competitions/{competition}/scoring/draft', [EventCompetitionScoringController::class, 'saveDraft']);
+        Route::post('/event-competitions/{competition}/scoring/submit', [EventCompetitionScoringController::class, 'submit']);
+        Route::post('/event-competitions/{competition}/scoring/lock', [EventCompetitionScoringController::class, 'lock']);
 
-        // CRUD permission_role
-        Route::apiResource('permission-roles', PermissionRoleController::class);
-        Route::post('/roles/{role}/sync-permissions', [PermissionRoleController::class, 'sync']);
+        // EVENT COMPETITIONS - SCORES
+        Route::get('/event-competitions/{competition}/scores', [EventCompetitionScoresController::class, 'index']);
+        Route::get('/event-competitions/{competition}/scores-detail', [EventCompetitionScoresController::class, 'indexDetail']);
+        Route::patch('/event-competitions/{competition}/scoresheets/{scoresheet}', [EventCompetitionScoresController::class, 'update']);
 
-        Route::get('/events/{event}/competitions/meta', [__EventCompetitionController::class, 'meta']);
-        Route::get('/events/{event}/competitions/tree', [__EventCompetitionController::class, 'tree']);
-        Route::post('/events/{event}/competitions', [__EventCompetitionController::class, 'store']);
-
-        Route::get('/event-competitions/{eventCompetition}', [__EventCompetitionController::class, 'show']);
-        Route::put('/event-competitions/{eventCompetition}', [__EventCompetitionController::class, 'update']);
-        Route::delete('/event-competitions/{eventCompetition}', [__EventCompetitionController::class, 'destroy']);
-
-
-        Route::get('/event-competitions/{competition}/scoring/form', [__EventCompetitionScoringController::class, 'form']);
-        Route::post('/event-competitions/{competition}/scoring/draft', [__EventCompetitionScoringController::class, 'saveDraft']);
-        Route::post('/event-competitions/{competition}/scoring/submit', [__EventCompetitionScoringController::class, 'submit']);
-        Route::post('/event-competitions/{competition}/scoring/lock', [__EventCompetitionScoringController::class, 'lock']);
-
-
-        // REKAP SCORES
-        Route::get('/event-competitions/{competition}/scores', [__EventCompetitionScoresController::class, 'index']);
-        Route::get('/event-competitions/{competition}/scores-detail', [__EventCompetitionScoresController::class, 'indexDetail']);
-        Route::patch('/event-competitions/{competition}/scoresheets/{scoresheet}', [__EventCompetitionScoresController::class, 'update']);
-
-        // RANKING
-        Route::get('/event-competitions/{competition}/ranking', [__EventCompetitionRankingController::class, 'index']);
-        Route::post('/event-competitions/{competition}/ranking/recalculate', [__EventCompetitionRankingController::class, 'recalculate']);
-        Route::post('/event-competitions/{competition}/ranking/publish', [__EventCompetitionRankingController::class, 'publish']);
-
-        // export -> GET (biar match vue kamu)
-        Route::get('/event-competitions/{competition}/ranking/export', [__EventCompetitionRankingController::class, 'export']);
-
-        // details matrix (nilai per field & hakim)
-        Route::get('/event-competitions/{competition}/ranking/details', [__EventCompetitionRankingController::class, 'details']);
-
-        Route::get('/events/{event}/contingents', [__EventContingentController::class, 'indexByEvent'])->name('api.v1.events.contingents.index');
-
-        Route::get('event-medal-rules', [__EventMedalRuleController::class, 'index']);
-        Route::post('event-medal-rules', [__EventMedalRuleController::class, 'store']);
-        Route::put('event-medal-rules/{eventMedalRule}', [__EventMedalRuleController::class, 'update']);
-        Route::delete('event-medal-rules/{eventMedalRule}', [__EventMedalRuleController::class, 'destroy']);
-
-        Route::post(
-            'event-medal-rules/generate-from-template',
-            [__EventMedalRuleController::class, 'generateFromTemplate']
-        );
-
-        Route::get(
-            'event-contingent-standings',
-            [__EventContingentStandingsController::class, 'index']
-        );
-
-        Route::get(
-            'event-contingent-standings/export/excel',
-            [__EventContingentStandingsController::class, 'exportExcel']
-        );
-
-        Route::get(
-            'event-contingent-standings/export/pdf',
-            [__EventContingentStandingsController::class, 'exportPdf']
-        );
+        // EVENT COMPETITIONS - RANKINGS
+        Route::get('/event-competitions/{competition}/ranking', [EventCompetitionRankingController::class, 'index']);
+        Route::post('/event-competitions/{competition}/ranking/recalculate', [EventCompetitionRankingController::class, 'recalculate']);
+        Route::post('/event-competitions/{competition}/ranking/publish', [EventCompetitionRankingController::class, 'publish']);
+        Route::get('/event-competitions/{competition}/ranking/export', [EventCompetitionRankingController::class, 'export']);
+        Route::get('/event-competitions/{competition}/ranking/details', [EventCompetitionRankingController::class, 'details']);
         
-        Route::get(
-            '/event-kokarde/export/pdf',
-            [__EventKokardeController::class, 'exportPdf']
-        );
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+        // EVENT COMPETITIONS - STANDINGS
+        Route::get('event-contingent-standings',[EventContingentStandingsController::class, 'index']);
+        Route::get('event-contingent-standings/export/excel',[EventContingentStandingsController::class, 'exportExcel']);
+        Route::get('event-contingent-standings/export/pdf',[EventContingentStandingsController::class, 'exportPdf']);
         
+        // EVENT PARTICIPANTS - KOKARDE
+        Route::get('/event-kokarde/export/pdf', [EventKokardeController::class, 'exportPdf']);
 
-        // CRUD Users (per event)
-        Route::apiResource('users', __UserController::class);
-        Route::post('events/{event}/generate-users', [__UserController::class, 'generateUsersByEvent']);
-
-
-        // Optional: list roles untuk dropdown
-        Route::get('roles', [RoleController::class, 'index']);
-
-        
-
-        // Dropdown helper
-        Route::get('roles-simple', [SimpleRoleController::class, 'index']);
-        Route::get('permissions-simple', [SimplePermissionController::class, 'index']);
-
-
-        // // LIST / CREATE / UPDATE / DELETE EVENT_PARTICIPANTS
-        // Route::get('participants', [ParticipantController::class, 'index']);
-        // Route::post('participants', [ParticipantController::class, 'store']);
-        // Route::get('participants/{eventParticipant}', [ParticipantController::class, 'show']);
-        // Route::put('participants/{eventParticipant}', [ParticipantController::class, 'update']);
-        Route::get('check-nik', [ParticipantController::class, 'checkNik']);
-
-
-        // Wilayah
+        // HELPER WILAYAH
         Route::get('get/provinces', [LocationController::class, 'provinces']);
         Route::get('get/regencies', [LocationController::class, 'regencies']);
         Route::get('get/districts', [LocationController::class, 'districts']);
         Route::get('get/villages', [LocationController::class, 'villages']);
-
-         // Cabang / Golongan per Event (untuk dropdown peserta)
-        Route::get('get/event-competition-branches', [LocationController::class, 'eventBranches']);
-
-        Route::post('participants/{eventParticipant}/mutasi-wilayah', [
-            ParticipantController::class, 'mutasiWilayah'
-        ]);
-
-        Route::get('get/participants/search-by-nik', [ParticipantController::class, 'searchByNik']);
-        Route::post('participants/bulk-register', [ParticipantController::class, 'bulkRegister']);
-    
-        Route::get('get/participants/status-counts', [ParticipantController::class, 'statusCounts']);
-
-        Route::get('get/participants/{eventParticipant}/biodata-pdf', [ParticipantController::class, 'biodataPdf'])
-            ->name('participants.biodata-pdf');
-
-
-        
-        Route::get(
-            'event-participants/re-registration/index',
-            [EventParticipantReRegistrationController::class, 'index']
-        );
-
-        Route::post(
-            'event-participants/{eventParticipant}/re-registration',
-            [EventParticipantReRegistrationController::class, 'store']
-        );
-
-        Route::post(
-            'event-participants/{eventParticipant}/draw-number',
-            [EventParticipantReRegistrationController::class, 'drawNumber']
-        );
-
-        Route::post(
-            'event-participants/{eventParticipant}/assign-number',
-            [EventParticipantReRegistrationController::class, 'assignNumber']
-        );
-
-        Route::post(
-            'event-teams/{eventTeam}/draw-number',
-            [__EventTeamNumberController::class, 'drawNumber']
-        );
-
-        Route::post(
-            'event-teams/{eventTeam}/assign-number',
-            [__EventTeamNumberController::class, 'assignNumber']
-        );
-
-
-        Route::post(
-            'event-teams/{eventTeam}/re-registration',
-            [__EventTeamReRegistrationController::class, 'store']
-        );
     });

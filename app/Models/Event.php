@@ -6,6 +6,9 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Cache;
+
 
 
 class Event extends Model
@@ -138,16 +141,32 @@ class Event extends Model
      */
     public function isStageActive($stage, ?Carbon $at = null): bool
     {
+        // ==========================================
+        // 1. BYPASS JIKA ENVIRONMENT = DEVELOPMENT
+        // ==========================================
+        $environment = Cache::remember(
+            'app_environment_setting',
+            60, // cache 1 menit (aman & ringan)
+            fn () => DB::table('settings')
+                ->where('key', 'environment')
+                ->value('value')
+        );
+
+        if ($environment === 'development') {
+            return true;
+        }
+
+        // ==========================================
+        // 2. NORMAL CHECK (PRODUCTION / STAGING)
+        // ==========================================
         $at = $at ?: Carbon::now();
 
         return $this->eventStages()
             ->where('is_active', true)
             ->where(function ($q) use ($stage) {
                 if (is_numeric($stage)) {
-                    // berdasarkan stage_id
                     $q->where('stage_id', $stage);
                 } else {
-                    // berdasarkan nama stage
                     $q->whereRaw('LOWER(name) = ?', [strtolower($stage)]);
                 }
             })
@@ -155,6 +174,7 @@ class Event extends Model
             ->whereDate('end_date', '>=', $at)
             ->exists();
     }
+
 
     public function activeStage(): ?EventStage
     {

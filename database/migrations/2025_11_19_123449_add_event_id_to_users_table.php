@@ -17,6 +17,9 @@ return new class extends Migration
                 ->nullable()
                 ->constrained()      // default ke tabel 'events'
                 ->nullOnDelete();    // kalau event dihapus, event_id di-set null
+
+
+            $table->index(['event_id', 'username']);
         });
     }
 

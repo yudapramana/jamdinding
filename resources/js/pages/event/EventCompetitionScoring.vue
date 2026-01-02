@@ -7,14 +7,6 @@
           <p class="mb-0 text-muted text-sm">
             Pilih kompetisi & {{ isTeam ? 'tim' : 'peserta' }}, lalu input nilai per hakim untuk semua komponen penilaian.
           </p>
-
-          <p v-if="eventId" class="mb-0 mt-1 text-sm text-muted">
-            Event aktif:
-            <strong>{{ eventData?.event_name }}</strong>
-            <span v-if="eventData?.event_year"> ({{ eventData.event_year }})</span>
-            • Lokasi: <strong>{{ eventData?.event_location || '-' }}</strong>
-          </p>
-
           <div v-if="competitionInfo" class="text-muted text-sm mt-1">
             Group:
             <strong>{{ competitionInfo?.event_group?.full_name || ('#' + (competitionInfo?.event_group_id || '-')) }}</strong>

@@ -5,24 +5,7 @@
         <div>
           <h1 class="mb-1">Daftar User Event</h1>
 
-          <!-- Info event -->
-          <p class="text-sm text-muted mb-0" v-if="eventInfo">
-            Event:
-            <strong>{{ eventName }}</strong>
-            <span v-if="appName">
-              — {{ appName }}
-            </span>
-            <br />
-            <span class="text-xs">
-              Tingkat:
-              <strong>{{ eventLevelLabel }}</strong>
-            </span>
-          </p>
-
-          <!-- Jika event belum ada -->
-          <p class="text-sm text-danger mb-0" v-else>
-            Event belum dipilih. Silakan kembali ke landing dan pilih event terlebih dahulu.
-          </p>
+          
         </div>
 
         <div class="btn-group">
@@ -56,13 +39,57 @@
     <div class="container-fluid">
       <div class="card">
         <div class="card-header">
-          <input
-            v-model="search"
-            type="text"
-            class="form-control"
-            placeholder="Cari nama, email, atau username..."
-          />
+          <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+
+            <!-- LEFT: Per page & filter role -->
+            <div class="d-flex align-items-center flex-wrap gap-2">
+              <!-- Per page -->
+              <div class="d-flex align-items-center mr-3">
+                <label class="mb-0 text-sm text-muted mr-2">Tampilkan</label>
+                <select
+                  v-model.number="perPage"
+                  class="form-control form-control-sm w-auto"
+                >
+                  <option :value="10">10</option>
+                  <option :value="25">25</option>
+                  <option :value="50">50</option>
+                  <option :value="100">100</option>
+                </select>
+                <span class="ml-2 text-sm text-muted">entri</span>
+              </div>
+
+              <!-- Filter role -->
+              <div class="d-flex align-items-center">
+                <label class="mb-0 text-sm text-muted mr-2">Role</label>
+                <select
+                  v-model="roleFilter"
+                  class="form-control form-control-sm w-auto"
+                >
+                  <option value="">Semua</option>
+                  <option
+                    v-for="r in roleOptions"
+                    :key="r.id"
+                    :value="r.id"
+                  >
+                    {{ r.name }}
+                  </option>
+                </select>
+              </div>
+            </div>
+
+            <!-- RIGHT: Search -->
+            <div style="min-width: 260px;">
+              <input
+                v-model="search"
+                type="text"
+                class="form-control form-control-sm"
+                placeholder="Cari nama, email, atau username..."
+              />
+            </div>
+
+          </div>
         </div>
+
 
         <div class="card-body table-responsive p-0">
           <table class="table table-bordered table-hover text-sm">
@@ -401,9 +428,14 @@ import Swal from 'sweetalert2'
 const authUserStore = useAuthUserStore()
 
 const users = ref([])
+
+const perPage = ref(10)
+const roleFilter = ref('')
+
+
 const meta = ref({
   current_page: 1,
-  per_page: 10,
+  per_page: perPage.value,
   total: 0,
   from: 0,
   to: 0,
@@ -543,8 +575,10 @@ const fetchUsers = async (page = 1) => {
     const res = await axios.get('/api/v1/users', {
       params: {
         page,
+        per_page: perPage.value,
         search: search.value,
         event_id: eventId.value,
+        role_id: roleFilter.value || undefined,
       },
     })
 
@@ -558,8 +592,7 @@ const fetchUsers = async (page = 1) => {
       last_page: res.data.last_page,
     }
   } catch (error) {
-    if (error.response && error.response.status === 401) {
-      console.warn('Unauthorized. Logging out...')
+    if (error.response?.status === 401) {
       authUserStore.logout()
     } else {
       console.error('Gagal memuat data user:', error)
@@ -568,6 +601,7 @@ const fetchUsers = async (page = 1) => {
     isLoading.value = false
   }
 }
+
 
 // === GENERATE USER OTOMATIS BERDASARKAN event_level / tingkat_event ===
 const submitGenerateUsers = async () => {
@@ -711,6 +745,17 @@ const deleteUser = async (u) => {
   }
 }
 
+
+watch(perPage, () => {
+  fetchUsers(1)
+})
+
+watch(roleFilter, () => {
+  fetchUsers(1)
+})
+
+
+
 // debounce pencarian
 watch(
   search,
@@ -721,17 +766,24 @@ watch(
 
 // kalau eventData di AuthUserStore berubah (pilih event baru), sinkron & reload
 watch(
-  () => authUserStore.eventData,
-  () => {
-    syncEventContext()
-    fetchUsers(1)
-  },
-  { immediate: false }
+  () => authUserStore.eventData?.id,
+  (newId, oldId) => {
+    if (newId && newId !== oldId) {
+      syncEventContext()
+      fetchUsers(1)
+    }
+  }
 )
+
 
 onMounted(() => {
   syncEventContext()
   fetchRoles()
-  fetchUsers()
+
+  // fetchUsers hanya jika eventId sudah siap
+  if (eventId.value !== null) {
+    fetchUsers()
+  }
 })
+
 </script>

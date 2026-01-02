@@ -16,15 +16,7 @@
                     <p class="mb-0 text-muted text-sm">
                         Mengatur Tahapan Event.
                     </p>
-
-                    <!-- Info event aktif -->
-                    <p v-if="eventId" class="mb-0 mt-1 text-sm text-muted">
-                        Event aktif:
-                        <strong>{{ eventData?.event_name }}</strong>
-                        <span v-if="eventData?.event_year"> ({{ eventData.event_year }})</span>
-                        • Lokasi: <strong>{{ eventData?.event_location || '-' }}</strong>
-                    </p>
-                    </div>
+                </div>
                 <div class="d-flex gap-2">
                     <button
                         class="btn btn-outline-secondary btn-sm mr-2"

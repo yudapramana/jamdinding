@@ -44,6 +44,22 @@ const handleSwitchLayout = () => {
     authUserStore.switchLayout()
   }
 }
+
+
+
+// ================================
+// ENVIRONMENT LABEL
+// ================================
+const environmentLabel = computed(() =>
+  settingStore.isDevelopment ? 'DEV' : 'PROD'
+)
+
+const environmentClass = computed(() =>
+  settingStore.isDevelopment
+    ? 'badge badge-warning'
+    : 'badge badge-success'
+)
+
 </script>
 
 
@@ -82,27 +98,40 @@ const handleSwitchLayout = () => {
 
     <!-- RIGHT -->
     <ul class="navbar-nav ml-auto align-items-center">
-      <li class="nav-item text-right d-none d-md-block">
-        <!-- EVENT AKTIF -->
-        <p v-if="eventId" class="mb-0 text-sm text-muted">
-          <!-- Event aktif: -->
-          <strong>{{ eventData?.event_name }}</strong>
-          <span v-if="eventData?.event_year">
+      <li class="nav-item d-none d-md-block text-right">
+        <!-- BARIS 1: ENV + EVENT -->
+        <div class="d-flex align-items-center justify-content-end">
+          <span
+            :class="environmentClass"
+            class="mr-2"
+            style="font-size: 10px; letter-spacing: 0.5px;"
+            title="Application Environment"
+          >
+            {{ environmentLabel }}
+          </span>
+
+          <strong class="text-sm">
+            {{ eventData?.event_name || 'Event belum dipilih' }}
+          </strong>
+
+          <span
+            v-if="eventData?.event_year"
+            class="ml-1 text-muted text-xs"
+          >
             ({{ eventData.event_year }})
           </span>
-          • Lokasi:
-          <strong>{{ eventData?.event_location || '-' }}</strong>
-        </p>
+        </div>
 
-        <!-- STAGE AKTIF -->
-        <p class="mb-0 text-xs text-muted" v-if="eventStages.length">
-          Tahapan saat ini:
+        <!-- BARIS 2: STAGE -->
+        <div class="text-xs text-muted">
+          Tahap:
           <strong>
             {{ activeStage?.name || 'Tidak Aktif' }}
           </strong>
-        </p>
+        </div>
       </li>
     </ul>
+
   </nav>
 </template>
 

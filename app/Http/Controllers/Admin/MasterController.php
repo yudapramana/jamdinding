@@ -86,6 +86,7 @@ class MasterController extends Controller
                         'full_name' => $g->full_name,
                         'is_team'   => (bool) $g->is_team,
                         'order'     => $g->order_number,
+                        'max_age'   => $g->max_age,
                         'is_active' => $g->status === 'active',
                     ]);
                 break;

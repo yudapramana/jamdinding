@@ -61,7 +61,7 @@ class _JudgeUsersFromEventBranchesSeeder extends Seeder
                             'email' => $email,
                             'password' => Hash::make($defaultPassword),
                             'event_id' => $eventId,
-                            'role_id' => null,
+                            'role_id' => $judgeRole->id,
                             'can_multiple_role' => true,
                             'created_at' => $now,
                             'updated_at' => $now,

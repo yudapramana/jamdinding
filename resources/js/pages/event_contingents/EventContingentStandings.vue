@@ -7,17 +7,6 @@
           <p class="mb-0 text-muted text-sm">
             Rekap perolehan juara dan total poin setiap kontingen pada event aktif.
           </p>
-
-          <!-- Info event aktif -->
-          <p v-if="eventId" class="mb-0 mt-1 text-sm text-muted">
-            Event aktif:
-            <strong>{{ eventData?.event_name }}</strong>
-            <span v-if="eventData?.event_year">
-              ({{ eventData.event_year }})
-            </span>
-            • Lokasi:
-            <strong>{{ eventData?.event_location || '-' }}</strong>
-          </p>
         </div>
 
         <!-- EXPORT BUTTONS -->

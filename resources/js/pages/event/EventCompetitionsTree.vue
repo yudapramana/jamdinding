@@ -8,13 +8,6 @@
           <p class="mb-0 text-muted text-sm">
             Mengelola daftar kompetisi per babak (Round) dalam event aktif.
           </p>
-
-          <p v-if="eventId" class="mb-0 mt-1 text-sm text-muted">
-            Event aktif:
-            <strong>{{ eventData?.event_name }}</strong>
-            <span v-if="eventData?.event_year"> ({{ eventData.event_year }})</span>
-            • Lokasi: <strong>{{ eventData?.event_location || '-' }}</strong>
-          </p>
         </div>
 
         <div class="btn-group">

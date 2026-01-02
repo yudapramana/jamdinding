@@ -147,13 +147,6 @@ watch(
           <p class="mb-0 text-muted text-sm">
             {{ competition?.full_name || 'Pilih kompetisi terlebih dahulu.' }}
           </p>
-
-          <p v-if="eventId" class="mb-0 mt-1 text-sm text-muted">
-            Event aktif:
-            <strong>{{ eventData?.event_name }}</strong>
-            <span v-if="eventData?.event_year"> ({{ eventData.event_year }})</span>
-            • Lokasi: <strong>{{ eventData?.event_location || '-' }}</strong>
-          </p>
         </div>
 
         <button class="btn btn-sm btn-outline-secondary" @click="fetchData" :disabled="loading || !selectedCompetitionId">

@@ -7,7 +7,6 @@
           <p class="mb-0 text-muted text-sm">
             Mengatur kategori (Putra/Putri, dsb) yang diaktifkan pada event terpilih
             untuk setiap kombinasi Cabang + Golongan.
-            Data ini dapat digenerate dari Master Categories lalu disesuaikan.
           </p>
 
           <p v-if="selectedBranchId || selectedGroupId" class="mb-0 mt-1 text-sm text-muted">
@@ -27,13 +26,7 @@
           </p>
 
 
-          <!-- Info event aktif -->
-          <p v-if="eventId" class="mb-0 mt-1 text-sm text-muted">
-            Event aktif:
-            <strong>{{ eventData?.event_name }}</strong>
-            <span v-if="eventData?.event_year"> ({{ eventData.event_year }})</span>
-            • Lokasi: <strong>{{ eventData?.event_location || '-' }}</strong>
-          </p>
+         
         </div>
 
         <div class="d-flex flex-column flex-sm-row gap-2">

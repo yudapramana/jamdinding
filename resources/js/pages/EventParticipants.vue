@@ -1559,29 +1559,46 @@ import {
   createAttachmentHandlers,
 } from './EventParticipantHelpers'
 
+const settingStore = useSettingStore()
+const isDevelopmentMode = computed(() => {
+  return settingStore.isDevelopment === true
+})
+
+const isStageActive = (stageName) => {
+  // 🔥 ENVIRONMENT OVERRIDE (PALING ATAS)
+  if (isDevelopmentMode.value) {
+    return true
+  }
+
+  const stage = eventStages.value.find(
+    s => s.name?.toLowerCase() === stageName.toLowerCase()
+  )
+
+  if (!stage) return false
+  if (!stage.is_active) return false
+
+  const start = new Date(stage.start_date)
+  const end   = new Date(stage.end_date)
+  const nowTs = Date.now()
+
+  return nowTs >= start.getTime() && nowTs <= end.getTime()
+}
+
+
+
 const eventStages = computed(() => masterDataStore.eventStages || [])
 
 const now = () => new Date()
 
-const isStageActive = (stageName) => {
-  const stage = eventStages.value.find(
-    s => s.name.toLowerCase() === stageName.toLowerCase()
-  )
-  if (!stage) return false
-
-  const start = new Date(stage.start_date)
-  const end   = new Date(stage.end_date)
-
-  return now() >= start && now() <= end && stage.is_active
-}
 
 const canAddParticipant = computed(() => {
-  return isStageActive('Persiapan')
+  return isDevelopmentMode.value || isStageActive('Persiapan')
 })
 
 const canRegisterParticipant = computed(() => {
-  return isStageActive('Pendaftaran')
+  return isDevelopmentMode.value || isStageActive('Pendaftaran')
 })
+
 
 
 // ==================================================
@@ -1599,12 +1616,12 @@ const isPrivileged = computed(() => {
   return roleName === 'SUPERADMIN' || roleName === 'ADMIN_EVENT'
 })
 
-const settingStore = useSettingStore()
+
 
 
 const isCheckboxDisabled = (p) => {
+  if (isDevelopmentMode.value) return false
   if (!canRegisterParticipant.value) return true
-  if (settingStore.isDevelopment) return false
 
   return (
     !['bank_data', 'need_revision'].includes(
@@ -1613,6 +1630,7 @@ const isCheckboxDisabled = (p) => {
     (p.participant?.lampiran_completion_percent || 0) < 80
   )
 }
+
 
 
 
@@ -2304,6 +2322,16 @@ const submitForm = async () => {
     return
   }
 
+  await validateAgeForGroup();
+  if(ageStatus.value == 'invalid') {
+    Swal.fire(
+      'Validasi gagal',
+      'Umur tidak memenuhi syarat untuk golongan ini',
+      'warning'
+    )
+    return
+  }
+
   isSubmitting.value = true
 
   try {
@@ -2639,6 +2667,7 @@ const validateAgeForGroup = () => {
     const dobStr = form.value.participant.date_of_birth
     const categoryIdRaw = form.value.event_participant.event_category_id
 
+
     // kalau DOB atau kategori belum dipilih, tidak perlu validasi
     if (!dobStr || !categoryIdRaw) return
 
@@ -2655,9 +2684,13 @@ const validateAgeForGroup = () => {
         categories.find(cat => Number(cat.id) === categoryId) || null
 
     if (!selectedCategory) return
+    console.log('selectedCategory: ' + selectedCategory);
+
 
     const groupId = selectedCategory.group_id
     if (!groupId) return
+    console.log('groupId: ' + groupId);
+
 
     // eventGroups juga bisa ref([]) atau array
     const groups = Array.isArray(eventGroups?.value)
@@ -2668,8 +2701,12 @@ const validateAgeForGroup = () => {
 
     const group =
         groups.find(g => Number(g.id) === Number(groupId)) || null
+    console.log('group');
+    console.log(group);
 
     if (!group || group.max_age == null) return
+    console.log('group and group max age');
+
 
     const dob = new Date(dobStr)
     if (isNaN(dob.getTime())) return
@@ -2893,6 +2930,14 @@ const selectedParticipants = computed(() =>
 
 // apakah di halaman ini semua peserta sudah tercentang
 const isAllSelected = computed(() => {
+
+  if (isDevelopmentMode.value) {
+    return items.value.length &&
+      items.value.every(ep =>
+        selectedParticipantIds.value.includes(ep.id)
+      )
+  }
+
   if (!items.value.length) return false
 
   // hanya peserta yang BISA dipilih (bank_data + lampiran >=80) yang dihitung
@@ -2912,7 +2957,7 @@ const toggleSelectAll = (event) => {
   const checked = event.target.checked
 
   // 🧪 DEVELOPMENT MODE → semua bisa dipilih
-  const selectableIds = settingStore.isDevelopment
+  const selectableIds = isDevelopmentMode.value
     ? items.value.map(ep => ep.id)
     : items.value
         .filter(ep =>
@@ -2922,6 +2967,7 @@ const toggleSelectAll = (event) => {
           (ep.participant?.lampiran_completion_percent || 0) >= 80
         )
         .map(ep => ep.id)
+
 
   if (checked) {
     // gabungkan id yang bisa dipilih di halaman ini dengan yang sudah ada (tanpa duplikat)
@@ -3048,6 +3094,7 @@ watch(
     form.value.event_participant.event_category_id,
   ],
   () => {
+    console.log('ini jalan');
     validateAgeForGroup()
   }
 )

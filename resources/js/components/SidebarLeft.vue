@@ -138,6 +138,7 @@ const syncOpenByRoute = () => {
     'admin.core.branches-groups-categories',
     'admin.core.fields',
     'admin.core.permissions',
+    'admin.core.medal-rules',
   ])
 
   openMenu.value.master = isAnyNameActive([
