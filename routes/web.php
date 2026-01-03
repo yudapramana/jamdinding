@@ -35,7 +35,21 @@ use App\Models\VervalLog;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Auth\CaptchaController;
 
+Route::get('/test-log', function () {
+    Log::info('TEST LOG INFO', [
+        'time' => now()->toDateTimeString(),
+        'env'  => app()->environment(),
+        'user' => auth()->id(),
+    ]);
 
+    Log::warning('TEST LOG WARNING');
+    Log::error('TEST LOG ERROR');
+
+    return response()->json([
+        'success' => true,
+        'message' => 'Log berhasil ditulis. Silakan cek storage/logs/laravel.log'
+    ]);
+});
 
 
 
