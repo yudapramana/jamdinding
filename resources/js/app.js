@@ -68,16 +68,9 @@ const settingStore = useSettingStore(pinia);
 
 router.beforeEach(async (to, from) => {
     console.log('App.js Duluan bagian router.beforeEach');
-    
-
     console.log('authUserStore.isAuthenticated');
     console.log(authUserStore.isAuthenticated);
 
-    
-
-    if (authUserStore.docsUpdateState) {
-        await authUserStore.getDocsUpdateState();
-    }
     if (authUserStore.isAuthenticated) {
         await settingStore.getSetting();
     }
