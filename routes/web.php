@@ -35,6 +35,17 @@ use App\Models\VervalLog;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Auth\CaptchaController;
 
+
+Route::get('/raw-log', function () {
+    file_put_contents(
+        storage_path('logs/raw.log'),
+        "RAW OK\n",
+        FILE_APPEND
+    );
+    return 'OK';
+});
+
+
 Route::get('/health', fn() => 'OK');
 Route::get('/log-test', function () {
     \Log::error('WEB LOG OK');
