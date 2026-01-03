@@ -62,11 +62,6 @@ Route::get('/env-check', function () {
     ]);
 });
 
-// Route::get('/log-test', function () {
-//     \Log::error('LOG TEST FROM PRODUCTION');
-//     abort(500, 'TEST ERROR');
-// });
-
 Route::get('/test-log', function () {
     Log::info('TEST LOG INFO', [
         'time' => now()->toDateTimeString(),
