@@ -35,6 +35,17 @@ use App\Models\VervalLog;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Auth\CaptchaController;
 
+
+Route::get('/env-check', function () {
+    return response()->json([
+        'env' => app()->environment(),
+        'debug' => config('app.debug'),
+        'log_channel' => config('logging.default'),
+        'log_path' => storage_path('logs/laravel.log'),
+    ]);
+});
+
+
 Route::get('/test-log', function () {
     Log::info('TEST LOG INFO', [
         'time' => now()->toDateTimeString(),
