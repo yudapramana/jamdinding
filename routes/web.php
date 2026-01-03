@@ -35,6 +35,12 @@ use App\Models\VervalLog;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Auth\CaptchaController;
 
+Route::get('/health', fn() => 'OK');
+Route::get('/log-test', function () {
+    \Log::error('WEB LOG OK');
+    abort(500, 'TEST');
+});
+
 
 Route::get('/env-check', function () {
     return response()->json([
@@ -45,10 +51,10 @@ Route::get('/env-check', function () {
     ]);
 });
 
-Route::get('/log-test', function () {
-    \Log::error('LOG TEST FROM PRODUCTION');
-    abort(500, 'TEST ERROR');
-});
+// Route::get('/log-test', function () {
+//     \Log::error('LOG TEST FROM PRODUCTION');
+//     abort(500, 'TEST ERROR');
+// });
 
 Route::get('/test-log', function () {
     Log::info('TEST LOG INFO', [
