@@ -16,7 +16,7 @@
                 branches.find(b => b.id === selectedBranchId)?.name || 'ID: ' + selectedBranchId
                 }}
             </strong>
-        </p>
+          </p>
         </div>
 
         <div class="d-flex flex-column flex-sm-row gap-2">
@@ -83,6 +83,7 @@
                 <th>Cabang</th>
                 <th>Golongan</th>
                 <th>Nama Lengkap</th>
+                <th>Majelis</th>
                 <th style="width: 80px;" class="text-center">Maks. Umur</th>
                 <th style="width: 90px;" class="text-center">Status</th>
                 <th style="width: 80px;" class="text-center">Tim?</th>
@@ -111,6 +112,23 @@
                 <td><strong>{{ item.branch_name }}</strong></td>
                 <td><strong>{{ item.group_name }}</strong></td>
                 <td>{{ item.full_name }}</td>
+                <td>
+                  <select
+                    class="form-control form-control-sm"
+                    :value="item.event_location_id"
+                    @change="assignLocation(item.id, $event.target.value)"
+                  >
+                    <option value="">— Belum Ditentukan —</option>
+                    <option
+                      v-for="loc in locations"
+                      :key="loc.id"
+                      :value="loc.id"
+                    >
+                      {{ loc.code ? loc.code + ' - ' : '' }}{{ loc.name }}
+                    </option>
+                  </select>
+                </td>
+
                 <td class="text-center">{{ item.max_age ?? '-' }}</td>
                 <td class="text-center">
                   <span
@@ -365,6 +383,50 @@ const selectedBranchId = computed(() => {
   const raw = route.query.branch_id
   return raw ? Number(raw) : null
 })
+
+const locations = ref([])
+
+const fetchLocations = async () => {
+  const res = await axios.get(`/api/v1/events/${eventId.value}/locations`, {
+    params: { per_page: 100 }
+  })
+  locations.value = res.data.data.data
+}
+
+
+const Toast = Swal.mixin({
+  toast: true,
+  position: 'top-end',
+  showConfirmButton: false,
+  timer: 1500,
+  timerProgressBar: true,
+})
+
+const assignLocation = async (eventGroupId, locationId) => {
+  try {
+    await axios.put(
+      `/api/v1/event-groups/${eventGroupId}/assign-location`,
+      {
+        event_location_id: locationId || null
+      }
+    )
+
+    Toast.fire({
+      icon: 'success',
+      title: 'Majelis tersimpan'
+    })
+
+  } catch (e) {
+    Toast.fire({
+      icon: 'error',
+      title: 'Gagal menyimpan'
+    })
+  }
+}
+
+
+
+
 
 
 // event aktif dari store
@@ -659,6 +721,7 @@ onMounted(() => {
     )
   } else {
     fetchItems()
+    fetchLocations()
   }
 })
 </script>

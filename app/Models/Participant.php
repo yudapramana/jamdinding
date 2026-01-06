@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Str;
 
 class Participant extends Model
 {
@@ -21,6 +22,21 @@ class Participant extends Model
     ];
 
     protected $appends = ['lampiran_completion_percent'];
+
+    protected static function booted()
+    {
+        static::creating(function ($model) {
+            if (empty($model->uuid)) {
+                $model->uuid = (string) Str::uuid();
+            }
+        });
+    }
+
+    public function getRouteKeyName(): string
+    {
+        return 'uuid';
+    }
+
 
     /* ============================
      *  RELATIONSHIPS
@@ -96,11 +112,25 @@ class Participant extends Model
     // ACCESSORS → AUTO /secure/*
     // ============================
 
+    // protected function secureUrl($value)
+    // {
+    //     if (!$value) return null;
+    //     return '/secure/' . ltrim($value, '/');
+    // }
+
     protected function secureUrl($value)
     {
         if (!$value) return null;
+
+        // Jika sudah URL absolut (http / https), return langsung
+        if (Str::startsWith($value, ['http://', 'https://'])) {
+            return $value;
+        }
+
+        // Jika path lokal, bungkus dengan /secure/
         return '/secure/' . ltrim($value, '/');
     }
+
 
     public function getPhotoUrlAttribute($value)
     {

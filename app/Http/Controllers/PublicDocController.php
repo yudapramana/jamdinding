@@ -10,7 +10,7 @@ class PublicDocController extends Controller
 {
 
    public function stream(Request $request, Participant $participant, string $filename)
-    {
+    {   
         // ==========================================
         // AUTHORIZATION → PARTICIPANT POLICY
         // ==========================================
@@ -22,7 +22,7 @@ class PublicDocController extends Controller
         $safeFilename = basename($filename);
 
         // path relatif ke disk
-        $relativePath = "documents/{$participant->id}/{$safeFilename}";
+        $relativePath = "documents/{$participant->uuid}/{$safeFilename}";
 
         $disk = Storage::disk('privatedisk');
 
@@ -61,5 +61,4 @@ class PublicDocController extends Controller
 
         return $response;
     }
-
 }

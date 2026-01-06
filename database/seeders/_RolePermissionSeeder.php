@@ -33,6 +33,7 @@ class _RolePermissionSeeder extends Seeder
             // SubMenu Event
             ['name' => 'Manage Event Index',                            'slug' => 'manage.event.index'],
             ['name' => 'Manage Event Stage',                            'slug' => 'manage.event.stages'],
+            ['name' => 'Manage Event Location',                         'slug' => 'manage.event.locations'],
             ['name' => 'Manage Event Branch',                           'slug' => 'manage.event.branches'],
             ['name' => 'Manage Event Group',                            'slug' => 'manage.event.groups'],
             ['name' => 'Manage Event Category',                         'slug' => 'manage.event.categories'],
@@ -52,6 +53,9 @@ class _RolePermissionSeeder extends Seeder
             // SubMenu Judges
             ['name' => 'Manage Event Judges User',                      'slug' => 'manage.event.judges.users'],
             ['name' => 'Manage Event Judges Panel',                     'slug' => 'manage.event.judges.panels'],
+
+             // Menu Co-card
+            ['name' => 'Manage Event Co-card',                          'slug' => 'manage.event.co-card'],
 
             // Menu Scoring
             ['name' => 'Manage Event Scoring',                          'slug' => 'manage.event.scoring'],

@@ -1495,7 +1495,7 @@ const submitVerification = async () => {
       registration_status: verificationForm.registration_status,
     }
 
-    await axios.post(`/api/v1/participants/${p.id}/verifications`, payload)
+    await axios.post(`/api/v1/participants/${p.uuid}/verifications`, payload)
 
     $('#showVerificationModal').modal('hide')
 

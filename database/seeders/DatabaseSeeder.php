@@ -47,6 +47,7 @@ class DatabaseSeeder extends Seeder
         $this->call(__ListFieldSeeder::class);
         $this->call(__EventSeeder::class);
         $this->call(__StageSeeder::class);
+        $this->call(__EventLocationSeeder::class);
         $this->call(__EventStageSeeder::class);
         $this->call(__MasterBranchSeeder::class);
         $this->call(__MasterGroupSeeder::class);

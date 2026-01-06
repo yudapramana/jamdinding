@@ -24,8 +24,10 @@ use App\Http\Controllers\API\V1\EventContingentStandingsController;
 use App\Http\Controllers\API\V1\EventController;
 use App\Http\Controllers\API\V1\EventFieldComponentController;
 use App\Http\Controllers\API\V1\EventGroupController;
+use App\Http\Controllers\API\V1\EventGroupLocationController;
 use App\Http\Controllers\API\V1\EventJudgePanelController;
 use App\Http\Controllers\API\V1\EventKokardeController;
+use App\Http\Controllers\API\V1\EventLocationController;
 use App\Http\Controllers\API\V1\EventMedalRuleController;
 use App\Http\Controllers\API\V1\EventParticipantController;
 use App\Http\Controllers\API\V1\EventParticipantReRegistrationController;
@@ -144,6 +146,14 @@ Route::middleware(['auth:sanctum']) // kalau belum pakai sanctum, boleh dihapus 
         Route::get('events/{event}/stages', [EventStageController::class, 'index']);
         Route::post('events/{event}/stages/generate-default', [EventStageController::class, 'generateFromMaster']);
 
+        // EVENT - LOCATIONS
+        Route::get('/events/{eventId}/locations', [EventLocationController::class, 'index']);
+        Route::get('/events/{eventId}/locations/simple', [EventLocationController::class, 'simple']);
+        Route::post('/event-locations', [EventLocationController::class, 'store']);
+        Route::put('/event-locations/{id}', [EventLocationController::class, 'update']);
+        Route::delete('/event-locations/{id}', [EventLocationController::class, 'destroy']);
+        Route::get('/map/search', [EventLocationController::class, 'search']);
+
         // EVENT - PENGATURAN CABANG LOMBA
         Route::get('event-branches', [EventBranchController::class, 'index']);
         Route::post('event-branches', [EventBranchController::class, 'store']);
@@ -157,6 +167,7 @@ Route::middleware(['auth:sanctum']) // kalau belum pakai sanctum, boleh dihapus 
         Route::put('event-groups/{eventGroup}', [EventGroupController::class, 'update']);
         Route::delete('event-groups/{eventGroup}', [EventGroupController::class, 'destroy']);
         Route::post('event-groups/generate-from-template', [EventGroupController::class, 'generateFromTemplate']); // Generate dari master_groups
+        Route::put('/event-groups/{id}/assign-location', [EventGroupLocationController::class, 'assign']);
         
         // EVENT - PENGATURAN KATEGORI LOMBA (PUTRA | PUTRI)
         Route::get('event-categories', [EventCategoryController::class, 'index']);

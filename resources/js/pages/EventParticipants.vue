@@ -322,6 +322,18 @@
                         >
                           <i class="fas fa-random"></i>
                         </button>
+
+                        <!-- CETAK KOKARDE -->
+                        <button
+                          v-if="item.participant?.photo_url"
+                          class="btn btn-outline-primary btn-xs"
+                          title="Cetak Kokarde"
+                          @click="printKokarde(item)"
+                        >
+                          <i class="fas fa-id-badge"></i>
+                        </button>
+
+                        
                     </div>
                 </td>
 
@@ -1559,6 +1571,59 @@ import {
   createAttachmentHandlers,
 } from './EventParticipantHelpers'
 
+
+const printKokarde = (item) => {
+  if (!item?.id) return
+
+  const url = `/participant/${item.uuid}`
+  window.open(url, '_blank')
+}
+
+
+
+// ==========================================
+// START DATE PELAKSANAAN EVENT
+// ==========================================
+const pelaksanaanStartDate = computed(() => {
+  const stages = masterDataStore.eventStages || []
+
+  const pelaksanaan = stages.find(
+    s => (s.name || '').toLowerCase() === 'pelaksanaan'
+  )
+
+  if (!pelaksanaan?.start_date) return null
+
+  // start_date dari backend format ISO (Z)
+  const d = new Date(pelaksanaan.start_date)
+  return isNaN(d.getTime()) ? null : d
+})
+
+/**
+ * Tanggal terbit KTP / KK
+ * Harus <= (tanggal mulai pelaksanaan - 6 bulan)
+ */
+const isValidTanggalTerbit = (tanggalTerbitStr) => {
+  if (!tanggalTerbitStr) return true
+  if (!pelaksanaanStartDate.value) return true
+
+  const terbit = new Date(tanggalTerbitStr)
+  if (isNaN(terbit.getTime())) return true
+
+  // clone tanggal pelaksanaan
+  const batas = new Date(pelaksanaanStartDate.value)
+
+  // kurangi 6 bulan
+  batas.setMonth(batas.getMonth() - 6)
+
+  // normalisasi jam (banding tanggal saja)
+  batas.setHours(0, 0, 0, 0)
+  terbit.setHours(0, 0, 0, 0)
+
+  // aturan: tanggal terbit <= batas
+  return terbit.getTime() <= batas.getTime()
+}
+
+
 const settingStore = useSettingStore()
 const isDevelopmentMode = computed(() => {
   return settingStore.isDevelopment === true
@@ -1775,6 +1840,28 @@ const validateField = (field) => {
       msg = 'Format tanggal tidak valid. Gunakan format YYYY-MM-DD.'
     }
   }
+
+  // VALIDASI TANGGAL TERBIT KTP / KK
+  if (
+    (field === 'participant.tanggal_terbit_ktp' ||
+    field === 'participant.tanggal_terbit_kk') &&
+    val
+  ) {
+    const validFormat = /^\d{4}-\d{2}-\d{2}$/.test(val)
+
+    if (!validFormat) {
+      msg = 'Format tanggal tidak valid. Gunakan format YYYY-MM-DD.'
+    } 
+    
+    // else if (!pelaksanaanStartDate.value) {
+    //   msg = 'Tanggal mulai pelaksanaan event belum tersedia.'
+    // } else if (!isValidTanggalTerbit(val)) {
+    //   msg =
+    //     'Tanggal terbit harus sekurang-kurangnya 6 bulan sebelum ' +
+    //     'tanggal mulai pelaksanaan event.'
+    // }
+  }
+
 
   // VALIDASI TELEPON
   if (field === 'participant.phone_number' && !msg) {
@@ -3103,6 +3190,24 @@ watch(
 // ==================================================
 // WATCHERS
 // ==================================================
+
+// watch(
+//   () => [
+//     form.value.participant.tanggal_terbit_ktp,
+//     form.value.participant.tanggal_terbit_kk,
+//     pelaksanaanStartDate.value,
+//   ],
+//   () => {
+//     if (form.value.participant.tanggal_terbit_ktp) {
+//       validateField('participant.tanggal_terbit_ktp')
+//     }
+//     if (form.value.participant.tanggal_terbit_kk) {
+//       validateField('participant.tanggal_terbit_kk')
+//     }
+//   }
+// )
+
+
 watch(
   () => form.value.participant.province_id,
   () => {

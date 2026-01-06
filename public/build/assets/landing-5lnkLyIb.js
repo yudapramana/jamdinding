@@ -1,0 +1,1 @@
+import{au as o,at as _}from"./AuthUserStore-D7C5-kPo.js";import a from"./Landing-6PUEqNML.js";const i=window.__INITIAL_EVENTS__||[],t=window.__LOGIN_URL__||"/login",n=o(a,{events:i,loginUrl:t}),p=_();n.use(p);n.mount("#app");

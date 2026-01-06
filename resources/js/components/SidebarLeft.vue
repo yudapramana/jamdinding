@@ -28,6 +28,7 @@ const canScoringMenu = computed(() => authUserStore.can('manage.event.scoring'))
 const canScoresMenu = computed(() => authUserStore.can('manage.event.scores'))
 const canRankingMenu = computed(() => authUserStore.can('manage.event.ranking'))
 const canContingentMenu = computed(() => authUserStore.can('manage.event.contingent'))
+const canCoCardMenu = computed(() => authUserStore.can('manage.event.co-card'))
 
 // Submenu visibility (avoid empty sections)
 const showCoreSection = computed(() =>
@@ -47,6 +48,7 @@ const showMasterSection = computed(() =>
 const showEventSection = computed(() =>
   authUserStore.can('manage.event.index') ||
   authUserStore.can('manage.event.stages') ||
+  authUserStore.can('manage.event.locations') ||
   authUserStore.can('manage.event.branches') ||
   authUserStore.can('manage.event.groups') ||
   authUserStore.can('manage.event.categories') ||
@@ -87,6 +89,10 @@ const showRankingSection = computed(() =>
 
 const showContingentSection = computed(() =>
   authUserStore.can('manage.event.contingent.standings')
+)
+
+const showCoCardSection = computed(() =>
+  authUserStore.can('manage.event.co-card')
 )
 
 // ======================
@@ -151,6 +157,7 @@ const syncOpenByRoute = () => {
   openMenu.value.event = isAnyNameActive([
     'admin.events.index',
     'admin.event.stages',
+    'admin.event.locations',
     'admin.event.branches',
     'admin.event.groups',
     'admin.event.categories',
@@ -344,6 +351,18 @@ watch(
                   </router-link>
                 </li>
 
+                <li class="nav-item" v-if="authUserStore.can('manage.event.locations')">
+                  <router-link
+                    :to="{ name: 'admin.event.locations' }"
+                    class="nav-link"
+                    :class="{ active: isNameActive('admin.event.locations') }"
+                  >
+                    <i class="fas fa-map-marker-alt nav-icon"></i>
+                    <p>Lokasi Event</p>
+                  </router-link>
+                </li>
+
+
                 <li class="nav-item" v-if="authUserStore.can('manage.event.branches')">
                   <router-link :to="{ name: 'admin.event.branches' }" class="nav-link" :class="{ active: isNameActive('admin.event.branches') }">
                     <i class="far fa-circle nav-icon"></i><p>Cabang Event</p>
@@ -441,6 +460,20 @@ watch(
                   </router-link>
                 </li>
               </ul>
+            </li>
+          </template>
+
+          <!-- CO-CARD -->
+          <template v-if="canCoCardMenu && showCoCardSection">
+            <li class="nav-item" v-if="authUserStore.can('manage.event.co-card')">
+              <router-link
+                :to="{ name: 'admin.event.co-card' }"
+                class="nav-link"
+                :class="{ active: isNameActive('admin.event.co-card') }"
+              >
+                <i class="nav-icon fas fa-award"></i>
+                <p>Kokarde</p>
+              </router-link>
             </li>
           </template>
 

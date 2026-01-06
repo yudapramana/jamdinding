@@ -34,7 +34,28 @@ use App\Models\Event;
 use App\Models\VervalLog;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Auth\CaptchaController;
+use App\Http\Controllers\PublicParticipantController;
 
+
+// Route::get('/participant/{eventParticipant:uuid}/kokarde', 
+//     [PublicParticipantController::class, 'printKokarde']
+// )->name('public.participants.kokarde');
+
+// Route::middleware(['throttle:20,1']) // 30 request / menit / IP
+//     ->get('/participant/{eventParticipant:uuid}', 
+//         [PublicParticipantController::class, 'show']
+//     )
+//     ->name('public.participant.show');
+
+Route::middleware(['throttle:kokarde'])
+        ->get('/participant/{eventParticipant:uuid}/kokarde',
+        [PublicParticipantController::class, 'printKokarde']
+    )->name('public.participants.kokarde');
+
+Route::middleware(['throttle:participant-public'])
+    ->get('/participant/{eventParticipant:uuid}', 
+        [PublicParticipantController::class, 'show']
+    )->name('public.participant.show');
 
 Route::get('/raw-log', function () {
     file_put_contents(
@@ -815,12 +836,13 @@ Route::get('/login/google/callback', [SocialiteController::class, 'callback'])
 // });
 
 Route::middleware('auth')->group(function () {
-    Route::get('/secure/documents/{participant}/{filename}', [PublicDocController::class, 'stream'])
+    Route::get('/secure/documents/{participant:uuid}/{filename}', [PublicDocController::class, 'stream'])
         ->where([
-            'participant' => '\d+',
-            'filename' => '[^/]+'
+            'participant' => '[0-9a-fA-F\-]{36}',
+            'filename'    => '[^/]+',
         ])
         ->name('secure.docs.stream');
+
 });
 
 

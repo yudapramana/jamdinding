@@ -192,20 +192,22 @@ const filteredRanking = computed(() => {
 // =========================
 const medalPreview = computed(() => {
   const list = filteredRanking.value || []
-  return list.slice(0, 4).map((r, idx) => ({
+
+  const labels = [
+    '🥇 Emas',
+    '🥈 Perak',
+    '🥉 Perunggu',
+    '🏅 Harapan I',
+    '🏅 Harapan II',
+    '🏅 Harapan III',
+  ]
+
+  return list.slice(0, 6).map((r, idx) => ({
     ...r,
-    medal:
-      idx === 0
-        ? '🥇 Emas'
-        : idx === 1
-          ? '🥈 Perak'
-          : idx === 2
-            ? '🥉 Perunggu'
-            : idx === 3
-              ? '4️⃣ Peringkat 4'
-              : null,
+    medal: labels[idx] ?? null,
   }))
 })
+
 
 // =========================
 // EXPORT

@@ -26,7 +26,7 @@
           <button
             class="btn btn-outline-danger btn-sm"
             @click="exportPdf"
-            :disabled="!eventId || !regionId || isExporting"
+            :disabled="!canExport"
           >
             <i class="fas fa-file-pdf mr-1"></i>
             Export PDF
@@ -49,8 +49,20 @@
         <div class="card-body">
           <div class="row">
 
-            <!-- PILIH KONTINGEN -->
+            <!-- PILIH JENIS KOKARDE -->
             <div class="col-md-6">
+              <div class="form-group">
+                <label>Jenis Kokarde <span class="text-danger">*</span></label>
+                <select v-model="printType" class="form-control">
+                  <option value="participant">Peserta</option>
+                  <option value="role">Panitia / Role</option>
+                </select>
+              </div>
+            </div>
+
+
+            <!-- PILIH KONTINGEN -->
+            <div v-if="printType === 'participant'" class="col-md-6">
               <div class="form-group">
                 <label>
                   Kontingen
@@ -74,6 +86,38 @@
               </div>
             </div>
 
+            <!-- PILIH ROLE PANITIA -->
+            <div v-if="printType === 'role'" class="col-md-6">
+              <div class="form-group">
+                <label>
+                  Role Panitia
+                  <span class="text-danger">*</span>
+                </label>
+
+                <select
+                  v-model="roleId"
+                  class="form-control"
+                  :disabled="roleOptions.length === 0"
+                >
+                  <option value="">-- Pilih Role --</option>
+
+                  <option
+                    v-for="role in roleOptions"
+                    :key="role.id"
+                    :value="role.id"
+                  >
+                    {{ role.label ?? role.name }}
+                  </option>
+                </select>
+
+                <small v-if="roleOptions.length === 0" class="text-muted">
+                  Role panitia belum tersedia
+                </small>
+              </div>
+            </div>
+
+
+
           </div>
 
           <!-- INFO -->
@@ -90,10 +134,29 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import axios from 'axios'
 import Swal from 'sweetalert2'
 import { useAuthUserStore } from '../stores/AuthUserStore'
+
+
+const canExport = computed(() => {
+  if (!eventId.value || isExporting.value) {
+    return false
+  }
+
+  if (printType.value === 'participant') {
+    return !!regionId.value
+  }
+
+  if (printType.value === 'role') {
+    return !!roleId.value
+  }
+
+  return false
+})
+
+
 
 /* ======================
  |  AUTH & EVENT
@@ -110,6 +173,11 @@ const regions = ref([])
 const regionId = ref('')
 const isLoading = ref(false)
 const isExporting = ref(false)
+
+const printType   = ref('participant')
+const roleId      = ref('')
+const roleOptions = ref([])
+
 
 /* ======================
  |  FETCH KONTINGEN
@@ -132,35 +200,59 @@ const fetchRegions = async () => {
   }
 }
 
+const fetchRoles = async () => {
+  try {
+    const res = await axios.get('/api/v1/roles')
+    roleOptions.value = res.data || []
+  } catch (error) {
+    console.error('Gagal memuat roles:', error)
+  }
+}
+
+
 
 /* ======================
  |  EXPORT PDF
  ====================== */
-const exportPdf = async () => {
-  if (!eventId.value || !regionId.value) {
-    Swal.fire(
-      'Data belum lengkap',
-      'Silakan pilih event dan kontingen terlebih dahulu.',
-      'warning'
-    )
+const exportPdf = () => {
+  if (!eventId.value) {
+    Swal.fire('Event belum dipilih', '', 'warning')
     return
   }
 
-  isExporting.value = true
-
-  try {
-    const url =
-      `/api/v1/event-kokarde/export/pdf` +
-      `?event_id=${eventId.value}&region_id=${regionId.value}`
-
-    window.open(url, '_blank')
-  } catch (error) {
-    console.error(error)
-    Swal.fire('Gagal', 'Gagal mengunduh PDF kokarde.', 'error')
-  } finally {
-    isExporting.value = false
+  if (printType.value === 'participant' && !regionId.value) {
+    Swal.fire('Kontingen belum dipilih', '', 'warning')
+    return
   }
+
+  if (printType.value === 'role' && !roleId.value) {
+    Swal.fire('Role belum dipilih', '', 'warning')
+    return
+  }
+
+
+  let url =
+    `/api/v1/event-kokarde/export/pdf` +
+    `?event_id=${eventId.value}&type=${printType.value}`
+
+  if (printType.value === 'participant') {
+    url += `&region_id=${regionId.value}`
+  }
+
+  if (printType.value === 'role') {
+    url += `&role_id=${roleId.value}`
+  }
+
+  window.open(url, '_blank')
 }
+
+watch(printType, (val) => {
+  if (val === 'participant') {
+    roleId.value = ''
+  } else {
+    regionId.value = ''
+  }
+})
 
 /* ======================
  |  INIT
@@ -174,6 +266,7 @@ onMounted(() => {
     )
   } else {
     fetchRegions()
+    fetchRoles()
   }
 })
 </script>

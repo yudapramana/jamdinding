@@ -75,6 +75,11 @@ export default [
         component: () => import('./pages/event/EventStageList.vue'),
       },
       {
+        path: 'event/locations',
+        name: 'admin.event.locations',
+        component: () => import('./pages/event/EventLocationList.vue'),
+      },
+      {
         path: 'event/branches',
         name: 'admin.event.branches',
         component: () => import('./pages/event/EventBranches.vue'),
@@ -100,16 +105,13 @@ export default [
         component: () => import('./pages/event/EventMedalRules.vue'),
       },
       {
-        path: 'event/kokarde',
-        name: 'admin.event.kokarde',
+        path: 'event/co-card',
+        name: 'admin.event.co-card',
         component: () => import('./pages/KokardeExport.vue'),
         meta: {
           title: 'Cetak Kokarde Peserta MTQ',
         },
       },
-
-
-
       {
         path: 'event/participants/bank-data',
         name: 'admin.event.participants.bank-data',

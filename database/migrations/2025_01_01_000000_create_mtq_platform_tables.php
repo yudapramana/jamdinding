@@ -89,6 +89,36 @@ return new class extends Migration
             $table->timestamps();
         });
 
+        // 05.a event_locations (MAJELIS / TITIK LOKASI)
+        Schema::create('event_locations', function (Blueprint $table) {
+            $table->id();
+
+            // Lokasi hanya berlaku untuk satu event MTQ
+            $table->foreignId('event_id')
+                ->constrained('events')
+                ->cascadeOnDelete();
+
+            // Identitas Majelis
+            $table->string('code', 50)->nullable();   // MJL-01, MJL-A
+            $table->string('name');                   // Majelis A, Masjid Raya
+            $table->string('address')->nullable();    // alamat teks
+
+            // Koordinat GPS
+            $table->decimal('latitude', 10, 7);       // -1.2345678
+            $table->decimal('longitude', 10, 7);      // 100.1234567
+
+            // Metadata tambahan
+            $table->text('notes')->nullable();
+            $table->boolean('is_active')->default(true);
+
+            $table->timestamps();
+
+            // Optional index untuk query map
+            $table->index(['event_id', 'is_active']);
+        });
+
+
+
         // 06. stages
         Schema::create('stages', function (Blueprint $table) {
             $table->id();
@@ -246,6 +276,7 @@ return new class extends Migration
             $table->id();
 
             $table->foreignId('event_id')->constrained('events')->cascadeOnDelete();
+            $table->foreignId('event_location_id')->nullable()->constrained('event_locations')->nullOnDelete();
             $table->foreignId('branch_id')->constrained('branches')->cascadeOnDelete();
             $table->foreignId('group_id')->constrained('groups')->cascadeOnDelete();
 
@@ -259,6 +290,7 @@ return new class extends Migration
             $table->boolean('is_team')->default(false);
             $table->boolean('use_custom_judges')->default(false);
             $table->unsignedInteger('order_number')->nullable();
+
 
             $table->timestamps();
 
@@ -324,6 +356,7 @@ return new class extends Migration
         // 17. participants (bank data kafilah, pakai referensi wilayah)
         Schema::create('participants', function (Blueprint $table) {
             $table->id();
+            $table->uuid('uuid')->unique();
 
             // Identitas dasar (bank data)
             $table->string('nik', 30)->unique();
@@ -427,6 +460,7 @@ return new class extends Migration
         // 18.b event_participants
         Schema::create('event_participants', function (Blueprint $table) {
             $table->id();
+            $table->uuid('uuid')->unique();
 
             $table->foreignId('event_id')->constrained('events')->cascadeOnDelete();
             $table->foreignId('participant_id')->constrained('participants')->cascadeOnDelete();

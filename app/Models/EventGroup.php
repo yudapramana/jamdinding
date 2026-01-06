@@ -22,6 +22,11 @@ class EventGroup extends Model
         return $this->belongsTo(Event::class);
     }
 
+    public function location()
+    {
+        return $this->belongsTo(EventLocation::class, 'event_location_id');
+    }
+
     public function branch()
     {
         return $this->belongsTo(Branch::class);

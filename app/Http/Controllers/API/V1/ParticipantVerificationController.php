@@ -38,7 +38,6 @@ class ParticipantVerificationController extends Controller
     public function store(Request $request, Participant $participant)
     {
         // $this->authorize('verify', $participant); // opsional, kalau pakai policy khusus
-
         $data = $request->validate([
             'event_id' => ['nullable', 'exists:events,id'],
             'event_participant_id' => ['nullable', 'exists:event_participants,id'],

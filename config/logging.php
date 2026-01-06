@@ -52,6 +52,25 @@ return [
     */
 
     'channels' => [
+
+        // ===============================
+        // SECURITY / AUDIT LOG (BSSN READY)
+        // ===============================
+        'security' => [
+            'driver' => 'single',
+            'path'   => storage_path('logs/security.log'),
+            'level'  => 'info',
+            'permission' => 0640,
+            'replace_placeholders' => true,
+        ],
+
+        'audit' => [
+            'driver' => 'daily',
+            'path' => storage_path('logs/audit.log'),
+            'level' => env('LOG_AUDIT_LEVEL', 'info'),
+            'days' => 90,
+        ],
+        
         'stack' => [
             'driver' => 'stack',
             'channels' => ['single'],

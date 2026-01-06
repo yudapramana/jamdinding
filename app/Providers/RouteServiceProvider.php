@@ -44,4 +44,20 @@ class RouteServiceProvider extends ServiceProvider
                 ->group(base_path('routes/web.php'));
         });
     }
+
+    
+
+    protected function configureRateLimiting()
+    {
+        RateLimiter::for('participant-public', function (Request $request) {
+            return Limit::perMinute(20)
+                ->by($request->ip());
+        });
+
+        RateLimiter::for('kokarde', function (Request $request) {
+            return Limit::perMinute(10)
+                ->by($request->ip());
+        });
+    }
+
 }

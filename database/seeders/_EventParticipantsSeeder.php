@@ -353,6 +353,19 @@ class _EventParticipantsSeeder extends Seeder
         // Normalisasi / mapping nama bank ke enum
         $bankName = $this->normalizeBankName($bankNameRaw);
 
+        $photoUrls = [
+            'https://res.cloudinary.com/dmynbnqtt/image/upload/v1767663960/Foto%20Siswa/339d74f1f07258cda423069e872f4722.jpg',
+            'https://res.cloudinary.com/dmynbnqtt/image/upload/v1767663928/Foto%20Siswa/4e8c980d2ddbf2f0f17eb740db85a17b.jpg',
+            'https://res.cloudinary.com/dmynbnqtt/image/upload/v1767663919/Foto%20Siswa/89f52c332192fac82fd0d912d3e204b2.jpg',
+            'https://res.cloudinary.com/dmynbnqtt/image/upload/v1767663892/Foto%20Siswa/images.jpg',
+            'https://res.cloudinary.com/dmynbnqtt/image/upload/v1767663880/Foto%20Siswa/DSC_0341.jpg',
+            'https://res.cloudinary.com/dmynbnqtt/image/upload/v1767663845/Foto%20Siswa/_FOTO_MAN_LAKI.jpg',
+            'https://res.cloudinary.com/dmynbnqtt/image/upload/v1767663844/Foto%20Siswa/_FOTO_MTS_LAKI.jpg',
+            'https://res.cloudinary.com/dmynbnqtt/image/upload/v1767664312/Foto%20Siswa/mico-pasfoto-3x4.jpg',
+        ];
+
+        $photoUrl = $photoUrls[array_rand($photoUrls)];
+
         // ====== DATA UNTUK TABEL participants (bank data) ======
         $participantData = [
             'nik'                 => $nik,
@@ -379,7 +392,7 @@ class _EventParticipantsSeeder extends Seeder
             'bank_account_name'   => $bankAccountName ?: null,
             'bank_name'           => $bankName,   // sudah dinormalisasi ke enum / null
 
-            'photo_url'           => null,
+            'photo_url'           => $photoUrl,
             'id_card_url'         => null,
             'family_card_url'     => null,
             'bank_book_url'       => null,

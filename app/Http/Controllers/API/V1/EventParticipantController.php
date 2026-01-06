@@ -933,6 +933,17 @@ class EventParticipantController extends Controller
             // ===========================
             // 1a. HANDLE ATTACHMENTS
             // ===========================
+            if ($request->hasFile([
+                'photo_url',
+                'id_card_url',
+                'family_card_url',
+                'bank_book_url',
+                'certificate_url',
+                'other_url',
+            ])) {
+                $this->authorize('updateDocument', $participant);
+            }
+
             $attachmentPaths = $this->handleAttachments($request, $participant);
             foreach ($attachmentPaths as $field => $path) {
                 $participant->{$field} = $path;
@@ -1134,6 +1145,26 @@ class EventParticipantController extends Controller
                     throw new \RuntimeException("Mime type {$field} tidak valid.");
                 }
 
+                // ===============================
+                // VALIDASI ISI FILE (CONTENT-BASED)
+                // ===============================
+                if ($extension === 'pdf') {
+                    $fh = fopen($file->getRealPath(), 'rb');
+                    $header = fread($fh, 4);
+                    fclose($fh);
+
+                    if ($header !== '%PDF') {
+                        throw new \RuntimeException("PDF {$field} tidak valid.");
+                    }
+                }
+
+                if (in_array($extension, ['jpg','jpeg','png'], true)) {
+                    if (! @getimagesize($file->getRealPath())) {
+                        throw new \RuntimeException("File {$field} bukan image valid.");
+                    }
+                }
+
+
                 /* ===============================
                 * HAPUS FILE LAMA (JIKA ADA)
                 * =============================== */
@@ -1144,7 +1175,7 @@ class EventParticipantController extends Controller
                     $oldPath = ltrim($oldPath, '/');
 
 
-                    if (str_starts_with($oldPath, "documents/{$participant->id}/") &&
+                    if (str_starts_with($oldPath, "documents/{$participant->uuid}/") &&
                         $disk->exists($oldPath)
                     ) {
                         $disk->delete($oldPath);
@@ -1157,7 +1188,7 @@ class EventParticipantController extends Controller
                 $fileName = Str::uuid()->toString() . '.' . $extension;
 
                 $storedPath = $file->storeAs(
-                    "documents/{$participant->id}",
+                    "documents/{$participant->uuid}",
                     $fileName,
                     'privatedisk'
                 );
@@ -1172,16 +1203,24 @@ class EventParticipantController extends Controller
 
                 $existingPath = ltrim($participant->{$field}, '/');
 
-                if (str_starts_with($existingPath, "documents/{$participant->id}/")) {
+                if (str_starts_with($existingPath, "documents/{$participant->uuid}/")) {
                     $paths[$field] = $existingPath;
                 }
             }
         }
 
-        \Log::info('Participant attachment updated', [
-            'participant_id' => $participant->id,
-            'updated_fields' => array_keys($paths),
+        $user = auth()->user();
+
+        \Log::channel('security')->info('Participant document updated', [
+            'user_id'           => $user?->id,
+            'user_name'         => $user?->name,
+            'participant_id'    => $participant->id,
+            'participant_uuid'  => $participant->uuid,
+            'fields'            => array_keys($paths),
+            'ip'                => request()->ip(),
+            'ua'                => substr(request()->userAgent(), 0, 255),
         ]);
+
 
         return $paths;
     }
@@ -1236,15 +1275,15 @@ class EventParticipantController extends Controller
             ], 403);
         }
 
-        $event      = $eventParticipant->event ?? Event::find($eventParticipant->event_id);
+        $event       = $eventParticipant->event ?? Event::find($eventParticipant->event_id);
         $participant = $eventParticipant->participant;
 
-        // CEK SUDAH PERNAH DIMUTASI BELUM
+        // CEK SUDAH PERNAH DIMUTASI
         if ($roleSlug !== 'superadmin' && !is_null($eventParticipant->moved_by)) {
             return response()->json([
                 'success' => false,
                 'message' => 'Peserta sudah pernah dimutasi. Mutasi hanya boleh dilakukan satu kali.',
-            ], 422); // boleh 409/400 juga, saya pakai 422 biar ketangkep di validasi frontend
+            ], 422);
         }
 
         $data = $request->validate([
@@ -1253,55 +1292,128 @@ class EventParticipantController extends Controller
             'district_id' => ['required', 'exists:districts,id'],
         ]);
 
-        if ($event) {
-            switch ($event->event_level) {
-                case 'provinsi':
-                    $data['province_id'] = $event->province_id;
-                    break;
-                case 'kabupaten_kota':
-                    $data['province_id'] = $event->province_id;
-                    $data['regency_id']  = $event->regency_id;
-                    break;
-                case 'kecamatan':
-                    $data['province_id'] = $event->province_id;
-                    $data['regency_id']  = $event->regency_id;
-                    $data['district_id'] = $event->district_id;
-                    break;
-                default:
-                    // nasional → use input as is
-                    break;
+        // =========================
+        // SNAPSHOT SEBELUM MUTASI
+        // =========================
+        $before = [
+            'province_id' => $participant->province_id,
+            'regency_id'  => $participant->regency_id,
+            'district_id' => $participant->district_id,
+            'village_id'  => $participant->village_id,
+            'contingent'  => $eventParticipant->contingent,
+        ];
+
+        DB::beginTransaction();
+
+        try {
+
+            if ($event) {
+                switch ($event->event_level) {
+                    case 'provinsi':
+                        $data['province_id'] = $event->province_id;
+                        break;
+                    case 'kabupaten_kota':
+                        $data['province_id'] = $event->province_id;
+                        $data['regency_id']  = $event->regency_id;
+                        break;
+                    case 'kecamatan':
+                        $data['province_id'] = $event->province_id;
+                        $data['regency_id']  = $event->regency_id;
+                        $data['district_id'] = $event->district_id;
+                        break;
+                    default:
+                        // nasional → gunakan input
+                        break;
+                }
             }
+
+            // village tidak dimutasi lewat form
+            $data['village_id'] = null;
+            $participant->update($data);
+
+            // =========================
+            // HITUNG CONTINGENT BARU
+            // =========================
+            $eventParticipant->refresh();
+
+            $eventLevel = $event->event_level;
+            $contingent = null;
+
+            if ($eventLevel === 'national') {
+                $contingent = Province::find($data['province_id'])?->name;
+            } elseif ($eventLevel === 'province') {
+                $contingent = Regency::find($data['regency_id'])?->name;
+            } elseif ($eventLevel === 'regency') {
+                $contingent = District::find($data['district_id'])?->name;
+            } elseif ($eventLevel === 'district') {
+                $contingent = Village::find($data['village_id'])?->name;
+            }
+
+            $eventParticipant->update([
+                'contingent' => $contingent,
+                'moved_by'   => $user->id,
+                'moved_at'   => now(),
+            ]);
+
+            // =========================
+            // AUDIT LOG
+            // =========================
+            \Log::channel('audit')->info('Participant region mutated', [
+                'user_id'        => $user->id,
+                'user_name'      => $user->name,
+                'role'           => $roleSlug,
+                'event_id'       => $event->id,
+                'event_name'     => $event->name,
+                'participant_id' => $participant->id,
+                'event_participant_id' => $eventParticipant->id,
+                'before'         => $before,
+                'after'          => [
+                    'province_id' => $participant->province_id,
+                    'regency_id'  => $participant->regency_id,
+                    'district_id' => $participant->district_id,
+                    'village_id'  => $participant->village_id,
+                    'contingent'  => $contingent,
+                ],
+                'ip'  => $request->ip(),
+                'ua'  => substr($request->userAgent(), 0, 255),
+                'env' => app()->environment(),
+            ]);
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Wilayah peserta berhasil diperbarui.',
+            ]);
+
+        } catch (\Throwable $e) {
+
+            DB::rollBack();
+
+            \Log::channel('security')->error('Participant region mutation failed', [
+                'user_id' => $user?->id,
+                'event_participant_id' => $eventParticipant->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'message' => 'Terjadi kesalahan saat memproses mutasi wilayah.',
+            ], 500);
         }
-
-        // village_id tidak diinput di form mutasi
-        $data['village_id'] = null;
-        $participant->update($data);
-
-        $eventParticipant->fresh();
-        $eventLevel = $event->event_level;
-        $contingent = '';
-            if($eventLevel == 'national') {
-                $province = Province::findOrFail($data['province_id']);
-                $contingent = $province->name;
-            } elseif($eventLevel == 'province') {
-                $regency = Regency::findOrFail($data['regency_id']);
-                $contingent = $regency->name;
-            } elseif($eventLevel == 'regency') {
-                $district = District::findOrFail($data['district_id']);
-                $contingent = $district->name;
-            } elseif($eventLevel == 'district') {
-                $village = Village::findOrFail($data['village_id']);
-                $contingent = $village->name;
-            }
-        $eventParticipant->contingent = $contingent;
-        $eventParticipant->moved_by = $user->id;
-        $eventParticipant->save();
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Wilayah peserta berhasil diperbarui.',
-        ]);
     }
+
+
+    protected function auditLog(string $message, array $context = []): void
+    {
+        \Log::channel('audit')->info($message, array_merge([
+            'user_id'   => auth()->id(),
+            'user_name' => auth()->user()?->name,
+            'ip'        => request()->ip(),
+            'ua'        => substr(request()->userAgent(), 0, 255),
+            'env'       => app()->environment(),
+        ], $context));
+    }
+
 
     public function bulkRegister(Request $request)
     {
@@ -1309,39 +1421,88 @@ class EventParticipantController extends Controller
             'ids' => ['required', 'array'],
             'ids.*' => ['integer', 'exists:event_participants,id'],
             'event_id' => ['required', 'exists:events,id'],
-            'registration_status' => ['nullable', Rule::in(['process', 'bank_data', 'verified', 'need_revision'])],
+            'registration_status' => [
+                'nullable',
+                Rule::in(['process', 'bank_data', 'verified', 'need_revision'])
+            ],
         ]);
 
         $event = Event::findOrFail($data['event_id']);
+
         if (!$event->isStageActive('pendaftaran')) {
             return response()->json([
                 'message' => 'Tahap pendaftaran belum dimulai atau sudah berakhir.'
             ], 403);
         }
 
-        $status = $data['registration_status'] ?? 'proses';
+        $status = $data['registration_status'] ?? 'process';
+        $user   = auth()->user();
 
-        EventParticipant::whereIn('id', $data['ids'])
-            ->where('event_id', $data['event_id'])
-            ->whereIn('registration_status', ['bank_data','need_revision'])
-            ->whereHas('participant', function ($q) {
-                $q->whereRaw('
-                    (
-                        (id_card_url IS NOT NULL) +
-                        (family_card_url IS NOT NULL) +
-                        (bank_book_url IS NOT NULL) +
-                        (certificate_url IS NOT NULL) +
-                        (other_url IS NOT NULL)
-                    ) >= 4
-                ');
-            })
-            ->update(['registration_status' => $status]);
+        DB::beginTransaction();
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Status pendaftaran peserta berhasil diubah menjadi ' . $status . '.',
-        ]);
+        try {
+
+            $query = EventParticipant::query()
+                ->whereIn('id', $data['ids'])
+                ->where('event_id', $data['event_id'])
+                ->whereIn('registration_status', ['bank_data', 'need_revision'])
+                ->when(app()->environment('production'), function ($q) {
+                    $q->whereHas('participant', function ($q) {
+                        $q->whereRaw('
+                            (
+                                (id_card_url IS NOT NULL) +
+                                (family_card_url IS NOT NULL) +
+                                (bank_book_url IS NOT NULL) +
+                                (certificate_url IS NOT NULL) +
+                                (other_url IS NOT NULL)
+                            ) >= 4
+                        ');
+                    });
+                });
+
+
+            $affected = $query->count();
+
+            $query->update([
+                'registration_status' => $status,
+                'updated_at' => now(),
+            ]);
+
+            // =========================
+            // AUDIT LOG (BULK)
+            // =========================
+            $this->auditLog('Bulk participant registration status updated', [
+                'event_id'           => $event->id,
+                'event_name'         => $event->name,
+                'registration_status'=> $status,
+                'affected_rows'      => $affected,
+                'participant_ids'    => $data['ids'],
+            ]);
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'affected' => $affected,
+                'message' => "Status pendaftaran berhasil diubah menjadi {$status}.",
+            ]);
+
+        } catch (\Throwable $e) {
+
+            DB::rollBack();
+
+            \Log::channel('security')->error('Bulk register failed', [
+                'user_id' => $user?->id,
+                'event_id' => $data['event_id'],
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'message' => 'Terjadi kesalahan saat memproses data.'
+            ], 500);
+        }
     }
+
 
     public function statusCounts(Request $request)
     {
