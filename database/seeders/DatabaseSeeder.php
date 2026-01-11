@@ -57,7 +57,8 @@ class DatabaseSeeder extends Seeder
         $this->call(__MedalRuleSeeder::class);
 
 
-
+        $this->call(_EventJudgeSeeder::class);
+        $this->call(_EventJudgePanelSeeder::class);
         $this->call(_EventBranchSeeder::class);
         $this->call(_EventGroupSeeder::class);
         $this->call(_EventCategorySeeder::class);
@@ -67,8 +68,7 @@ class DatabaseSeeder extends Seeder
         $this->call(_UsersbyEventSeeder::class);
         // $this->call(_JudgeUsersFromEventBranchesSeeder::class);
         $this->call(_EventMedalRuleSeeder::class);
-        $this->call(_EventJudgeSeeder::class);
-        $this->call(_EventJudgePanelSeeder::class);
+        
         // $this->call(_BootstrapEventJudgesSeeder::class);
         // $this->call(_BootstrapEventJudgePanelsSeeder::class);
         

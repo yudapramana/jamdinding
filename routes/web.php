@@ -35,6 +35,187 @@ use App\Models\VervalLog;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Auth\CaptchaController;
 use App\Http\Controllers\PublicParticipantController;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Symfony\Component\HttpKernel\Event\RequestEvent;
+use App\Models\EventLocation;
+
+
+
+
+
+Route::get('/event-venues', function () {
+
+    $eventId = request()->query('event_id', 1);
+
+    $locations = EventLocation::query()
+        ->active()
+        ->forEvent($eventId)
+        ->with([
+            'judgePanels' => function ($panel) {
+                $panel->where('is_active', true)
+                      ->with([
+                          'eventGroups' => function ($group) {
+                              $group->where('status', 'active');
+                          }
+                      ]);
+            }
+        ])
+        ->orderBy('name')
+        ->get()
+        ->map(function ($location) {
+
+            $majelis = $location->judgePanels
+                ->pluck('roman_name ')
+                ->unique()
+                ->values();
+
+            $cabang = $location->judgePanels
+                ->flatMap(fn ($panel) => $panel->eventGroups)
+                ->map(fn ($group) => $group->full_name)
+                ->unique()
+                ->values();
+
+            return [
+                'location_name' => $location->name,
+                'majelis'       => $majelis,
+                'cabang'        => $cabang,
+            ];
+        });
+
+        // return $locations;
+
+    /* ===============================
+     * VIEW LANGSUNG DI ROUTE
+     * =============================== */
+
+    return response()->view('event.jadwal', [
+        'eventId'   => $eventId,
+        'locations' => $locations,
+    ]);
+});
+
+
+
+
+
+Route::get('/event-venues-json', function () {
+
+    $eventId = request()->query('event_id', 1);
+
+    $locations = EventLocation::query()
+        ->active()
+        ->forEvent($eventId)
+        ->with([
+            'judgePanels' => function ($panel) {
+                $panel->where('is_active', true)
+                      ->with([
+                          'eventGroups' => function ($group) {
+                              $group->where('status', 'active');
+                          }
+                      ]);
+            }
+        ])
+        ->orderBy('name')
+        ->get()
+        ->map(function ($location) {
+
+            // ===== KUMPULKAN MAJELIS =====
+            $majelis = $location->judgePanels
+                ->pluck('name')
+                ->unique()
+                ->values();
+
+            // ===== KUMPULKAN CABANG / GOLONGAN =====
+            $cabang = $location->judgePanels
+                ->flatMap(fn ($panel) => $panel->eventGroups)
+                ->map(fn ($group) => $group->full_name)
+                ->unique()
+                ->values();
+
+            return [
+                'location_id'   => $location->id,
+                'location_name' => $location->name,
+
+                // dipakai untuk judul seperti gambar
+                'majelis_count' => $majelis->count(),
+                'majelis'       => $majelis,
+
+                // isi teks kecil di bawah
+                'cabang'        => $cabang,
+            ];
+        });
+
+    return response()->json([
+        'event_id' => $eventId,
+        'total_locations' => $locations->count(),
+        'data' => $locations,
+    ]);
+});
+
+
+
+
+Route::get('/event-venues-details', function () {
+
+    $eventId = request()->query('event_id', 1);
+
+    $locations = EventLocation::query()
+        ->active()
+        ->forEvent($eventId)
+        ->with([
+            'judgePanels' => function ($panel) {
+                $panel->where('is_active', true)
+                      ->with([
+                          'eventGroups' => function ($group) {
+                              $group->where('status', 'active')
+                                    ->orderBy('order_number');
+                          }
+                      ])
+                      ->orderBy('name');
+            }
+        ])
+        ->orderBy('name')
+        ->get()
+        ->map(function ($location) {
+            return [
+                'id'   => $location->id,
+                'code' => $location->code,
+                'name' => $location->name,
+                'address' => $location->address,
+                'coordinate' => $location->coordinate,
+
+                'event_judge_panels' => $location->judgePanels->map(function ($panel) {
+                    return [
+                        'id'   => $panel->id,
+                        'code' => $panel->code,
+                        'name' => $panel->name,
+                        'notes'=> $panel->notes,
+
+                        'event_groups' => $panel->eventGroups->map(function ($group) {
+                            return [
+                                'id'          => $group->id,
+                                'branch_id'   => $group->branch_id,
+                                'branch_name' => $group->branch_name,
+                                'group_id'    => $group->group_id,
+                                'group_name'  => $group->group_name,
+                                'full_name'   => $group->full_name,
+                                'is_team'     => $group->is_team,
+                            ];
+                        }),
+                    ];
+                }),
+            ];
+        });
+
+    return response()->json([
+        'event_id' => $eventId,
+        'total_locations' => $locations->count(),
+        'data' => $locations,
+    ]);
+});
+
+
 
 
 // Route::get('/participant/{eventParticipant:uuid}/kokarde', 
@@ -112,9 +293,7 @@ Route::get('/test-log', function () {
 |
 */
 
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
-use Symfony\Component\HttpKernel\Event\RequestEvent;
+
 
 
 
