@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\EventGroup;
 use App\Models\Event;
 use App\Models\Branch;
+use App\Models\EventJudgePanel;
 use App\Models\Group;
 use App\Models\MasterGroup;
 use Illuminate\Http\Request;
@@ -13,6 +14,38 @@ use Illuminate\Support\Facades\DB;
 
 class EventGroupController extends Controller
 {
+
+    public function assignJudgePanel(EventGroup $eventGroup, Request $request)
+    {
+        $data = $request->validate([
+            'event_judge_panel_id' => [
+                'nullable',
+                'exists:event_judge_panels,id'
+            ]
+        ]);
+
+        // Validasi: majelis harus dari event yang sama
+        if ($data['event_judge_panel_id']) {
+            $panel = EventJudgePanel::find($data['event_judge_panel_id']);
+
+            if ($panel->event_id !== $eventGroup->event_id) {
+                return response()->json([
+                    'message' => 'Majelis tidak berasal dari event yang sama.'
+                ], 422);
+            }
+        }
+
+        $eventGroup->update([
+            'event_judge_panel_id' => $data['event_judge_panel_id'] ?? null
+        ]);
+
+        return response()->json([
+            'message' => 'Majelis hakim berhasil ditetapkan.'
+        ]);
+    }
+
+
+
     public function index(Request $request)
     {
         $eventId = $request->get('event_id');
@@ -109,14 +142,15 @@ class EventGroupController extends Controller
     public function store(Request $request)
     {
         $data = $request->validate([
-            'event_id'     => ['required', 'exists:events,id'],
-            'branch_id'    => ['required', 'exists:branches,id'],
-            'group_id'     => ['required', 'exists:groups,id'],
-            'full_name'    => ['nullable', 'string', 'max:255'],
-            'max_age'      => ['nullable', 'integer', 'min:0'],
-            'status'       => ['nullable', 'in:inactive,active'],
-            'is_team'      => ['nullable', 'boolean'],
-            'order_number' => ['nullable', 'integer', 'min:1'],
+            'event_id'              => ['required', 'exists:events,id'],
+            'branch_id'             => ['required', 'exists:branches,id'],
+            'group_id'              => ['required', 'exists:groups,id'],
+            'full_name'             => ['nullable', 'string', 'max:255'],
+            'max_age'               => ['nullable', 'integer', 'min:0'],
+            'status'                => ['nullable', 'in:inactive,active'],
+            'is_team'               => ['nullable', 'boolean'],
+            'order_number'          => ['nullable', 'integer', 'min:1'],
+            'judge_assignment_mode' => ['nullable', 'in:BY_PANEL,BY_COMPONENT'],
         ]);
 
         $event  = Event::findOrFail($data['event_id']);
@@ -150,6 +184,7 @@ class EventGroupController extends Controller
             'status'       => $data['status'] ?? 'active',
             'is_team'      => $data['is_team'] ?? false,
             'order_number' => $data['order_number'] ?? null,
+            'judge_assignment_mode' => $data['judge_assignment_mode'] ?? 'BY_PANEL',
         ]);
 
         return response()->json([
@@ -169,6 +204,7 @@ class EventGroupController extends Controller
             'status'       => ['nullable', 'in:inactive,active'],
             'is_team'      => ['nullable', 'boolean'],
             'order_number' => ['nullable', 'integer', 'min:1'],
+            'judge_assignment_mode' => ['nullable', 'in:BY_PANEL,BY_COMPONENT'],
         ]);
 
         // handle perubahan branch_id / group_id → cek unique
@@ -222,6 +258,9 @@ class EventGroupController extends Controller
         }
         if (array_key_exists('order_number', $data)) {
             $eventGroup->order_number = $data['order_number'];
+        }
+        if (array_key_exists('judge_assignment_mode', $data)) {
+            $eventGroup->judge_assignment_mode = $data['judge_assignment_mode'];
         }
 
         $eventGroup->save();

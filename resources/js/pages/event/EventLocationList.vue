@@ -260,7 +260,7 @@ const initMapIfNeeded = () => {
   if (map) return
 
   map = L.map('map', {
-    center: [-0.47, 100.25],
+    center: [-1.348545, 100.5641798],
     zoom: 13,
     fullscreenControl: true,
     fullscreenControlOptions: {
@@ -369,7 +369,7 @@ const openCreate = () => {
     await nextTick()
     initMapIfNeeded()
     map.invalidateSize()
-    map.setView([-0.47, 100.25], 13)
+    map.setView([-1.348545, 100.5641798], 13)
   })
 }
 
@@ -424,7 +424,7 @@ watch(search, () => fetchData(1))
 onMounted(() => fetchData())
 </script>
 
-<style>
+<style scoped>
 /* AdminLTE + Leaflet FIX */
 .leaflet-container img {
   max-width: none !important;

@@ -187,7 +187,7 @@ class _EventParticipantsSeeder extends Seeder
 
         // === SESUAIKAN nama header Excel di sini ===
         $nik              = $get('nik');
-        $fullName         = $get('nama_lengkap');
+        $fullName         = strtoupper($get('nama_lengkap'));
         $phoneNumber      = $get('no_hp');
         $placeOfBirth     = $get('tempat_lahir');
         $kecamatanExcel   = $get('kecamatan');

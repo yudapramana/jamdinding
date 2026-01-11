@@ -910,7 +910,7 @@ class EventParticipantController extends Controller
             }
 
             $participant->nik                 = $pData['nik'];
-            $participant->full_name           = $pData['full_name'];
+            $participant->full_name           = strtoupper($pData['full_name']);
             $participant->phone_number        = $pData['phone_number'] ?? null;
             $participant->place_of_birth      = $pData['place_of_birth'] ?? null;
             $participant->date_of_birth       = $pData['date_of_birth'];

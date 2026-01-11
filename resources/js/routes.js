@@ -65,6 +65,20 @@ export default [
         component: () => import('./pages/master/MasterFieldComponents.vue'),
       },
       {
+        path: 'event/judge/index',
+        name: 'admin.event.judge.index',
+        component: () => import('./pages/event/EventJudges.vue'),
+      },
+      {
+        path: 'event/judge/panels',
+        name: 'admin.event.judge.panels',
+        component: () => import('./pages/event/EventJudgePanelList.vue'),
+        meta: {
+          title: 'Majelis Hakim Event',
+          requiresAuth: true,
+        },
+      },
+      {
         path: 'events/index',
         name: 'admin.events.index',
         component: () => import('./pages/event/EventList.vue'),
@@ -162,12 +176,12 @@ export default [
       {
         path: 'event/scoring/input-default',
         name: 'admin.event.scoring.input-default',
-        component: () => import('./pages/event/EventCompetitionScoring.vue'),
+        component: () => import('./pages/event/EventCompetitionScoringV2.vue'),
       },
       {
         path: 'event/scoring/:id/input-specific',
         name: 'admin.event.scoring.input-specific',
-        component: () => import('./pages/event/EventCompetitionScoring.vue'),
+        component: () => import('./pages/event/EventCompetitionScoringV2.vue'),
         props: route => ({
           eventParticipantId: route.query.event_participant_id || null,
         }),
@@ -205,14 +219,14 @@ export default [
       {
         path: '/admin/event/ranking/select',
         name: 'admin.event.ranking.select',
-        component: () => import('./pages/event/EventCompetitionRanking.vue'),
+        component: () => import('./pages/event/EventCompetitionRankingV2.vue'),
       },
 
       // Ranking detail (dengan :id)
       {
         path: '/admin/event/:id/ranking/index',
         name: 'admin.event.ranking.index',
-        component: () => import('./pages/event/EventCompetitionRanking.vue'),
+        component: () => import('./pages/event/EventCompetitionRankingV2.vue'),
       },
 
       {

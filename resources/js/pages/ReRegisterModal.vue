@@ -220,8 +220,12 @@
 import { computed, ref, watch } from 'vue'
 import axios from 'axios'
 import Swal from 'sweetalert2'
+import { useSettingStore } from '../stores/SettingStore'
 
-
+const settingStore = useSettingStore()
+const isDevelopmentMode = computed(() => {
+  return settingStore.isDevelopment === true
+})
 
 const props = defineProps({ eventParticipant: Object })
 const emit = defineEmits(['updated', 'request-draw'])
@@ -349,13 +353,15 @@ const submit = async () => {
     return
   }
 
-  if (actionMode.value === 'verified' && !isChecklistOk.value) {
-    Swal.fire(
-      'Checklist belum lengkap',
-      'Lengkapi checklist inti sebelum ACC.',
-      'warning'
-    )
-    return
+  if (!isDevelopmentMode.value) {
+    if (actionMode.value === 'verified' && !isChecklistOk.value) {
+      Swal.fire(
+        'Checklist belum lengkap',
+        'Lengkapi checklist inti sebelum ACC.',
+        'warning'
+      )
+      return
+    }
   }
 
   isSubmitting.value = true

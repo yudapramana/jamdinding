@@ -35,68 +35,6 @@ class EventCompetitionRankingController extends Controller
         return (bool) optional($competition->eventGroup)->is_team;
     }
 
-    /**
-     * Cari hakim ketua (is_chief) sesuai schema:
-     * - event_group_judges (prioritas)
-     * - fallback event_branch_judges
-     * - fallback terakhir: judge terkecil yang memang ada scoresheet di competition
-     */
-    private function getChiefJudgeId(EventCompetition $competition, ?string &$source = null): ?int
-    {
-        $source = null;
-
-        // 1) Chief di GROUP
-        $id = DB::table('event_group_judges')
-            ->where('event_group_id', $competition->event_group_id)
-            ->where('is_chief', 1)
-            ->orderBy('id')
-            ->value('user_id');
-
-        if ($id) {
-            $source = 'event_group_judges';
-            return (int) $id;
-        }
-
-        // 2) Chief di BRANCH
-        $branchId = DB::table('event_groups')
-            ->where('id', $competition->event_group_id)
-            ->value('branch_id');
-
-        if ($branchId) {
-            $eventBranchId = DB::table('event_branches')
-                ->where('event_id', $competition->event_id)
-                ->where('branch_id', $branchId)
-                ->value('id');
-
-            if ($eventBranchId) {
-                $id2 = DB::table('event_branch_judges')
-                    ->where('event_branch_id', $eventBranchId)
-                    ->where('is_chief', 1)
-                    ->orderBy('id')
-                    ->value('user_id');
-
-                if ($id2) {
-                    $source = 'event_branch_judges';
-                    return (int) $id2;
-                }
-            }
-        }
-
-        // 3) Fallback: pilih judge yang benar-benar punya scoresheet di competition
-        $id3 = DB::table('event_scoresheets')
-            ->where('event_competition_id', $competition->id)
-            ->orderBy('judge_id')
-            ->value('judge_id');
-
-        if ($id3) {
-            $source = 'fallback_scoresheet_judge';
-            return (int) $id3;
-        }
-
-        $source = 'none';
-        return null;
-    }
-
     private function roundCmp($v, int $decimals)
     {
         if ($v === null) return null;
@@ -646,6 +584,60 @@ class EventCompetitionRankingController extends Controller
 
     }
 
+    protected function resolveRegionIdByName(string $regionType, string $name): ?int
+    {
+        return match ($regionType) {
+            EventContingent::REGION_PROVINCE =>
+                DB::table('provinces')->where('name', $name)->value('id'),
+
+            EventContingent::REGION_REGENCY =>
+                DB::table('regencies')->where('name', $name)->value('id'),
+
+            EventContingent::REGION_DISTRICT =>
+                DB::table('districts')->where('name', $name)->value('id'),
+
+            EventContingent::REGION_VILLAGE =>
+                DB::table('villages')->where('name', $name)->value('id'),
+
+            default => null,
+        };
+    }
+
+    protected function resolveParticipantRegion(
+        int $eventParticipantId,
+        string $regionType
+    ): array {
+        $ep = EventParticipant::with('participant')->find($eventParticipantId);
+        if (!$ep || !$ep->participant) return [null, null];
+
+        $p = $ep->participant;
+
+        $regionId = match ($regionType) {
+            EventContingent::REGION_PROVINCE => $p->province_id,
+            EventContingent::REGION_REGENCY  => $p->regency_id,
+            EventContingent::REGION_DISTRICT => $p->district_id,
+            EventContingent::REGION_VILLAGE  => $p->village_id,
+            default => null,
+        };
+
+        if (!$regionId) return [null, null];
+
+        $regionName = match ($regionType) {
+            EventContingent::REGION_PROVINCE =>
+                DB::table('provinces')->where('id', $regionId)->value('name'),
+            EventContingent::REGION_REGENCY =>
+                DB::table('regencies')->where('id', $regionId)->value('name'),
+            EventContingent::REGION_DISTRICT =>
+                DB::table('districts')->where('id', $regionId)->value('name'),
+            EventContingent::REGION_VILLAGE =>
+                DB::table('villages')->where('id', $regionId)->value('name'),
+        };
+
+        return [$regionId, $regionName];
+    }
+
+
+
     public function recalculate(Request $request, EventCompetition $competition)
     {
         $competition->load(['eventGroup:id,event_id,branch_id,is_team,full_name']);
@@ -683,11 +675,13 @@ class EventCompetitionRankingController extends Controller
     {
         $competition->load([
             'round:id,name',
-            'eventGroup:id,event_id,branch_id,is_team,full_name',
+            'eventGroup:id,event_id,branch_id,is_team,full_name,judge_assignment_mode,event_judge_panel_id',
             'event',
         ]);
 
-        // 1️⃣ Validasi hanya babak FINAL
+        /* =====================================================
+        * 1️⃣ VALIDASI: HANYA FINAL
+        * ===================================================== */
         $roundName = strtolower(trim($competition->round?->name ?? ''));
         if (!str_contains($roundName, 'final')) {
             return response()->json([
@@ -695,13 +689,17 @@ class EventCompetitionRankingController extends Controller
             ], 422);
         }
 
+        /* =====================================================
+        * 2️⃣ TOP N (DINAMIS)
+        * ===================================================== */
         $data = $request->validate([
             'top_n' => ['nullable', 'integer', 'min:1', 'max:10'],
         ]);
-
         $topN = (int) ($data['top_n'] ?? 6);
 
-        // 2️⃣ Mapping event_level → region_type
+        /* =====================================================
+        * 3️⃣ REGION TYPE
+        * ===================================================== */
         $regionTypeMap = [
             'national' => EventContingent::REGION_PROVINCE,
             'province' => EventContingent::REGION_REGENCY,
@@ -712,14 +710,21 @@ class EventCompetitionRankingController extends Controller
         $regionType = $regionTypeMap[$competition->event->event_level] ?? null;
         if (!$regionType) {
             return response()->json([
-                'message' => 'Event level tidak valid untuk publish.',
+                'message' => 'Event level tidak valid.',
             ], 422);
         }
 
-        // 3️⃣ Ambil ranking dari scoresheet
+        /* =====================================================
+        * 4️⃣ BUILD RANKING DARI SCORESHEET
+        * ===================================================== */
         $res = $this->buildRankingFromScoresheets($competition, false);
-        $rankingByCategory = collect($res['ranking'])->groupBy('event_category_id');
+        $rankingByCategory = collect($res['ranking'])->groupBy(
+            fn ($r) => $r['event_category_id'] ?? 'null'
+        );
 
+        /* =====================================================
+        * 5️⃣ SNAPSHOT RANKING
+        * ===================================================== */
         EventSnapshot::updateOrCreate(
             [
                 'event_id' => $competition->event_id,
@@ -736,8 +741,9 @@ class EventCompetitionRankingController extends Controller
             ]
         );
 
-
-        // 4️⃣ Ambil aturan medali
+        /* =====================================================
+        * 6️⃣ MEDAL RULES
+        * ===================================================== */
         $eventMedalRules = EventMedalRule::where('event_id', $competition->event_id)
             ->where('is_active', true)
             ->orderBy('order_number')
@@ -749,6 +755,9 @@ class EventCompetitionRankingController extends Controller
             ->get()
             ->keyBy('order_number');
 
+        /* =====================================================
+        * 7️⃣ TRANSACTION
+        * ===================================================== */
         DB::transaction(function () use (
             $competition,
             $rankingByCategory,
@@ -760,190 +769,132 @@ class EventCompetitionRankingController extends Controller
 
             foreach ($rankingByCategory as $categoryId => $rows) {
 
-                // 5️⃣ Hapus standing lama (per group + category)
                 MedalStanding::where('event_id', $competition->event_id)
                     ->where('event_group_id', $competition->event_group_id)
                     ->when(
-                        empty($categoryId) || $categoryId === 'null',
+                        $categoryId === 'null',
                         fn ($q) => $q->whereNull('event_category_id'),
                         fn ($q) => $q->where('event_category_id', $categoryId)
                     )
                     ->delete();
 
-                // 6️⃣ Ambil Top N
-                $top = collect($rows)->take($topN)->values();
+                $topRows = collect($rows)->take($topN)->values();
 
-
-                foreach ($top as $idx => $row) {
+                foreach ($topRows as $idx => $row) {
                     $order = $idx + 1;
 
-                    // 🎖 Ambil rule medali
                     $rule = $eventMedalRules[$order]
                         ?? $defaultMedalRules[$order]
                         ?? null;
 
-                    if (!$rule) {
-                        continue;
-                    }
+                    if (!$rule) continue;
 
-
+                    /* =============================
+                    * REGU
+                    * ============================= */
                     if ($this->isTeamMode($competition)) {
 
                         $contingentName = trim($row['contingent'] ?? '');
+                        if ($contingentName === '') continue;
 
-                        if ($contingentName === '') {
-                            continue;
-                        }
+                        $regionId = $this->resolveRegionIdByName(
+                            $regionType,
+                            $contingentName
+                        );
 
-                        /**
-                         * 🔑 Tentukan region_id berdasarkan event_level
-                         */
-                        $regionId = match ($regionType) {
-                            EventContingent::REGION_PROVINCE =>
-                                DB::table('provinces')->where('name', $contingentName)->value('id'),
+                        if (!$regionId) continue;
 
-                            EventContingent::REGION_REGENCY =>
-                                DB::table('regencies')->where('name', $contingentName)->value('id'),
+                        $regionName = $contingentName;
+                    }
+                    /* =============================
+                    * INDIVIDU
+                    * ============================= */
+                    else {
+                        if (!isset($row['event_participant_id'])) continue;
 
-                            EventContingent::REGION_DISTRICT =>
-                                DB::table('districts')->where('name', $contingentName)->value('id'),
+                        [$regionId, $regionName] =
+                            $this->resolveParticipantRegion(
+                                $row['event_participant_id'],
+                                $regionType
+                            );
 
-                            EventContingent::REGION_VILLAGE =>
-                                DB::table('villages')->where('name', $contingentName)->value('id'),
-
-                            default => null,
-                        };
-
-
-
-                        if (!$regionId) {
-                            // safety skip (nama tidak ditemukan)
-                            continue;
-                        }
-
-                        /**
-                         * 🔗 Ambil EventContingent
-                         */
-                        $contingent = EventContingent::where([
-                            'event_id'    => $competition->event_id,
-                            'region_type' => $regionType,
-                            'region_id'   => $regionId,
-                        ])->first();
-
-
-                        if (!$contingent) {
-                            continue;
-                        }
-
-                        /**
-                         * 📸 Snapshot nama wilayah
-                         */
-                        $regionName = $contingent->region_name;
-
-
-                    } else {
-
-                        /**
-                         * ==========================
-                         * 🟩 INDIVIDU MODE
-                         * ==========================
-                         */
-                        if (!isset($row['event_participant_id'])) {
-                            continue;
-                        }
-
-                        $participant = EventParticipant::with([
-                            'participant:id,province_id,regency_id,district_id,village_id',
-                        ])->find($row['event_participant_id']);
-
-                        if (!$participant || !$participant->participant) {
-                            continue;
-                        }
-
-                        $regionId = match ($regionType) {
-                            EventContingent::REGION_PROVINCE => $participant->participant->province_id,
-                            EventContingent::REGION_REGENCY  => $participant->participant->regency_id,
-                            EventContingent::REGION_DISTRICT => $participant->participant->district_id,
-                            EventContingent::REGION_VILLAGE  => $participant->participant->village_id,
-                            default => null,
-                        };
-
-                        if (!$regionId) {
-                            continue;
-                        }
-
-                        $regionName = match ($regionType) {
-                            EventContingent::REGION_PROVINCE => DB::table('provinces')->where('id', $regionId)->value('name'),
-                            EventContingent::REGION_REGENCY  => DB::table('regencies')->where('id', $regionId)->value('name'),
-                            EventContingent::REGION_DISTRICT => DB::table('districts')->where('id', $regionId)->value('name'),
-                            EventContingent::REGION_VILLAGE  => DB::table('villages')->where('id', $regionId)->value('name'),
-                        };
+                        if (!$regionId) continue;
                     }
 
-
-                    // 7️⃣ SIMPAN MEDAL STANDING
                     MedalStanding::create([
-                        'event_id'            => $competition->event_id,
-                        'event_group_id'      => $competition->event_group_id,
-                        'event_category_id'   => empty($categoryId) || $categoryId === 'null'
-                            ? null
-                            : $categoryId,
-
-                        'order_number'        => $order,
-                        'event_medal_rule_id' => $rule instanceof EventMedalRule ? $rule->id : null,
-                        'medal_rule_id'       => $rule instanceof MedalRule ? $rule->id : null,
-
-                        'region_type'         => $regionType,
-                        'region_id'           => $regionId,
-                        'region_name'         => $regionName,
+                        'event_id'          => $competition->event_id,
+                        'event_group_id'    => $competition->event_group_id,
+                        'event_category_id' => $categoryId === 'null' ? null : $categoryId,
+                        'order_number'      => $order,
+                        'event_medal_rule_id' =>
+                            $rule instanceof EventMedalRule ? $rule->id : null,
+                        'medal_rule_id' =>
+                            $rule instanceof MedalRule ? $rule->id : null,
+                        'region_type' => $regionType,
+                        'region_id'   => $regionId,
+                        'region_name' => $regionName,
                     ]);
                 }
             }
 
-            $medals = MedalStanding::where('event_id', $competition->event_id)
-                ->where('event_group_id', $competition->event_group_id)
-                ->get();
-
-            EventSnapshot::updateOrCreate(
-                [
-                    'event_id' => $competition->event_id,
-                    'type'     => 'medal',
-                ],
-                [
-                    'payload' => [
-                        'event_group_id' => $competition->event_group_id,
-                        'medal_standings' => $medals->toArray(),
-                    ],
-                    'published_at' => now(),
-                ]
-            );
-
-
+            /* =====================================================
+            * REBUILD CONTINGENT + LEADERBOARD
+            * ===================================================== */
             $this->loadEventContingentsFromRegion($competition->event);
-            // 🔄 Rebuild klasemen kontingen
             $this->rebuildEventContingentsFromMedals($competition->event_id);
 
-           $leaderboard = $this->buildLeaderboard($competition->event_id);
-
             EventSnapshot::updateOrCreate(
                 [
                     'event_id' => $competition->event_id,
-                    'type' => 'leaderboard',
+                    'type'     => 'leaderboard',
                 ],
                 [
-                    'payload' => $leaderboard,
+                    'payload' => $this->buildLeaderboard($competition->event_id),
                     'published_at' => now(),
                 ]
             );
-
         });
 
         return response()->json([
-            'message'       => 'Published',
-            'published_top' => $topN,
-            'is_team'       => $this->isTeamMode($competition) ? 1 : 0,
+            'message' => 'Published',
+            'top_n'   => $topN,
+            'is_team' => $this->isTeamMode($competition),
         ]);
     }
+
+    protected function getChiefJudgeId(EventCompetition $competition, ?string &$source = null): ?int
+    {
+        $group = $competition->eventGroup;
+
+        if ($group->judge_assignment_mode === 'BY_PANEL') {
+            $row = DB::table('event_judge_panel_members')
+                ->where('event_judge_panel_id', $group->event_judge_panel_id)
+                ->where('is_chief', true)
+                ->first();
+
+            if ($row) {
+                $source = 'panel';
+                return (int) $row->event_judge_id;
+            }
+        }
+
+        if ($group->judge_assignment_mode === 'BY_COMPONENT') {
+            $row = DB::table('event_field_component_judges')
+                ->where('is_chief', true)
+                ->first();
+
+            if ($row) {
+                $source = 'component';
+                return (int) $row->event_judge_id;
+            }
+        }
+
+        $source = 'none';
+        return null;
+    }
+
+
+
 
 
     private function buildLeaderboard(int $eventId)
@@ -991,144 +942,155 @@ class EventCompetitionRankingController extends Controller
     // =========================================================
     // CORE BUILDER: INDIVIDU vs GROUP
     // =========================================================
-    private function buildRankingFromScoresheets(EventCompetition $competition, bool $withDebug = false): array
-    {
-        $competition->load(['eventGroup:id,event_id,branch_id,is_team,full_name']);
+    private function buildRankingFromScoresheets(
+        EventCompetition $competition,
+        bool $withDebug = false
+    ): array {
+        $competition->load([
+            'eventGroup:id,event_id,is_team,judge_assignment_mode,event_judge_panel_id',
+        ]);
 
-        $isTeam = $this->isTeamMode($competition);
-        return $isTeam
+        return $competition->eventGroup->is_team
             ? $this->buildRankingGroupedByContingentCategory($competition, $withDebug)
             : $this->buildRankingIndividu($competition, $withDebug);
     }
 
+
     /**
      * INDIVIDU (existing behaviour)
      */
-    private function buildRankingIndividu(EventCompetition $competition, bool $withDebug = false): array
-    {
+    private function buildRankingIndividu(
+        EventCompetition $competition,
+        bool $withDebug = false
+    ): array {
         $cmpDecimals = 2;
 
+        /* ============================================
+        * FIELD ORDER
+        * ============================================ */
         $fieldOrder = EventFieldComponent::query()
             ->where('event_group_id', $competition->event_group_id)
-            ->orderByRaw('COALESCE(order_number, 999999) asc')
+            ->orderByRaw('COALESCE(order_number, 999999)')
             ->pluck('id')
-            ->values()
+            ->map(fn ($v) => (int)$v)
             ->all();
 
+        /* ============================================
+        * CHIEF JUDGE
+        * ============================================ */
         $chiefSource = null;
         $chiefJudgeId = $this->getChiefJudgeId($competition, $chiefSource);
 
-        $rows = EventScoresheet::query()
+        /* ============================================
+        * LOAD SCORESHEETS
+        * ============================================ */
+        $sheets = EventScoresheet::query()
             ->with([
-                'eventParticipant:id,event_id,participant_id,event_branch_id,event_group_id,event_category_id,contingent',
+                'eventParticipant:id,participant_id,event_category_id,contingent',
                 'eventParticipant.participant:id,full_name,gender',
-                'eventParticipant.eventBranch:id,full_name',
-                'eventParticipant.eventGroup:id,full_name',
                 'eventParticipant.eventCategory:id,full_name',
                 'items:id,event_scoresheet_id,event_field_component_id,score,weighted_score',
             ])
             ->where('event_competition_id', $competition->id)
+            ->where('status', 'submitted')
             ->get();
 
-        $participants = [];
+        $rows = [];
 
-        foreach ($rows as $ss) {
+        foreach ($sheets as $ss) {
             $ep = $ss->eventParticipant;
             if (!$ep || !$ep->participant) continue;
 
-            $pid = (int)$ep->id;
-            $judgeId = (int)$ss->judge_id;
+            $pid = (int) $ep->id;
+            $jid = (int) $ss->event_judge_id;
 
-            if (!isset($participants[$pid])) {
-                $participants[$pid] = [
-                    'event_participant_id' => $ep->id,
-                    'participant_id' => $ep->participant_id,
+            if (!isset($rows[$pid])) {
+                $rows[$pid] = [
+                    'event_participant_id' => $pid,
                     'full_name' => $ep->participant->full_name,
-                    'gender' => $ep->participant->gender,
                     'contingent' => $ep->contingent,
-                    'branch' => $ep->eventBranch?->full_name,
-                    'group' => $ep->eventGroup?->full_name,
-
                     'event_category_id' => $ep->event_category_id,
-                    'category_name'     => $ep->eventCategory?->full_name,
-                    'category'          => $ep->eventCategory?->full_name,
+                    'event_category' => [
+                        'id' => $ep->event_category_id,
+                        'full_name' => $ep->eventCategory?->full_name,
+                    ],
 
-                    'scores' => [],
+                    'judge_totals' => [],
+                    'judge_counts' => [],
 
                     'field_totals' => [],
                     'field_counts' => [],
-                    'field_avg' => [],
 
                     'chief_field' => [],
+                    'field_avg' => [],
+
+                    'final_score' => 0,
                 ];
 
-                foreach ($fieldOrder as $fcId) {
-                    $participants[$pid]['field_totals'][(string)$fcId] = 0.0;
-                    $participants[$pid]['field_counts'][(string)$fcId] = 0;
-                    $participants[$pid]['chief_field'][(string)$fcId]  = null;
+                foreach ($fieldOrder as $fid) {
+                    $rows[$pid]['field_totals'][$fid] = 0;
+                    $rows[$pid]['field_counts'][$fid] = 0;
+                    $rows[$pid]['chief_field'][$fid]  = null;
                 }
             }
 
-            $participants[$pid]['scores'][(string)$judgeId] = (float)$ss->total_score;
+            // total per judge
+            $rows[$pid]['judge_totals'][$jid] =
+                ($rows[$pid]['judge_totals'][$jid] ?? 0) + $ss->total_score;
 
-            foreach (($ss->items ?? []) as $it) {
-                $fcId = (int)$it->event_field_component_id;
-                if (!$fcId) continue;
+            $rows[$pid]['judge_counts'][$jid] =
+                ($rows[$pid]['judge_counts'][$jid] ?? 0) + 1;
 
-                $val = $it->weighted_score;
-                if ($val === null) $val = $it->score;
-                if ($val === null) continue;
+            foreach ($ss->items as $it) {
+                if (!$it->event_field_component_id) continue;
 
-                if (!array_key_exists((string)$fcId, $participants[$pid]['field_totals'])) {
-                    $participants[$pid]['field_totals'][(string)$fcId] = 0.0;
-                    $participants[$pid]['field_counts'][(string)$fcId] = 0;
-                    $participants[$pid]['chief_field'][(string)$fcId]  = null;
-                }
+                $fid = (int) $it->event_field_component_id;
+                $val = $it->weighted_score ?? $it->score;
 
-                $participants[$pid]['field_totals'][(string)$fcId] += (float)$val;
-                $participants[$pid]['field_counts'][(string)$fcId] += 1;
+                $rows[$pid]['field_totals'][$fid] += $val;
+                $rows[$pid]['field_counts'][$fid]++;
 
-                if ($chiefJudgeId && $judgeId === (int)$chiefJudgeId) {
-                    $participants[$pid]['chief_field'][(string)$fcId] = (float)$val;
+                if ($chiefJudgeId && $jid === $chiefJudgeId) {
+                    $rows[$pid]['chief_field'][$fid] = $val;
                 }
             }
         }
 
-        $list = array_values($participants);
+        /* ============================================
+        * COMPUTE FINAL SCORE
+        * ============================================ */
+        foreach ($rows as &$r) {
+            $sum = 0;
+            $cnt = 0;
 
-        foreach ($list as &$p) {
-            $vals = array_values($p['scores'] ?? []);
-            $p['judge_count'] = count($vals);
-            $p['final_score'] = $p['judge_count'] > 0 ? round(array_sum($vals) / $p['judge_count'], 2) : 0;
+            foreach ($r['judge_totals'] as $jid => $tot) {
+                $avg = $tot / $r['judge_counts'][$jid];
+                $sum += $avg;
+                $cnt++;
+            }
 
-            $p['field_avg'] = [];
-            foreach (($p['field_totals'] ?? []) as $fcId => $sum) {
-                $cnt = (int)($p['field_counts'][(string)$fcId] ?? 0);
-                $p['field_avg'][(string)$fcId] = $cnt > 0 ? ((float)$sum / $cnt) : 0.0;
+            $r['final_score'] = $cnt ? round($sum / $cnt, 2) : 0;
+
+            foreach ($fieldOrder as $fid) {
+                $c = $r['field_counts'][$fid] ?? 0;
+                $r['field_avg'][$fid] = $c ? round($r['field_totals'][$fid] / $c, 2) : 0;
             }
         }
-        unset($p);
+        unset($r);
 
-        // rank per category + comparator tiebreak
-        $grouped = [];
-        foreach ($list as $p) {
-            $grouped[(string)($p['event_category_id'] ?? 'null')][] = $p;
-        }
-
-        $debugPairs = [];
+        /* ============================================
+        * SORT + TIE BREAK PER CATEGORY
+        * ============================================ */
+        $grouped = collect($rows)->groupBy('event_category_id');
         $final = [];
 
         foreach ($grouped as $cid => $items) {
-            usort($items, function ($a, $b) use ($fieldOrder, $cmpDecimals, &$debugPairs) {
-                [$cmp, $decidedBy] = $this->compareParticipants($a, $b, $fieldOrder, $cmpDecimals);
+            $items = $items->values()->all();
 
-                $debugPairs[] = [
-                    'a' => ['id' => $a['event_participant_id'], 'name' => $a['full_name']],
-                    'b' => ['id' => $b['event_participant_id'], 'name' => $b['full_name']],
-                    'decided_by' => $decidedBy,
-                ];
-
-                return $cmp;
+            usort($items, function ($a, $b) use ($fieldOrder, $cmpDecimals) {
+                return $this->compareParticipants(
+                    $a, $b, $fieldOrder, $cmpDecimals
+                )[0];
             });
 
             foreach ($items as $i => $row) {
@@ -1137,50 +1099,17 @@ class EventCompetitionRankingController extends Controller
             }
         }
 
-        // Debug tie groups (final_score sama)
-        $tieGroups = [];
-        if ($withDebug) {
-            $byFinal = [];
-            foreach ($final as $p) {
-                $k = $this->roundCmp($p['final_score'] ?? 0, $cmpDecimals);
-                $byFinal[(string)$k][] = $p;
-            }
-            foreach ($byFinal as $k => $group) {
-                if (count($group) <= 1) continue;
-
-                $tieGroups[] = [
-                    'final_score_cmp' => (float)$k,
-                    'rows' => array_map(function ($p) use ($cmpDecimals) {
-                        $fa = [];
-                        $cf = [];
-                        foreach (($p['field_avg'] ?? []) as $fid => $v) $fa[(string)$fid] = $this->roundCmp($v, $cmpDecimals);
-                        foreach (($p['chief_field'] ?? []) as $fid => $v) $cf[(string)$fid] = ($v === null ? null : $this->roundCmp($v, $cmpDecimals));
-
-                        return [
-                            'event_participant_id' => $p['event_participant_id'],
-                            'full_name' => $p['full_name'],
-                            'final_score_cmp' => $this->roundCmp($p['final_score'] ?? 0, $cmpDecimals),
-                            'field_avg_cmp' => $fa,
-                            'chief_field_cmp' => $cf,
-                        ];
-                    }, $group),
-                ];
-            }
-        }
-
         return [
             'ranking' => $final,
             'debug' => $withDebug ? [
-                'cmp_decimals' => $cmpDecimals,
+                'mode' => 'individu',
+                'field_order' => $fieldOrder,
                 'chief_judge_id' => $chiefJudgeId,
                 'chief_source' => $chiefSource,
-                'field_order' => $fieldOrder,
-                'tie_groups' => $tieGroups,
-                'pairs' => $debugPairs,
-                'mode' => 'individu',
             ] : null,
         ];
     }
+
 
     /**
      * GROUP/TEAM:
@@ -1189,198 +1118,128 @@ class EventCompetitionRankingController extends Controller
      * - field_avg[fc]: rata-rata weighted_score across ALL cells (participants x judges)
      * - chief_field[fc]: rata-rata weighted_score oleh chief judge across participants (NULL jika chief tidak menilai)
      */
-    private function buildRankingGroupedByContingentCategory(EventCompetition $competition, bool $withDebug = false): array
-    {
+    private function buildRankingGroupedByContingentCategory(
+        EventCompetition $competition,
+        bool $withDebug = false
+    ): array {
         $cmpDecimals = 2;
 
         $fieldOrder = EventFieldComponent::query()
             ->where('event_group_id', $competition->event_group_id)
-            ->orderByRaw('COALESCE(order_number, 999999) asc')
+            ->orderByRaw('COALESCE(order_number, 999999)')
             ->pluck('id')
-            ->values()
+            ->map(fn ($v) => (int)$v)
             ->all();
 
         $chiefSource = null;
         $chiefJudgeId = $this->getChiefJudgeId($competition, $chiefSource);
 
-        $rows = EventScoresheet::query()
+        $sheets = EventScoresheet::query()
             ->with([
-                'eventParticipant:id,event_id,participant_id,event_branch_id,event_group_id,event_category_id,contingent',
-                'eventParticipant.participant:id,full_name,gender',
+                'eventParticipant:id,event_category_id,contingent',
+                'eventParticipant.participant:id,full_name',
                 'eventParticipant.eventCategory:id,full_name',
                 'items:id,event_scoresheet_id,event_field_component_id,score,weighted_score',
             ])
             ->where('event_competition_id', $competition->id)
+            ->where('status', 'submitted')
             ->get();
 
         $groups = [];
-        $judgesSet = [];
 
-        $makeKey = function ($contingent, $cid) {
-            $c = trim((string)($contingent ?? ''));
-            if ($c === '') $c = '-';
-            $cat = ($cid === null || $cid === '' || $cid === 'null') ? 'null' : (string)$cid;
-            return $c . '||' . $cat;
-        };
-
-        foreach ($rows as $ss) {
+        foreach ($sheets as $ss) {
             $ep = $ss->eventParticipant;
-            if (!$ep || !$ep->participant) continue;
+            if (!$ep) continue;
 
-            $judgeId = (int)$ss->judge_id;
-            $judgesSet[(string)$judgeId] = true;
-
-            $key = $makeKey($ep->contingent, $ep->event_category_id);
+            $key = ($ep->contingent ?: '-') . '|' . ($ep->event_category_id ?? 'null');
+            $jid = (int)$ss->event_judge_id;
 
             if (!isset($groups[$key])) {
-                $cont = trim((string)($ep->contingent ?? ''));
-                if ($cont === '') $cont = '-';
-
                 $groups[$key] = [
                     'group_key' => $key,
-                    'contingent' => $cont,
-
+                    'contingent' => $ep->contingent ?: '-',
                     'event_category_id' => $ep->event_category_id,
-                    'category_name'     => $ep->eventCategory?->full_name,
-                    'category'          => $ep->eventCategory?->full_name,
+                    'event_category' => [
+                        'id' => $ep->event_category_id,
+                        'full_name' => $ep->eventCategory?->full_name,
+                    ],
 
-                    // display
-                    'full_name' => strtoupper($cont),
                     'member_names' => [],
-                    'member_count' => 0,
-
-                    // score aggregators
-                    'judge_totals' => [], // judgeId => sum total_score
-                    'judge_counts' => [], // judgeId => count
-
-                    // field aggregators (all cells)
+                    'judge_totals' => [],
+                    'judge_counts' => [],
                     'field_totals' => [],
                     'field_counts' => [],
-
-                    // chief aggregators
-                    'chief_totals' => [],
-                    'chief_counts' => [],
-
-                    // derived
-                    'scores' => [],      // judge avg total_score
-                    'final_score' => 0.0,
-                    'field_avg' => [],
                     'chief_field' => [],
+                    'field_avg' => [],
+                    'final_score' => 0,
                 ];
 
-                foreach ($fieldOrder as $fcId) {
-                    $groups[$key]['field_totals'][(string)$fcId] = 0.0;
-                    $groups[$key]['field_counts'][(string)$fcId] = 0;
-                    $groups[$key]['chief_totals'][(string)$fcId] = 0.0;
-                    $groups[$key]['chief_counts'][(string)$fcId] = 0;
-                    $groups[$key]['field_avg'][(string)$fcId] = 0.0;
-                    $groups[$key]['chief_field'][(string)$fcId] = null;
+                foreach ($fieldOrder as $fid) {
+                    $groups[$key]['field_totals'][$fid] = 0;
+                    $groups[$key]['field_counts'][$fid] = 0;
+                    $groups[$key]['chief_field'][$fid] = null;
                 }
             }
 
-            // member
-            $groups[$key]['member_names'][] = $ep->participant->full_name;
-            $groups[$key]['member_count']++;
+            $groups[$key]['member_names'][] = $ep->participant?->full_name;
 
-            // totals per judge
-            if (!isset($groups[$key]['judge_totals'][(string)$judgeId])) {
-                $groups[$key]['judge_totals'][(string)$judgeId] = 0.0;
-                $groups[$key]['judge_counts'][(string)$judgeId] = 0;
-            }
-            $groups[$key]['judge_totals'][(string)$judgeId] += (float)$ss->total_score;
-            $groups[$key]['judge_counts'][(string)$judgeId] += 1;
+            $groups[$key]['judge_totals'][$jid] =
+                ($groups[$key]['judge_totals'][$jid] ?? 0) + $ss->total_score;
 
-            // fields
-            foreach (($ss->items ?? []) as $it) {
-                $fcId = (int)$it->event_field_component_id;
-                if (!$fcId) continue;
+            $groups[$key]['judge_counts'][$jid] =
+                ($groups[$key]['judge_counts'][$jid] ?? 0) + 1;
 
-                $val = $it->weighted_score;
-                if ($val === null) $val = $it->score;
-                if ($val === null) continue;
+            foreach ($ss->items as $it) {
+                if (!$it->event_field_component_id) continue;
+                $fid = (int)$it->event_field_component_id;
+                $val = $it->weighted_score ?? $it->score;
 
-                if (!array_key_exists((string)$fcId, $groups[$key]['field_totals'])) {
-                    $groups[$key]['field_totals'][(string)$fcId] = 0.0;
-                    $groups[$key]['field_counts'][(string)$fcId] = 0;
-                    $groups[$key]['chief_totals'][(string)$fcId] = 0.0;
-                    $groups[$key]['chief_counts'][(string)$fcId] = 0;
-                    $groups[$key]['field_avg'][(string)$fcId] = 0.0;
-                    $groups[$key]['chief_field'][(string)$fcId] = null;
-                }
+                $groups[$key]['field_totals'][$fid] += $val;
+                $groups[$key]['field_counts'][$fid]++;
 
-                $groups[$key]['field_totals'][(string)$fcId] += (float)$val;
-                $groups[$key]['field_counts'][(string)$fcId] += 1;
-
-                if ($chiefJudgeId && $judgeId === (int)$chiefJudgeId) {
-                    $groups[$key]['chief_totals'][(string)$fcId] += (float)$val;
-                    $groups[$key]['chief_counts'][(string)$fcId] += 1;
+                if ($chiefJudgeId && $jid === $chiefJudgeId) {
+                    $groups[$key]['chief_field'][$fid] = $val;
                 }
             }
         }
 
-        $judgeIds = array_map('intval', array_keys($judgesSet));
-        sort($judgeIds);
+        foreach ($groups as &$g) {
+            $sum = 0;
+            $cnt = 0;
 
-        $list = array_values($groups);
-
-        // compute derived
-        foreach ($list as &$g) {
-            // normalize member list
-            $names = array_values(array_unique(array_filter($g['member_names'] ?? [])));
-            sort($names, SORT_NATURAL | SORT_FLAG_CASE);
-            $g['member_names'] = $names;
-            $g['member_count'] = count($names);
-
-            // per judge avg + final_score
-            $sumAcrossJudges = 0.0;
-            $cntJudges = 0;
-
-            foreach ($judgeIds as $jid) {
-                $tot = (float)($g['judge_totals'][(string)$jid] ?? 0);
-                $cnt = (int)($g['judge_counts'][(string)$jid] ?? 0);
-                $avg = $cnt > 0 ? ($tot / $cnt) : 0.0;
-
-                $g['scores'][(string)$jid] = $avg;
-                $sumAcrossJudges += $avg;
-                $cntJudges++;
+            foreach ($g['judge_totals'] as $jid => $tot) {
+                $avg = $tot / $g['judge_counts'][$jid];
+                $sum += $avg;
+                $cnt++;
             }
 
-            $g['final_score'] = $cntJudges > 0 ? round($sumAcrossJudges / $cntJudges, 2) : 0;
+            $g['final_score'] = $cnt ? round($sum / $cnt, 2) : 0;
 
-            // field_avg
-            foreach (($g['field_totals'] ?? []) as $fcId => $sum) {
-                $cnt = (int)($g['field_counts'][(string)$fcId] ?? 0);
-                $g['field_avg'][(string)$fcId] = $cnt > 0 ? ((float)$sum / $cnt) : 0.0;
+            foreach ($fieldOrder as $fid) {
+                $c = $g['field_counts'][$fid] ?? 0;
+                $g['field_avg'][$fid] = $c
+                    ? round($g['field_totals'][$fid] / $c, 2)
+                    : 0;
             }
 
-            // chief_field
-            foreach (($g['chief_totals'] ?? []) as $fcId => $sum) {
-                $cnt = (int)($g['chief_counts'][(string)$fcId] ?? 0);
-                $g['chief_field'][(string)$fcId] = $cnt > 0 ? ((float)$sum / $cnt) : null;
-            }
+            $g['member_names'] = array_values(
+                array_unique($g['member_names'])
+            );
+            sort($g['member_names'], SORT_NATURAL);
+            $g['member_count'] = count($g['member_names']);
         }
         unset($g);
 
-        // rank per category
-        $groupedByCategory = [];
-        foreach ($list as $g) {
-            $groupedByCategory[(string)($g['event_category_id'] ?? 'null')][] = $g;
-        }
-
-        $debugPairs = [];
+        $grouped = collect($groups)->groupBy('event_category_id');
         $final = [];
 
-        foreach ($groupedByCategory as $cid => $items) {
-            usort($items, function ($a, $b) use ($fieldOrder, $cmpDecimals, &$debugPairs) {
-                [$cmp, $decidedBy] = $this->compareParticipants($a, $b, $fieldOrder, $cmpDecimals);
+        foreach ($grouped as $cid => $items) {
+            $items = $items->values()->all();
 
-                $debugPairs[] = [
-                    'a' => ['id' => $a['group_key'] ?? null, 'name' => ($a['contingent'] ?? '-')],
-                    'b' => ['id' => $b['group_key'] ?? null, 'name' => ($b['contingent'] ?? '-')],
-                    'decided_by' => $decidedBy,
-                ];
-
-                return $cmp;
+            usort($items, function ($a, $b) use ($fieldOrder, $cmpDecimals) {
+                return $this->compareParticipants(
+                    $a, $b, $fieldOrder, $cmpDecimals
+                )[0];
             });
 
             foreach ($items as $i => $row) {
@@ -1389,51 +1248,17 @@ class EventCompetitionRankingController extends Controller
             }
         }
 
-        // Debug tie groups (final_score sama)
-        $tieGroups = [];
-        if ($withDebug) {
-            $byFinal = [];
-            foreach ($final as $p) {
-                $k = $this->roundCmp($p['final_score'] ?? 0, $cmpDecimals);
-                $byFinal[(string)$k][] = $p;
-            }
-            foreach ($byFinal as $k => $group) {
-                if (count($group) <= 1) continue;
-
-                $tieGroups[] = [
-                    'final_score_cmp' => (float)$k,
-                    'rows' => array_map(function ($p) use ($cmpDecimals) {
-                        $fa = [];
-                        $cf = [];
-                        foreach (($p['field_avg'] ?? []) as $fid => $v) $fa[(string)$fid] = $this->roundCmp($v, $cmpDecimals);
-                        foreach (($p['chief_field'] ?? []) as $fid => $v) $cf[(string)$fid] = ($v === null ? null : $this->roundCmp($v, $cmpDecimals));
-
-                        return [
-                            'group_key' => $p['group_key'] ?? null,
-                            'contingent' => $p['contingent'] ?? null,
-                            'final_score_cmp' => $this->roundCmp($p['final_score'] ?? 0, $cmpDecimals),
-                            'field_avg_cmp' => $fa,
-                            'chief_field_cmp' => $cf,
-                        ];
-                    }, $group),
-                ];
-            }
-        }
-
         return [
             'ranking' => $final,
             'debug' => $withDebug ? [
-                'cmp_decimals' => $cmpDecimals,
+                'mode' => 'group',
+                'field_order' => $fieldOrder,
                 'chief_judge_id' => $chiefJudgeId,
                 'chief_source' => $chiefSource,
-                'field_order' => $fieldOrder,
-                'tie_groups' => $tieGroups,
-                'pairs' => $debugPairs,
-                'mode' => 'group',
-                'judge_ids' => $judgeIds,
             ] : null,
         ];
     }
+
 
     // =========================================================
     // MEDAL -> EVENT CONTINGENTS REBUILD (unchanged)

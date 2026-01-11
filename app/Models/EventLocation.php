@@ -114,4 +114,9 @@ class EventLocation extends Model
 
         return $angle * $earthRadius;
     }
+
+    public function judgePanels()
+    {
+        return $this->hasMany(EventJudgePanel::class);
+    }
 }

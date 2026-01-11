@@ -18,27 +18,33 @@ use App\Http\Controllers\API\V1\EventBranchController;
 use App\Http\Controllers\API\V1\EventCategoryController;
 use App\Http\Controllers\API\V1\EventCompetitionController;
 use App\Http\Controllers\API\V1\EventCompetitionRankingController;
+use App\Http\Controllers\API\V1\EventCompetitionRankingV2Controller;
 use App\Http\Controllers\API\V1\EventCompetitionScoresController;
 use App\Http\Controllers\API\V1\EventCompetitionScoringController;
 use App\Http\Controllers\API\V1\EventContingentStandingsController;
 use App\Http\Controllers\API\V1\EventController;
 use App\Http\Controllers\API\V1\EventFieldComponentController;
 use App\Http\Controllers\API\V1\EventGroupController;
+use App\Http\Controllers\API\V1\EventGroupJudgeComponentController;
 use App\Http\Controllers\API\V1\EventGroupLocationController;
+use App\Http\Controllers\API\V1\EventJudgeController;
 use App\Http\Controllers\API\V1\EventJudgePanelController;
 use App\Http\Controllers\API\V1\EventKokardeController;
 use App\Http\Controllers\API\V1\EventLocationController;
 use App\Http\Controllers\API\V1\EventMedalRuleController;
+use App\Http\Controllers\API\V1\EventMedalStandingController;
 use App\Http\Controllers\API\V1\EventParticipantController;
 use App\Http\Controllers\API\V1\EventParticipantReRegistrationController;
 use App\Http\Controllers\API\V1\EventStageController;
 use App\Http\Controllers\API\V1\GroupController;
+use App\Http\Controllers\Api\V1\JudgePanelController;
 use App\Http\Controllers\API\V1\JudgeUserController;
 use App\Http\Controllers\API\V1\ListFieldController;
 use App\Http\Controllers\API\V1\MasterBranchController;
 use App\Http\Controllers\API\V1\MasterCategoryController;
 use App\Http\Controllers\API\V1\MasterFieldComponentController;
 use App\Http\Controllers\API\V1\MasterGroupController;
+use App\Http\Controllers\API\V1\MasterJudgeController;
 use App\Http\Controllers\API\V1\MedalRuleController;
 use App\Http\Controllers\API\V1\ParticipantController;
 use App\Http\Controllers\API\V1\ParticipantVerificationController;
@@ -85,6 +91,14 @@ Route::prefix('v1')->group(function () {
 Route::middleware(['auth:sanctum']) // kalau belum pakai sanctum, boleh dihapus dulu
     ->prefix('v1')
     ->group(function () {
+
+        Route::get('/events/{event}/build-progress', function ($eventId) {
+            return DB::table('event_build_logs')
+                ->where('event_id', $eventId)
+                ->orderBy('created_at')
+                ->get();
+        });
+
 
         Route::get('master', [MasterController::class, 'index']);
 
@@ -167,7 +181,12 @@ Route::middleware(['auth:sanctum']) // kalau belum pakai sanctum, boleh dihapus 
         Route::put('event-groups/{eventGroup}', [EventGroupController::class, 'update']);
         Route::delete('event-groups/{eventGroup}', [EventGroupController::class, 'destroy']);
         Route::post('event-groups/generate-from-template', [EventGroupController::class, 'generateFromTemplate']); // Generate dari master_groups
-        Route::put('/event-groups/{id}/assign-location', [EventGroupLocationController::class, 'assign']);
+        // Route::put('/event-groups/{id}/assign-location', [EventGroupLocationController::class, 'assign']);
+        Route::put('/event-groups/{eventGroup}/assign-judge-panel', [EventGroupController::class, 'assignJudgePanel']);
+
+        Route::get('/event-groups/{eventGroup}/judge-components', [EventGroupJudgeComponentController::class, 'index']);
+        Route::post('/event-groups/{eventGroup}/judge-components', [EventGroupJudgeComponentController::class, 'store']);
+
         
         // EVENT - PENGATURAN KATEGORI LOMBA (PUTRA | PUTRI)
         Route::get('event-categories', [EventCategoryController::class, 'index']);
@@ -175,6 +194,7 @@ Route::middleware(['auth:sanctum']) // kalau belum pakai sanctum, boleh dihapus 
         Route::put('event-categories/{eventCategory}', [EventCategoryController::class, 'update']);
         Route::delete('event-categories/{eventCategory}', [EventCategoryController::class, 'destroy']);
         Route::post('event-categories/generate-from-template', [EventCategoryController::class, 'generateFromTemplate']);
+
 
         // EVENT - PENGATURAN KOMPONEN PENILAIAN LOMBA
         Route::get('event-field-components', [EventFieldComponentController::class, 'index']);
@@ -229,24 +249,110 @@ Route::middleware(['auth:sanctum']) // kalau belum pakai sanctum, boleh dihapus 
         // EVENT PARTICIPANT - FINAL KAFILAH
         Route::get('events/{event}/kafilah-pdf', [EventParticipantController::class, 'kafilahPdf']);
 
-
         // EVENT JUDGES
-        Route::get('/events/{event}/judges',  [JudgeUserController::class, 'index']);
-        Route::post('/events/{event}/judges', [JudgeUserController::class, 'store']);
-        Route::put('/judges/{user}',                [JudgeUserController::class, 'update']); // UPDATE
-        Route::delete('/judges/{user}',             [JudgeUserController::class, 'destroy']); // DELETE
-        Route::patch('/judges/{user}/toggle-active',[JudgeUserController::class, 'toggleActive']); // TOGGLE ACTIVE
+        Route::get('events/{event}/judges', [EventJudgeController::class, 'index']);
+        Route::post('/events/{event}/judge-panels',[EventJudgePanelController::class, 'store']);
+        Route::post('save-event-judges', [EventJudgeController::class, 'store']);
+        Route::delete('event-judges/{id}', [EventJudgeController::class, 'destroy']);
+        Route::get('/check-nik-judge', [EventJudgeController::class, 'checkNik']);
 
+        // EVEMT JUDGE PANELS
+        Route::get('/events/{event}/judge-panels', [EventJudgePanelController::class, 'index']);
+        Route::get('/events/{event}/event-judges', [EventJudgePanelController::class, 'searchEventJudges']);
+        Route::get('/event-judge-panels/{panel}/members', [EventJudgePanelController::class, 'members']);
+        Route::put('/event-judge-panels/{panel}/members', [EventJudgePanelController::class, 'saveMembers']);
+        Route::put('/event-judge-panels/{panel}/assign-location', [EventJudgePanelController::class, 'assignLocation']);
+
+
+
+        // Master Judge Controller
+        // Route::get('/master-judges', [MasterJudgeController::class, 'index']);
+        // Route::post('/master-judges', [MasterJudgeController::class, 'store']);
+        // Route::put('/master-judges/{id}', [MasterJudgeController::class, 'update']);
+        // Route::patch('/master-judges/{id}/toggle-active', [MasterJudgeController::class, 'toggleActive']);
+        // Route::delete('/master-judges/{id}', [MasterJudgeController::class, 'destroy']);
+
+        /*
+        |--------------------------------------------------------------------------
+        | EVENT JUDGES
+        |--------------------------------------------------------------------------
+        | Digunakan oleh:
+        | - EventJudgeList.vue
+        | - Event Judge Panel Management
+        */
+
+        // Route::get('event-judges', [EventJudgeController::class, 'index']);
+        // Route::post('event-judges', [EventJudgeController::class, 'store']);
+        // Route::get('event-judges/{id}', [EventJudgeController::class, 'show']);
+        // Route::put('event-judges/{id}', [EventJudgeController::class, 'update']);
+        // Route::delete('event-judges/{id}', [EventJudgeController::class, 'destroy']);
+
+        // // Toggle aktif / nonaktif
+        // Route::patch(
+        //     'event-judges/{id}/toggle-active',
+        //     [EventJudgeController::class, 'toggleActive']
+        // );
+
+
+        // // EVENT JUDGES
+        // Route::apiResource('event-judge-panels', 
+        //     \App\Http\Controllers\API\V1\EventJudgePanelController::class
+        // );
+
+        // Route::get(
+        //     'event-judge-panels/{panel}/members',
+        //     [\App\Http\Controllers\API\V1\EventJudgePanelMemberController::class, 'index']
+        // );
+
+        // Route::apiResource('event-judge-panel-members',
+        //     \App\Http\Controllers\API\V1\EventJudgePanelMemberController::class
+        // )->only(['store', 'update', 'destroy']);
+
+        // Route::post(
+        //     'event-judge-panels/{panel}/sync-members',
+        //     [\App\Http\Controllers\API\V1\EventJudgePanelMemberController::class, 'syncMembers']
+        // );
+
+
+        
+        // Route::get('/events/{event}/judges',  [JudgeUserController::class, 'index']);
+        // Route::post('/events/{event}/judges', [JudgeUserController::class, 'store']);
+        // Route::put('/judges/{user}',                [JudgeUserController::class, 'update']); // UPDATE
+        // Route::delete('/judges/{user}',             [JudgeUserController::class, 'destroy']); // DELETE
+        // Route::patch('/judges/{user}/toggle-active',[JudgeUserController::class, 'toggleActive']); // TOGGLE ACTIVE
+
+        // EVENT JUDGE PANEL BARU
+        // Route::get('/events/{event}/judge-panels', 
+        //     [JudgePanelController::class, 'index']);
+
+        // Route::post('/judge-panels', 
+        //     [JudgePanelController::class, 'store']);
+
+        // Route::put('/judge-panels/{judgePanel}', 
+        //     [JudgePanelController::class, 'update']);
+
+        // Route::delete('/judge-panels/{judgePanel}', 
+        //     [JudgePanelController::class, 'destroy']);
+
+        // // members
+        // Route::post('/judge-panels/{judgePanel}/members', 
+        //     [JudgePanelController::class, 'addMember']);
+
+        // Route::put('/judge-panel-members/{member}', 
+        //     [JudgePanelController::class, 'updateMember']);
+
+        // Route::delete('/judge-panel-members/{member}', 
+        //     [JudgePanelController::class, 'removeMember']);
 
         // EVENT JUDGE PANEL
-        Route::get('/events/{event}/judge-panels', [EventJudgePanelController::class, 'index']);
-        // Default cabang (event_branch_judges)
-        Route::get('/event-branches/{eventBranch}/judges', [EventJudgePanelController::class, 'getBranchJudges']);
-        Route::put('/event-branches/{eventBranch}/judges', [EventJudgePanelController::class, 'syncBranchJudges']);
-        // Override golongan (event_group_judges + toggle use_custom_judges)
-        Route::get('/event-groups/{eventGroup}/judges', [EventJudgePanelController::class, 'getGroupJudges']);
-        Route::put('/event-groups/{eventGroup}/judges', [EventJudgePanelController::class, 'syncGroupJudges']);
-        Route::patch('/event-groups/{eventGroup}/use-custom-judges', [EventJudgePanelController::class, 'toggleUseCustom']);
+        // Route::get('/events/{event}/judge-panels', [EventJudgePanelController::class, 'index']);
+        // // Default cabang (event_branch_judges)
+        // Route::get('/event-branches/{eventBranch}/judges', [EventJudgePanelController::class, 'getBranchJudges']);
+        // Route::put('/event-branches/{eventBranch}/judges', [EventJudgePanelController::class, 'syncBranchJudges']);
+        // // Override golongan (event_group_judges + toggle use_custom_judges)
+        // Route::get('/event-groups/{eventGroup}/judges', [EventJudgePanelController::class, 'getGroupJudges']);
+        // Route::put('/event-groups/{eventGroup}/judges', [EventJudgePanelController::class, 'syncGroupJudges']);
+        // Route::patch('/event-groups/{eventGroup}/use-custom-judges', [EventJudgePanelController::class, 'toggleUseCustom']);
 
 
         // EVENT COMPETITIONS - TREE 
@@ -263,6 +369,26 @@ Route::middleware(['auth:sanctum']) // kalau belum pakai sanctum, boleh dihapus 
         Route::post('/event-competitions/{competition}/scoring/submit', [EventCompetitionScoringController::class, 'submit']);
         Route::post('/event-competitions/{competition}/scoring/lock', [EventCompetitionScoringController::class, 'lock']);
 
+        Route::get(
+            '/event-competitions/{eventCompetition}/scoring/form-v2',
+            [EventCompetitionScoringController::class, 'form']
+        );
+
+        Route::post(
+            '/event-competitions/{eventCompetition}/scoring/draft-v2',
+            [EventCompetitionScoringController::class, 'saveDraft']
+        );
+
+        Route::post(
+            '/event-competitions/{eventCompetition}/scoring/submit-v2',
+            [EventCompetitionScoringController::class, 'submit']
+        );
+
+        Route::post(
+            '/event-competitions/{eventCompetition}/scoring/lock-v2',
+            [EventCompetitionScoringController::class, 'lock']
+        );
+
         // EVENT COMPETITIONS - SCORES
         Route::get('/event-competitions/{competition}/scores', [EventCompetitionScoresController::class, 'index']);
         Route::get('/event-competitions/{competition}/scores-detail', [EventCompetitionScoresController::class, 'indexDetail']);
@@ -275,6 +401,17 @@ Route::middleware(['auth:sanctum']) // kalau belum pakai sanctum, boleh dihapus 
         Route::get('/event-competitions/{competition}/ranking/export', [EventCompetitionRankingController::class, 'export']);
         Route::get('/event-competitions/{competition}/ranking/details', [EventCompetitionRankingController::class, 'details']);
         
+        // routes/api.php
+        Route::get(
+            '/event-competitions/{eventCompetition}/ranking-v2',
+            [EventCompetitionRankingV2Controller::class, 'index']
+        );
+        Route::get(
+            '/event-competitions/{competition}/ranking-v2/details',
+            [EventCompetitionRankingV2Controller::class, 'details']
+        );
+
+
         // EVENT COMPETITIONS - STANDINGS
         Route::get('event-contingent-standings',[EventContingentStandingsController::class, 'index']);
         Route::get('event-contingent-standings/export/excel',[EventContingentStandingsController::class, 'exportExcel']);
@@ -288,4 +425,10 @@ Route::middleware(['auth:sanctum']) // kalau belum pakai sanctum, boleh dihapus 
         Route::get('get/regencies', [LocationController::class, 'regencies']);
         Route::get('get/districts', [LocationController::class, 'districts']);
         Route::get('get/villages', [LocationController::class, 'villages']);
+
+        // 🔹 Hitung & rebuild medal standing dari semua FINAL competition
+        Route::post(
+            '/event-contingent-standings/build',
+            [EventMedalStandingController::class, 'build']
+        )->name('event.contingent.standings.build');
     });

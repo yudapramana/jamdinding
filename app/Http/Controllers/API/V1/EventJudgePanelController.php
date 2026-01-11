@@ -3,195 +3,212 @@
 namespace App\Http\Controllers\API\V1;
 
 use App\Http\Controllers\Controller;
+use App\Http\Resources\EventJudgePanelResource;
 use App\Models\Event;
-use App\Models\EventBranch;
-use App\Models\EventGroup;
+use App\Models\EventJudge;
+use App\Models\EventJudgePanel;
+use App\Models\EventJudgePanelMember;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
+use Illuminate\Support\Str;
+use App\Models\EventLocation;
+
 
 class EventJudgePanelController extends Controller
 {
+
+    
+
+    public function assignLocation(EventJudgePanel $panel, Request $request)
+    {
+        $data = $request->validate([
+            'event_location_id' => 'nullable|exists:event_locations,id'
+        ]);
+
+        if (!empty($data['event_location_id'])) {
+            $location = EventLocation::find($data['event_location_id']);
+
+            // VALIDASI: lokasi harus dari event yang sama
+            if ($location->event_id !== $panel->event_id) {
+                return response()->json([
+                    'message' => 'Lokasi tidak berasal dari event yang sama.'
+                ], 422);
+            }
+        }
+
+        $panel->update([
+            'event_location_id' => $data['event_location_id'] ?? null
+        ]);
+
+        return response()->json([
+            'message' => 'Lokasi majelis berhasil diperbarui'
+        ]);
+    }
+
+
+
+    /**
+     * List panel + anggota
+     */
     public function index(Request $request, Event $event)
     {
+        // SIMPLE MODE (untuk dropdown)
+        if ($request->boolean('simple')) {
+            return response()->json([
+                'data' => EventJudgePanel::where('event_id', $event->id)
+                    ->where('is_active', true)
+                    ->orderBy('name')
+                    ->get(['id', 'code', 'name', 'event_location_id'])
+            ]);
+        }
+
         $perPage = (int) $request->get('per_page', 10);
-        $search  = trim((string) $request->get('search', ''));
+        $search  = $request->get('search');
 
-        $q = EventGroup::query()
+        $panels = EventJudgePanel::query()
             ->where('event_id', $event->id)
-            ->with(['customJudges:id,name']) // override judges
-            ->orderByRaw('COALESCE(order_number, 999999) asc')
-            ->orderBy('id');
+            ->when($search, function ($q) use ($search) {
+                $q->where(function ($qq) use ($search) {
+                    $qq->where('name', 'like', "%{$search}%")
+                    ->orWhere('code', 'like', "%{$search}%")
+                    ->orWhereHas('eventLocation', function ($loc) use ($search) {
+                        $loc->where('name', 'like', "%{$search}%");
+                    });
+                });
+            })
+            ->with([
+                'members.eventJudge.masterJudge'
+            ])
+            ->orderBy('name')
+            ->paginate($perPage);
 
-        if ($search !== '') {
-            $q->where(function ($w) use ($search) {
-                $w->where('branch_name', 'like', "%{$search}%")
-                  ->orWhere('group_name', 'like', "%{$search}%")
-                  ->orWhere('full_name', 'like', "%{$search}%");
-            });
+        return response()->json([
+            'data' => EventJudgePanelResource::collection($panels),
+            'meta' => [
+                'current_page' => $panels->currentPage(),
+                'per_page'     => $panels->perPage(),
+                'total'        => $panels->total(),
+                'from'         => $panels->firstItem(),
+                'to'           => $panels->lastItem(),
+                'last_page'    => $panels->lastPage(), // ✅ INI KUNCI
+            ]
+        ]);
+    }
+
+
+
+
+
+    public function store(Event $event, Request $request)
+    {
+        // Ambil urutan numerik berikutnya (int)
+        $nextNumberInt = EventJudgePanel::nextNumberForEvent($event->id);
+
+        // Format jadi 2 digit: 01, 02, 03, dst
+        $nextNumber = str_pad($nextNumberInt, 2, '0', STR_PAD_LEFT);
+
+        $name = "Majelis {$nextNumber}";
+        $code = strtoupper($event->event_key) . "-MJ-{$nextNumber}";
+
+        $panel = EventJudgePanel::create([
+            'event_id'  => $event->id,
+            'name'      => $name,
+            'code'      => $code,
+            'notes'     => null,
+            'is_active' => true,
+        ]);
+
+        return response()->json([
+            'message' => 'Majelis hakim berhasil ditambahkan',
+            'data' => [
+                'id'        => $panel->id,
+                'name'      => $panel->name,
+                'code'      => $panel->code,
+                'notes'     => $panel->notes,
+                'is_active' => $panel->is_active,
+                'judges'    => [],
+            ]
+        ], 201);
+    }
+
+
+
+
+    /**
+     * Search hakim dalam event
+     */
+    public function searchEventJudges(Event $event, Request $request)
+    {
+        $q = trim($request->search);
+
+        if (strlen($q) < 2) {
+            return response()->json([]);
         }
 
-        $paginated = $q->paginate($perPage);
-
-        // Ambil semua event_branches untuk event ini + default judges (tanpa N+1)
-        // $eventBranches = EventBranch::query()
-        //     ->where('event_id', $event->id)
-        //     ->with(['judges:id,name']) // default judges cabang
-        //     ->get()
-        //     ->keyBy('branch_id');
-
-        $eventBranches = EventBranch::query()
+        $judges = EventJudge::query()
             ->where('event_id', $event->id)
-            ->with(['judges' => function ($q) {
-                $q->select('users.id', 'users.name'); // kolom user
-                $q->withPivot('is_chief');            // ✅ kolom pivot
-            }])
+            ->whereHas('masterJudge', function ($qr) use ($q) {
+                $qr->where('full_name', 'like', "%{$q}%");
+            })
+            ->with('masterJudge:id,full_name')
+            ->limit(10)
             ->get()
-            ->keyBy('branch_id');
+            ->map(fn ($j) => [
+                'id'        => $j->id,
+                'full_name'=> $j->masterJudge->full_name,
+            ]);
 
-        // Inject info branch + judges efektif
-        $paginated->getCollection()->transform(function (EventGroup $g) use ($eventBranches) {
-            $eb = $eventBranches->get($g->branch_id);
-
-            $defaultJudges = $eb?->judges ?? collect();
-            $effective     = $g->use_custom_judges ? $g->customJudges : $defaultJudges;
-
-            $mapJudge = fn($u) => [
-                'id' => $u->id,
-                'name' => $u->name,
-                'is_chief' => (bool) ($u->pivot->is_chief ?? false),
-            ];
-
-
-
-            return [
-                'id' => $g->id,
-                'event_id' => $g->event_id,
-                'branch_id' => $g->branch_id,
-                'group_id' => $g->group_id,
-                'branch_name' => $g->branch_name,
-                'group_name' => $g->group_name,
-                'full_name' => $g->full_name,
-                'status' => $g->status,
-                'is_team' => (bool) $g->is_team,
-                'use_custom_judges' => (bool) $g->use_custom_judges,
-
-                'event_branch_id' => $eb?->id,
-
-                'default_judges' => $defaultJudges->map($mapJudge)->values(),
-                'custom_judges'  => $g->customJudges->map($mapJudge)->values(),
-                'effective_judges' => $effective->map($mapJudge)->values(),
-            ];
-        });
-
-        return response()->json($paginated);
+        return response()->json($judges);
     }
 
-    public function getBranchJudges(EventBranch $eventBranch)
+    /**
+     * Ambil anggota panel
+     */
+    public function members(EventJudgePanel $panel)
     {
-        $eventBranch->load(['judges' => function ($q) {
-            $q->select('users.id', 'users.name')
-              ->withPivot('is_chief');
-        }]);
+        $members = $panel->members()
+            ->with('eventJudge.masterJudge')
+            ->orderBy('order_number')
+            ->get();
 
         return response()->json([
-            'event_branch_id' => $eventBranch->id,
-            'event_id' => $eventBranch->event_id,
-            'branch_id' => $eventBranch->branch_id,
-            'branch_name' => $eventBranch->branch_name,
-            'judges' => $eventBranch->judges->map(fn($u) => [
-                'id' => $u->id,
-                'name' => $u->name,
-                'is_chief' => (bool) ($u->pivot->is_chief ?? false),
-            ])->values(),
+            'judges' => $members->map(fn ($m) => [
+                'event_judge_id' => $m->event_judge_id,
+                'full_name'      => $m->eventJudge->masterJudge->full_name,
+                'is_chief'       => $m->is_chief,
+                'order_number'   => $m->order_number,
+            ])
         ]);
     }
 
-    public function syncBranchJudges(Request $request, EventBranch $eventBranch)
+    /**
+     * Simpan anggota panel
+     */
+    public function saveMembers(EventJudgePanel $panel, Request $request)
     {
         $data = $request->validate([
-            'judges' => ['required','array','min:1'],
-            'judges.*.user_id' => ['required','integer', Rule::exists('users','id')],
-            'judges.*.is_chief' => ['nullable','boolean'],
+            'judges'                   => 'required|array|min:1',
+            'judges.*.event_judge_id'  => 'required|exists:event_judges,id',
+            'judges.*.is_chief'        => 'boolean',
         ]);
 
-        // pastikan hanya 1 chief (opsional tapi disarankan)
-        $chiefCount = collect($data['judges'])->filter(fn($j) => !empty($j['is_chief']))->count();
-        if ($chiefCount > 1) {
-            return response()->json(['message' => 'Ketua majelis hanya boleh 1 orang.'], 422);
-        }
+        DB::transaction(function () use ($panel, $data) {
 
-        $sync = [];
-        foreach ($data['judges'] as $j) {
-            $sync[(int)$j['user_id']] = ['is_chief' => (bool)($j['is_chief'] ?? false)];
-        }
+            EventJudgePanelMember::where('event_judge_panel_id', $panel->id)->delete();
 
-        DB::transaction(function () use ($eventBranch, $sync) {
-            $eventBranch->judges()->sync($sync);
+            foreach ($data['judges'] as $i => $j) {
+                EventJudgePanelMember::create([
+                    'event_judge_panel_id' => $panel->id,
+                    'event_judge_id'       => $j['event_judge_id'],
+                    'is_chief'             => $j['is_chief'] ?? false,
+                    'order_number'         => $i + 1,
+                ]);
+            }
         });
-
-        return response()->json(['message' => 'Hakim cabang berhasil disimpan.']);
-    }
-
-    public function getGroupJudges(EventGroup $eventGroup)
-    {
-        $eventGroup->load(['customJudges' => function ($q) {
-            $q->select('users.id', 'users.name')
-              ->withPivot('is_chief');
-        }]);
 
         return response()->json([
-            'event_group_id' => $eventGroup->id,
-            'event_id' => $eventGroup->event_id,
-            'branch_id' => $eventGroup->branch_id,
-            'group_id' => $eventGroup->group_id,
-            'full_name' => $eventGroup->full_name,
-            'use_custom_judges' => (bool) $eventGroup->use_custom_judges,
-            'judges' => $eventGroup->customJudges->map(fn($u) => [
-                'id' => $u->id,
-                'name' => $u->name,
-                'is_chief' => (bool) ($u->pivot->is_chief ?? false),
-            ])->values(),
+            'message' => 'Anggota majelis berhasil disimpan'
         ]);
-    }
-
-    public function toggleUseCustom(Request $request, EventGroup $eventGroup)
-    {
-        $data = $request->validate([
-            'use_custom_judges' => ['required','boolean'],
-        ]);
-
-        $eventGroup->use_custom_judges = (bool) $data['use_custom_judges'];
-        $eventGroup->save();
-
-        return response()->json(['message' => 'Pengaturan override golongan berhasil disimpan.']);
-    }
-
-    public function syncGroupJudges(Request $request, EventGroup $eventGroup)
-    {
-        $data = $request->validate([
-            'judges' => ['required','array','min:1'],
-            'judges.*.user_id' => ['required','integer', Rule::exists('users','id')],
-            'judges.*.is_chief' => ['nullable','boolean'],
-        ]);
-
-        $chiefCount = collect($data['judges'])->filter(fn($j) => !empty($j['is_chief']))->count();
-        if ($chiefCount > 1) {
-            return response()->json(['message' => 'Ketua majelis hanya boleh 1 orang.'], 422);
-        }
-
-        $sync = [];
-        foreach ($data['judges'] as $j) {
-            $sync[(int)$j['user_id']] = ['is_chief' => (bool)($j['is_chief'] ?? false)];
-        }
-
-        DB::transaction(function () use ($eventGroup, $sync) {
-            $eventGroup->customJudges()->sync($sync);
-            // auto set override true (biar user ga lupa)
-            $eventGroup->use_custom_judges = true;
-            $eventGroup->save();
-        });
-
-        return response()->json(['message' => 'Hakim golongan berhasil disimpan.']);
     }
 }

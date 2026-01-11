@@ -80,10 +80,10 @@
             <thead class="thead-light">
               <tr>
                 <th style="width: 40px;">#</th>
-                <th>Cabang</th>
-                <th>Golongan</th>
+                <!-- <th>Cabang</th>
+                <th>Golongan</th> -->
                 <th>Nama Lengkap</th>
-                <th>Majelis</th>
+                <th>Majelis Hakim</th>
                 <th style="width: 80px;" class="text-center">Maks. Umur</th>
                 <th style="width: 90px;" class="text-center">Status</th>
                 <th style="width: 80px;" class="text-center">Tim?</th>
@@ -109,22 +109,47 @@
                 :key="item.id"
               >
                 <td>{{ index + 1 + (meta.current_page - 1) * meta.per_page }}</td>
-                <td><strong>{{ item.branch_name }}</strong></td>
-                <td><strong>{{ item.group_name }}</strong></td>
-                <td>{{ item.full_name }}</td>
+                <!-- <td><strong>{{ item.branch_name }}</strong></td>
+                <td><strong>{{ item.group_name }}</strong></td> -->
+                <!-- <td>{{ item.full_name }}</td> -->
+                 <td>
+                  <div class="font-weight-bold">
+                    {{ item.full_name }}
+                  </div>
+
+                  <small
+                    v-if="item.judge_assignment_mode"
+                    class="badge mt-1"
+                    :class="{
+                      'badge-info': item.judge_assignment_mode === 'BY_PANEL',
+                      'badge-warning': item.judge_assignment_mode === 'BY_COMPONENT'
+                    }"
+                  >
+                    <i class="fas fa-gavel mr-1"></i>
+
+                    <span v-if="item.judge_assignment_mode === 'BY_PANEL'">
+                      Majelis (Semua Komponen)
+                    </span>
+                    <span v-else-if="item.judge_assignment_mode === 'BY_COMPONENT'">
+                      Per Komponen
+                    </span>
+                  </small>
+                </td>
+
+
                 <td>
                   <select
                     class="form-control form-control-sm"
-                    :value="item.event_location_id"
-                    @change="assignLocation(item.id, $event.target.value)"
+                    :value="item.event_judge_panel_id"
+                    @change="assignJudgePanel(item.id, $event.target.value)"
                   >
                     <option value="">— Belum Ditentukan —</option>
                     <option
-                      v-for="loc in locations"
-                      :key="loc.id"
-                      :value="loc.id"
+                      v-for="p in judgePanels"
+                      :key="p.id"
+                      :value="p.id"
                     >
-                      {{ loc.code ? loc.code + ' - ' : '' }}{{ loc.name }}
+                      {{ p.code ? p.code + ' - ' : '' }}{{ p.name }}
                     </option>
                   </select>
                 </td>
@@ -161,16 +186,26 @@
                         class="btn btn-warning"
                         @click="openEditModal(item)"
                         >
+                        
                         <i class="fas fa-edit"></i>
+                        </button>
+                        <button
+                          v-if="item.judge_assignment_mode === 'BY_COMPONENT'"
+                          class="btn btn-xs btn-outline-warning"
+                          title="Atur Juri per Komponen"
+                          @click="openJudgeComponentModal(item)"
+                        >
+                          <i class="fas fa-gavel"></i>
+                        </button>
+                    </div>
+                </td>
+
+                <!-- <i class="fas fa-edit"></i>
                         </button>
                         <button
                         class="btn btn-danger"
                         @click="deleteItem(item)"
-                        >
-                        <i class="fas fa-trash"></i>
-                        </button>
-                    </div>
-                </td>
+                        > -->
 
 
               </tr>
@@ -343,6 +378,41 @@
                     />
                   </div>
                 </div>
+
+                <div class="form-group mb-2">
+                  <label class="mb-1">Model Penilaian</label>
+
+                  <div class="custom-control custom-radio">
+                    <input
+                      type="radio"
+                      id="judgeModePanel"
+                      class="custom-control-input"
+                      value="BY_PANEL"
+                      v-model="form.judge_assignment_mode"
+                    >
+                    <label class="custom-control-label" for="judgeModePanel">
+                      Majelis menilai seluruh komponen
+                    </label>
+                  </div>
+
+                  <div class="custom-control custom-radio">
+                    <input
+                      type="radio"
+                      id="judgeModeComponent"
+                      class="custom-control-input"
+                      value="BY_COMPONENT"
+                      v-model="form.judge_assignment_mode"
+                    >
+                    <label class="custom-control-label" for="judgeModeComponent">
+                      Juri ditentukan per komponen
+                    </label>
+                  </div>
+
+                  <small class="text-muted">
+                    Pilih cara penugasan juri pada golongan ini.
+                  </small>
+                </div>
+
               </div>
 
               <div class="text-right mt-3">
@@ -362,6 +432,160 @@
         </div>
       </div>
     </div>
+
+    <!-- DIV MODAL ATUR JURI JIKA JURI PER BIDANG -->
+    <!-- MODAL ATUR JURI PER KOMPONEN -->
+    <div
+      class="modal fade"
+      id="judgeComponentModal"
+      tabindex="-1"
+      role="dialog"
+      aria-labelledby="judgeComponentModalLabel"
+      aria-hidden="true"
+    >
+      <div class="modal-dialog modal-xl" role="document">
+        <div class="modal-content">
+
+          <!-- HEADER -->
+          <div class="modal-header py-2">
+            <h5 class="modal-title" id="judgeComponentModalLabel">
+              <i class="fas fa-gavel mr-1"></i>
+              Atur Juri per Komponen
+            </h5>
+            <button type="button" class="close" data-dismiss="modal">
+              <span>&times;</span>
+            </button>
+          </div>
+
+          <!-- BODY -->
+          <div class="modal-body p-2">
+
+            <!-- LOADING -->
+            <div v-if="isLoadingComponents" class="text-center py-4">
+              <i class="fas fa-spinner fa-spin mr-1"></i>
+              Memuat data komponen & juri...
+            </div>
+
+            <!-- TABLE -->
+            <table
+              v-else
+              class="table table-sm table-bordered mb-0"
+            >
+              <thead class="thead-light">
+                <tr>
+                  <th style="width: 25%">Komponen</th>
+                  <th>Juri</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                <tr
+                  v-for="row in componentJudges"
+                  :key="row.event_field_component_id"
+                >
+                  <!-- KOLOM KOMPONEN -->
+                  <td>
+                    <strong>{{ row.field_name }}</strong>
+                    <span
+                      v-if="row.judge_ids.length"
+                      class="badge badge-info ml-1"
+                    >
+                      {{ row.judge_ids.length }} juri
+                    </span>
+                  </td>
+
+                  <!-- KOLOM JURI -->
+                  <td>
+
+                    <!-- ACTION BAR -->
+                    <div class="mb-1 text-right">
+                      <button
+                        type="button"
+                        class="btn btn-xs btn-outline-secondary mr-1"
+                        @click="row.judge_ids = row.available_judges.map(j => j.id)"
+                      >
+                        Pilih Semua
+                      </button>
+                      <button
+                        type="button"
+                        class="btn btn-xs btn-outline-secondary"
+                        @click="row.judge_ids = []"
+                      >
+                        Kosongkan
+                      </button>
+                    </div>
+
+                    <!-- LIST JURI -->
+                    <div
+                      class="border rounded p-2"
+                      style="max-height: 180px; overflow-y: auto;"
+                    >
+                      <div
+                        v-for="j in row.available_judges"
+                        :key="j.id"
+                        class="custom-control custom-checkbox mb-1"
+                      >
+                        <input
+                          type="checkbox"
+                          class="custom-control-input"
+                          :id="`judge-${row.event_field_component_id}-${j.id}`"
+                          :value="j.id"
+                          v-model="row.judge_ids"
+                        >
+                        <label
+                          class="custom-control-label"
+                          :for="`judge-${row.event_field_component_id}-${j.id}`"
+                        >
+                          {{ j.full_name }}
+                        </label>
+                      </div>
+                    </div>
+
+                    <!-- INFO -->
+                    <small class="text-muted d-block mt-1">
+                      Pilih juri dari majelis yang ditetapkan
+                    </small>
+
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+
+          </div>
+
+          <!-- FOOTER -->
+          <div class="modal-footer py-2">
+            <button
+              type="button"
+              class="btn btn-sm btn-secondary"
+              data-dismiss="modal"
+            >
+              Tutup
+            </button>
+
+            <button
+              type="button"
+              class="btn btn-sm btn-primary"
+              :disabled="isSavingComponentJudges"
+              @click="saveComponentJudges"
+            >
+              <i
+                v-if="isSavingComponentJudges"
+                class="fas fa-spinner fa-spin mr-1"
+              ></i>
+              <i
+                v-else
+                class="fas fa-save mr-1"
+              ></i>
+              Simpan
+            </button>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+
 
   </section>
 </template>
@@ -384,14 +608,19 @@ const selectedBranchId = computed(() => {
   return raw ? Number(raw) : null
 })
 
-const locations = ref([])
+const judgePanels = ref([])
 
-const fetchLocations = async () => {
-  const res = await axios.get(`/api/v1/events/${eventId.value}/locations`, {
-    params: { per_page: 100 }
-  })
-  locations.value = res.data.data.data
+const fetchJudgePanels = async () => {
+  if (!eventId.value) return
+
+  const res = await axios.get(
+    `/api/v1/events/${eventId.value}/judge-panels`,
+    { params: { simple: 1 } }
+  )
+
+  judgePanels.value = res.data.data || res.data
 }
+
 
 
 const Toast = Swal.mixin({
@@ -402,12 +631,12 @@ const Toast = Swal.mixin({
   timerProgressBar: true,
 })
 
-const assignLocation = async (eventGroupId, locationId) => {
+const assignJudgePanel = async (eventGroupId, panelId) => {
   try {
     await axios.put(
-      `/api/v1/event-groups/${eventGroupId}/assign-location`,
+      `/api/v1/event-groups/${eventGroupId}/assign-judge-panel`,
       {
-        event_location_id: locationId || null
+        event_judge_panel_id: panelId || null
       }
     )
 
@@ -416,6 +645,8 @@ const assignLocation = async (eventGroupId, locationId) => {
       title: 'Majelis tersimpan'
     })
 
+    fetchItems(meta.value.current_page)
+
   } catch (e) {
     Toast.fire({
       icon: 'error',
@@ -423,11 +654,6 @@ const assignLocation = async (eventGroupId, locationId) => {
     })
   }
 }
-
-
-
-
-
 
 // event aktif dari store
 const eventData = computed(() => authUserStore.eventData || null)
@@ -462,6 +688,7 @@ const form = ref({
   status: 'active',
   is_team: false,
   order_number: null,
+  judge_assignment_mode: 'BY_PANEL'
 })
 
 const fetchBranchesAndGroups = async () => {
@@ -555,6 +782,7 @@ const openCreateModal = () => {
     status: 'active',
     is_team: false,
     order_number: (meta.value.total || 0) + 1,
+    judge_assignment_mode: 'BY_PANEL'
   }
   $('#eventGroupModal').modal('show')
 }
@@ -570,6 +798,8 @@ const openEditModal = (item) => {
     status: item.status,
     is_team: !!item.is_team,
     order_number: item.order_number,
+    judge_assignment_mode: item.judge_assignment_mode
+
   }
   $('#eventGroupModal').modal('show')
 }
@@ -595,6 +825,7 @@ const submitForm = async () => {
     status: form.value.status,
     is_team: form.value.is_team,
     order_number: form.value.order_number,
+    judge_assignment_mode: form.value.judge_assignment_mode,
   }
 
   try {
@@ -687,6 +918,94 @@ const generateFromTemplate = async () => {
   }
 }
 
+
+/**
+ * Bagian Mode Komponen
+ */
+// state
+const selectedEventGroup = ref(null);
+const componentJudges = ref([]);
+const isLoadingComponents = ref(false);
+const isSavingComponentJudges = ref(false);
+
+// methods
+const openJudgeComponentModal = (item) => {
+  selectedEventGroup.value = item;
+  fetchComponentJudges(item.id);
+
+  $('#judgeComponentModal').modal('show');
+};
+
+const fetchComponentJudges = (eventGroupId) => {
+  isLoadingComponents.value = true;
+
+  axios
+    .get(`/api/v1/event-groups/${eventGroupId}/judge-components`)
+    .then((response) => {
+      componentJudges.value = response.data?.data || [];
+    })
+    .catch((error) => {
+      console.error('Gagal memuat juri per komponen:', error);
+      componentJudges.value = [];
+    })
+    .finally(() => {
+      isLoadingComponents.value = false;
+    });
+};
+
+// method
+const saveComponentJudges = () => {
+  if (!selectedEventGroup.value) {
+    return;
+  }
+
+  const hasEmpty = componentJudges.value.some(
+    row => row.judge_ids.length === 0
+  );
+
+  if (hasEmpty) {
+    alert('Setiap komponen harus memiliki minimal 1 juri.');
+    return;
+  }
+
+  isSavingComponentJudges.value = true;
+
+  const payload = {
+    components: componentJudges.value.map(row => ({
+      event_field_component_id: row.event_field_component_id,
+      judge_ids: row.judge_ids || [],
+    })),
+  };
+
+  axios
+    .post(
+      `/api/v1/event-groups/${selectedEventGroup.value.id}/judge-components`,
+      payload
+    )
+    .then(() => {
+      // optional: reload data setelah save
+      fetchComponentJudges(selectedEventGroup.value.id);
+
+      // tutup modal
+      $('#judgeComponentModal').modal('hide');
+    })
+    .catch(error => {
+      console.error('Gagal menyimpan juri per komponen:', error);
+
+      // opsional: tampilkan alert
+      alert('Gagal menyimpan pengaturan juri per komponen.');
+    })
+    .finally(() => {
+      isSavingComponentJudges.value = false;
+    });
+};
+
+
+
+
+
+
+
 // search debounce
 watch(
   () => search.value,
@@ -707,6 +1026,7 @@ watch(
   (val) => {
     if (val) {
       fetchItems(1)
+      fetchJudgePanels()
     }
   }
 )
@@ -721,7 +1041,7 @@ onMounted(() => {
     )
   } else {
     fetchItems()
-    fetchLocations()
+    fetchJudgePanels()
   }
 })
 </script>

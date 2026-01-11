@@ -21,6 +21,7 @@ class EventKokardeController extends Controller
      */
     public function exportPdf(Request $request)
     {
+
         $request->validate([
             'event_id' => 'required|exists:events,id',
             'type'     => 'required|in:participant,role',
@@ -107,6 +108,7 @@ class EventKokardeController extends Controller
             if ($rows->isEmpty()) {
                 abort(404, 'Tidak ada panitia untuk role tersebut');
             }
+
 
             return view('pdf.kokarde-mass', [
                 'event' => $event,

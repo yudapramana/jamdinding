@@ -42,7 +42,8 @@ const showMasterSection = computed(() =>
   authUserStore.can('manage.master.branches') ||
   authUserStore.can('manage.master.groups') ||
   authUserStore.can('manage.master.categories') ||
-  authUserStore.can('manage.master.field-components')
+  authUserStore.can('manage.master.field-components') ||
+  authUserStore.can('manage.master.judges') 
 )
 
 const showEventSection = computed(() =>
@@ -53,7 +54,8 @@ const showEventSection = computed(() =>
   authUserStore.can('manage.event.groups') ||
   authUserStore.can('manage.event.categories') ||
   authUserStore.can('manage.event.user') ||
-  authUserStore.can('manage.event.medal-rules')
+  authUserStore.can('manage.event.medal-rules') ||
+  authUserStore.can('manage.event.judge-panels')
 )
 
 const showParticipantSection = computed(() =>
@@ -128,6 +130,7 @@ const openMenu = ref({
   event: false,
   participant: false,
   judges: false,
+  judgesEvent: false,
   scoring: false,
   scores: false,
   ranking: false,
@@ -140,6 +143,14 @@ const toggleMenu = (key) => {
 
 // auto-open sesuai route aktif
 const syncOpenByRoute = () => {
+
+  openMenu.value.judgesEvent = isAnyNameActive([
+    'admin.event.judge.index',
+    'admin.event.judge.panels',
+  ])
+
+
+
   openMenu.value.core = isAnyNameActive([
     'admin.core.branches-groups-categories',
     'admin.core.fields',
@@ -152,6 +163,7 @@ const syncOpenByRoute = () => {
     'admin.master.groups',
     'admin.master.categories',
     'admin.master.field-components',
+    'admin.master.judges',
   ])
 
   openMenu.value.event = isAnyNameActive([
@@ -163,6 +175,7 @@ const syncOpenByRoute = () => {
     'admin.event.categories',
     'admin.event.users',
     'admin.event.medal-rules',
+    'admin.event.judge-panels',
   ])
 
   openMenu.value.participant = isAnyNameActive([
@@ -394,8 +407,69 @@ watch(
                     <p>Aturan Medali Event</p>
                   </router-link>
                 </li>
+                <!-- MAJELIS HAKIM EVENT -->
+                <!-- <li class="nav-item" v-if="authUserStore.can('manage.event.judge-panels')">
+                  <router-link
+                    :to="{ name: 'admin.event.judge-panels' }"
+                    class="nav-link"
+                    :class="{ active: isNameActive('admin.event.judge-panels') }"
+                  >
+                    <i class="far fa-circle nav-icon"></i>
+                    <p>Majelis Hakim Event</p>
+                  </router-link>
+                </li> -->
               </ul>
             </li>
+
+            <!-- ================= DEWAN HAKIM ================= -->
+            <li
+              class="nav-item has-treeview"
+              v-if="authUserStore.can('manage.event.judge')"
+              :class="{ 'menu-open': openMenu.judgesEvent }"
+            >
+              <a
+                href="#"
+                class="nav-link"
+                :class="{ active: openMenu.judgesEvent }"
+                @click.prevent="toggleMenu('judgesEvent')"
+              >
+                <i class="nav-icon fas fa-gavel"></i>
+                <p>
+                  Dewan Hakim
+                  <i class="right fas fa-angle-left"></i>
+                </p>
+              </a>
+
+              <ul class="nav nav-treeview" v-show="openMenu.judgesEvent">
+
+                <!-- DAFTAR HAKIM EVENT -->
+                <li class="nav-item">
+                  <router-link
+                    :to="{ name: 'admin.event.judge.index' }"
+                    class="nav-link"
+                    :class="{ active: isNameActive('admin.event.judge.index') }"
+                  >
+                    <i class="far fa-circle nav-icon"></i>
+                    <p>Hakim Event</p>
+                  </router-link>
+                </li>
+
+                <!-- MAJELIS HAKIM EVENT -->
+                <li class="nav-item">
+                  <router-link
+                    :to="{ name: 'admin.event.judge.panels' }"
+                    class="nav-link"
+                    :class="{ active: isNameActive('admin.event.judge.panels') }"
+                  >
+                    <i class="far fa-circle nav-icon"></i>
+                    <p>Majelis Hakim</p>
+                  </router-link>
+                </li>
+
+              </ul>
+            </li>
+
+
           </template>
 
           <!-- PARTICIPANT -->
@@ -441,7 +515,7 @@ watch(
           </template>
 
           <!-- JUDGES -->
-          <template v-if="canJudgesMenu && showJudgesSection">
+          <!-- <template v-if="canJudgesMenu && showJudgesSection">
             <li class="nav-item has-treeview" :class="{ 'menu-open': openMenu.judges }">
               <a href="#" class="nav-link" :class="{ active: openMenu.judges }" @click.prevent="toggleMenu('judges')">
                 <i class="nav-icon fas fa-gavel"></i>
@@ -461,7 +535,7 @@ watch(
                 </li>
               </ul>
             </li>
-          </template>
+          </template> -->
 
           <!-- CO-CARD -->
           <template v-if="canCoCardMenu && showCoCardSection">
@@ -517,7 +591,7 @@ watch(
           </template>
 
           <!-- SCORES -->
-          <template v-if="canScoresMenu && showScoresSection">
+          <!-- <template v-if="canScoresMenu && showScoresSection">
             <li class="nav-item has-treeview" :class="{ 'menu-open': openMenu.scores }">
               <a href="#" class="nav-link" :class="{ active: openMenu.scores }" @click.prevent="toggleMenu('scores')">
                 <i class="nav-icon fas fa-clipboard-list"></i>
@@ -556,10 +630,33 @@ watch(
                 </li>
               </ul>
             </li>
-          </template>
+          </template> -->
 
           <!-- RANKING -->
           <template v-if="canRankingMenu && showRankingSection">
+            <li
+              class="nav-item"
+              v-if="
+                authUserStore.can('manage.event.ranking.select') ||
+                authUserStore.can('manage.event.ranking.index')
+              "
+            >
+              <router-link
+                :to="rankingSelectLink"
+                class="nav-link"
+                :class="{
+                  active:
+                    isNameActive('admin.event.ranking.select') ||
+                    isNameActive('admin.event.ranking.index')
+                }"
+              >
+                <i class="nav-icon fas fa-sort-amount-up"></i>
+                <p>Ranking</p>
+              </router-link>
+            </li>
+          </template>
+
+          <!-- <template v-if="canRankingMenu && showRankingSection">
             <li class="nav-item has-treeview" :class="{ 'menu-open': openMenu.ranking }">
               <a href="#" class="nav-link" :class="{ active: openMenu.ranking }" @click.prevent="toggleMenu('ranking')">
                 <i class="nav-icon fas fa-sort-amount-up"></i>
@@ -583,7 +680,7 @@ watch(
                 </li>
               </ul>
             </li>
-          </template>
+          </template> -->
 
           <!-- CONTINGENTS -->
           <template v-if="canContingentMenu && showContingentSection">

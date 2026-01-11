@@ -27,6 +27,7 @@ class _RolePermissionSeeder extends Seeder
             ['name' => 'Manage Master Group',                           'slug' => 'manage.master.groups'],
             ['name' => 'Manage Master Category',                        'slug' => 'manage.master.categories'],
             ['name' => 'Manage Master Field Component',                 'slug' => 'manage.master.field-components'],
+            ['name' => 'Manage Master Judges',                          'slug' => 'manage.master.judges'],
 
             // Menu Event
             ['name' => 'Manage Menu Event',                             'slug' => 'manage.event'],
@@ -39,6 +40,7 @@ class _RolePermissionSeeder extends Seeder
             ['name' => 'Manage Event Category',                         'slug' => 'manage.event.categories'],
             ['name' => 'Manage Event User',                             'slug' => 'manage.event.user'],
             ['name' => 'Manage Event Medal Rules',                      'slug' => 'manage.event.medal-rules'],
+            ['name' => 'Manage Event Judge Panel',                      'slug' => 'manage.event.judge-panels'],
 
             // Menu Participant
             ['name' => 'Manage Event Participant Menu',                 'slug' => 'manage.event.participant'],

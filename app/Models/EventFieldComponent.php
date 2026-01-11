@@ -20,4 +20,12 @@ class EventFieldComponent extends Model
     {
         return $this->belongsTo(ListField::class, 'field_id');
     }
+
+    public function componentJudges()
+    {
+        return $this->hasMany(
+            EventFieldComponentJudge::class,
+            'event_field_component_id'
+        );
+    }
 }

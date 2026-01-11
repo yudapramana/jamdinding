@@ -43,6 +43,20 @@ class EventLocationController extends Controller
 
     public function index(Request $request, $eventId)
     {
+        // ===== SIMPLE MODE (dropdown) =====
+        if ($request->boolean('simple')) {
+            return response()->json([
+                'data' => EventLocation::where('event_id', $eventId)
+                    ->where('is_active', true)
+                    ->orderBy('name')
+                    ->get([
+                        'id',
+                        'code',
+                        'name',
+                    ])
+            ]);
+        }
+        
         $query = EventLocation::where('event_id', $eventId);
 
         if ($request->search) {

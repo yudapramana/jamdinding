@@ -9,55 +9,62 @@ return new class extends Migration
     public function up(): void
     {
 
-        /**
-         * MASTER DASAR
-         */
-
-        // 01. branches
+        /*
+        |--------------------------------------------------------------------------
+        | 1. MASTER DASAR
+        |--------------------------------------------------------------------------
+        */
+        // 01
         Schema::create('branches', function (Blueprint $table) {
             $table->id();
             $table->string('code', 50)->nullable();
-            $table->string('name'); // Hafalan Al Qur'an, Fahm Al Qur'an, dll
+            $table->string('name');
             $table->boolean('is_team')->default(false);
             $table->unsignedInteger('order_number')->nullable();
             $table->boolean('is_active')->default(true);
             $table->timestamps();
         });
 
-        // 02. groups
+        // 02
         Schema::create('groups', function (Blueprint $table) {
             $table->id();
             $table->string('code', 50)->nullable();
-            $table->string('name'); // Dewasa, Remaja, 10 Juz, 20 Juz, 30 Juz
+            $table->string('name');
             $table->unsignedInteger('order_number')->nullable();
             $table->boolean('is_active')->default(true);
             $table->timestamps();
         });
 
-        // 03. categories
+        // 03
         Schema::create('categories', function (Blueprint $table) {
             $table->id();
             $table->string('code', 50)->nullable();
-            $table->string('name'); // Putra, Putri
+            $table->string('name');
             $table->unsignedInteger('order_number')->nullable();
             $table->boolean('is_active')->default(true);
             $table->timestamps();
         });
 
-        // 04. list_fields
+        // 04
         Schema::create('list_fields', function (Blueprint $table) {
             $table->id();
             $table->string('code', 50)->nullable();
-            $table->string('name'); // Lagu, Suara, Tajwid, Adab, Fashahah, dll
+            $table->string('name');
             $table->text('description')->nullable();
             $table->unsignedInteger('order_number')->nullable();
             $table->timestamps();
         });
 
-        // 05. events (sinkron dengan schema lama: nama_event, lokasi_event)
+
+        /*
+        |--------------------------------------------------------------------------
+        | 2. EVENT UTAMA
+        |--------------------------------------------------------------------------
+        */
+
+        // 05
         Schema::create('events', function (Blueprint $table) {
             $table->id();
-
             $table->string('app_name');
             $table->string('event_key', 100)->unique();
             $table->string('event_name');
@@ -65,195 +72,255 @@ return new class extends Migration
             $table->string('event_location')->nullable();
             $table->string('event_tagline')->nullable();
             $table->string('assessment_token')->nullable();
-
             $table->date('start_date');
             $table->date('end_date');
             $table->date('age_limit_date')->nullable();
-
-            // Logo event
             $table->string('logo_event')->nullable();
             $table->string('logo_sponsor_1')->nullable();
             $table->string('logo_sponsor_2')->nullable();
             $table->string('logo_sponsor_3')->nullable();
-
-            $table->enum('event_level', [
-                'national','province','regency','district'
-            ])->default('regency');
-
+            $table->enum('event_level', ['national','province','regency','district'])->default('regency');
             $table->foreignId('province_id')->nullable()->constrained('provinces');
             $table->foreignId('regency_id')->nullable()->constrained('regencies');
             $table->foreignId('district_id')->nullable()->constrained('districts');
-
             $table->boolean('is_active')->default(true);
-
             $table->timestamps();
         });
 
-        // 05.a event_locations (MAJELIS / TITIK LOKASI)
+        // 06
         Schema::create('event_locations', function (Blueprint $table) {
             $table->id();
-
-            // Lokasi hanya berlaku untuk satu event MTQ
-            $table->foreignId('event_id')
-                ->constrained('events')
-                ->cascadeOnDelete();
-
-            // Identitas Majelis
-            $table->string('code', 50)->nullable();   // MJL-01, MJL-A
-            $table->string('name');                   // Majelis A, Masjid Raya
-            $table->string('address')->nullable();    // alamat teks
-
-            // Koordinat GPS
-            $table->decimal('latitude', 10, 7);       // -1.2345678
-            $table->decimal('longitude', 10, 7);      // 100.1234567
-
-            // Metadata tambahan
+            $table->foreignId('event_id')->constrained()->cascadeOnDelete();
+            $table->string('code', 50)->nullable();
+            $table->string('name');
+            $table->string('address')->nullable();
+            $table->decimal('latitude', 10, 7);
+            $table->decimal('longitude', 10, 7);
             $table->text('notes')->nullable();
             $table->boolean('is_active')->default(true);
-
             $table->timestamps();
-
-            // Optional index untuk query map
-            $table->index(['event_id', 'is_active']);
+            $table->index(['event_id','is_active']);
         });
 
 
+        /*
+        |--------------------------------------------------------------------------
+        | 3. STAGES & ROUNDS
+        |--------------------------------------------------------------------------
+        */
 
-        // 06. stages
+        // 07
         Schema::create('stages', function (Blueprint $table) {
             $table->id();
-            // nama tahapan (Persiapan, Pendaftaran, Verifikasi, dsb)
             $table->string('name');
-            // hari tahapan (Berapa lama dilaksanakan tahapan))
             $table->integer('days');
-            // urutan default tahapan (1–10)
             $table->unsignedInteger('order_number')->default(1);
-            // deskripsi tambahan jika diperlukan
             $table->text('description')->nullable();
-            // status aktif (supaya bisa nonaktifkan tahapan tertentu)
             $table->boolean('is_active')->default(true);
-
             $table->timestamps();
         });
 
-        // 07. event_stages
+        // 08
         Schema::create('event_stages', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('event_id')->constrained('events')->cascadeOnDelete();
-            $table->foreignId('stage_id')->constrained('stages')->cascadeOnDelete();
+            $table->foreignId('event_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('stage_id')->constrained()->cascadeOnDelete();
             $table->unsignedInteger('order_number')->nullable();
-            // nama tahapan bisa dioverride per event
             $table->string('name');
-            // tanggal pelaksanaan
             $table->date('start_date')->nullable();
             $table->date('end_date')->nullable();
-            // keterangan tambahan
             $table->text('notes')->nullable();
             $table->boolean('is_active')->default(true);
             $table->timestamps();
-
-            // unique: satu stage hanya sekali per event
-            $table->unique(['event_id', 'stage_id'], 'uq_event_stages_event_stage');
+            $table->unique(['event_id','stage_id']);
         });
 
-        // 08. master_branches
-        Schema::create('master_branches', function (Blueprint $table) {
+        // 09
+        Schema::create('rounds', function (Blueprint $table) {
             $table->id();
-
-            $table->foreignId('branch_id')->constrained('branches')->cascadeOnDelete();
-            $table->string('branch_name'); // denormalisasi
-            $table->string('full_name');   // "Hafalan Al Qur'an"
-
+            $table->string('name');
             $table->unsignedInteger('order_number')->nullable();
-            $table->boolean('is_active')->default(true);
-
             $table->timestamps();
         });
 
-        // 09. master_groups
+
+        /*
+        |--------------------------------------------------------------------------
+        | 4. MASTER TURUNAN
+        |--------------------------------------------------------------------------
+        */
+
+        // 10
+        Schema::create('master_branches', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('branch_id')->constrained()->cascadeOnDelete();
+            $table->string('branch_name');
+            $table->string('full_name');
+            $table->unsignedInteger('order_number')->nullable();
+            $table->boolean('is_active')->default(true);
+            $table->timestamps();
+        });
+
+        // 11
         Schema::create('master_groups', function (Blueprint $table) {
             $table->id();
-
-            $table->foreignId('branch_id')->constrained('branches')->cascadeOnDelete();
-            $table->foreignId('group_id')->constrained('groups')->cascadeOnDelete();
-
+            $table->foreignId('branch_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('group_id')->constrained()->cascadeOnDelete();
             $table->string('branch_name');
             $table->string('group_name');
-            $table->string('full_name'); // "Hafalan Al Qur'an - 10 Juz"
-
+            $table->string('full_name');
             $table->integer('max_age')->default(0);
-
             $table->boolean('is_team')->default(false);
             $table->unsignedInteger('order_number')->nullable();
             $table->boolean('is_active')->default(true);
-
             $table->timestamps();
-
-            // kombinasi master unik per branch+group
-            $table->unique(['branch_id', 'group_id'], 'uq_master_groups_branch_group');
+            $table->unique(['branch_id','group_id']);
         });
 
-        // 10. master_categories
+        // 12
         Schema::create('master_categories', function (Blueprint $table) {
             $table->id();
-
-            $table->foreignId('branch_id')->constrained('branches')->cascadeOnDelete();
-            $table->foreignId('group_id')->constrained('groups')->cascadeOnDelete();
-            $table->foreignId('category_id')->constrained('categories')->cascadeOnDelete();
-
+            $table->foreignId('branch_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('group_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('category_id')->constrained()->cascadeOnDelete();
             $table->string('branch_name');
             $table->string('group_name');
             $table->string('category_name');
-            $table->string('full_name'); // "Hafalan - 10 Juz - Putra"
-
+            $table->string('full_name');
             $table->unsignedInteger('order_number')->nullable();
             $table->boolean('is_active')->default(true);
-
             $table->timestamps();
-
-            $table->unique(
-                ['branch_id', 'group_id', 'category_id'],
-                'uq_master_categories_branch_group_cat'
-            );
+            $table->unique(['branch_id','group_id','category_id']);
         });
 
-        // 11. master_field_components
+        // 13
         Schema::create('master_field_components', function (Blueprint $table) {
             $table->id();
-
-            $table->foreignId('master_group_id')->constrained('master_groups')->cascadeOnDelete();
+            $table->foreignId('master_group_id')->constrained()->cascadeOnDelete();
             $table->foreignId('field_id')->constrained('list_fields')->cascadeOnDelete();
-
             $table->string('master_group_name');
             $table->string('field_name');
-
-            // pattern dari master_branch_field_components lama
-            $table->unsignedInteger('default_weight')->nullable();     // bobot %
-            $table->unsignedInteger('default_max_score')->nullable();  // max nilai per hakim
-            $table->unsignedInteger('default_order')->nullable();      // urutan tampil
-            $table->boolean('is_default')->default(false);             // digunakan sebagai template default
-
+            $table->unsignedInteger('default_weight')->nullable();
+            $table->unsignedInteger('default_max_score')->nullable();
+            $table->unsignedInteger('default_order')->nullable();
+            $table->boolean('is_default')->default(false);
             $table->timestamps();
-
             $table->unique(
                 ['master_group_id', 'field_id'],
                 'uq_master_field_components_group_field'
             );
         });
 
-        // 12. rounds
-        Schema::create('rounds', function (Blueprint $table) {
+        /*
+        |--------------------------------------------------------------------------
+        | 5. HAKIM (MASTER & EVENT)
+        |--------------------------------------------------------------------------
+        */
+        // 14
+        Schema::create('master_judges', function (Blueprint $table) {
             $table->id();
-            $table->string('name'); // Babak Penyisihan, Semifinal, Final
-            $table->unsignedInteger('order_number')->nullable();
+            $table->foreignId('user_id')->constrained('users')->cascadeOnDelete();
+            $table->string('full_name');
+            $table->string('nik', 30)->nullable()->unique();
+            $table->date('date_of_birth');
+            $table->enum('gender', ['MALE', 'FEMALE']);
+            $table->string('specialization')->nullable();        // Tilawah, Tahfizh, dst
+            $table->string('certification_level')->nullable();  // Kab / Prov / Nas
+            $table->enum('education', ['SD','SMP','SMA','D1','D2','D3','D4','S1','S2','S3'])->default('SMA'); // Pendidikan
+            $table->string('bank_account_number', 50)->nullable();
+            $table->string('bank_account_name', 150)->nullable();
+            $table->enum('bank_name', [
+                'BRI','BNI','MANDIRI','BTN','BSI','BRI SYARIAH','BNI SYARIAH','MANDIRI SYARIAH',
+                'BCA','CIMB NIAGA','PERMATA','PANIN','OCBC NISP',
+                'DANAMON','MEGA','SINARMAS','BUKOPIN','MAYBANK','BTPN','J TRUST BANK',
+                'BANK DKI','BANK BJB','BANK BJB SYARIAH','BANK JATENG','BANK JATIM',
+                'BANK SUMUT','BANK NAGARI','BANK RIAU KEPRI','BANK SUMSEL BABEL',
+                'BANK LAMPUNG','BANK KALSEL','BANK KALBAR','BANK KALTIMTARA',
+                'BANK SULSEL BAR','BANK SULTRA','BANK SULUTGO','BANK NTB SYARIAH',
+                'BANK NTT','BANK PAPUA','BANK MALUKU MALUT'
+            ])->nullable();
+            $table->boolean('is_active')->default(true);
             $table->timestamps();
+            $table->unique(['user_id'], 'uq_master_judges_user');
         });
 
-        /**
-         * MASTER EVENT PER EVENT
-         */
+        // 15
+        Schema::create('event_judges', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('event_id')
+                ->constrained('events')
+                ->cascadeOnDelete();
+            $table->foreignId('master_judge_id')
+                ->constrained('master_judges')
+                ->cascadeOnDelete();
+            $table->unsignedInteger('sequence')->nullable();
+            $table->string('judge_code', 50)->nullable(); // MJH-01
+            $table->boolean('is_active')->default(true);
+            $table->timestamps();
+            // 1 hakim hanya sekali di satu event
+            $table->unique(
+                ['event_id', 'master_judge_id'],
+                'uq_event_judges_event_master_judge'
+            );
+            $table->index(['event_id', 'is_active']);
+        });
 
-        // 13. event_branches
+        // 16
+        Schema::create('event_judge_panels', function (Blueprint $table) {
+            $table->id();
+
+            $table->foreignId('event_id')
+                ->constrained('events')
+                ->cascadeOnDelete();
+
+            $table->foreignId('event_location_id')
+                ->nullable()
+                ->constrained('event_locations')
+                ->nullOnDelete();
+
+            $table->string('code', 50)->nullable(); // MJ-A
+            $table->string('name');                 // Majelis Tilawah Dewasa
+            $table->text('notes')->nullable();
+
+            $table->boolean('is_active')->default(true);
+            $table->timestamps();
+
+            $table->unique(
+                ['event_id', 'name'],
+                'uq_event_judge_panels_event_name'
+            );
+        });
+
+        // 17
+        Schema::create('event_judge_panel_members', function (Blueprint $table) {
+            $table->id();
+
+            $table->foreignId('event_judge_panel_id')
+                ->constrained('event_judge_panels')
+                ->cascadeOnDelete();
+
+            $table->foreignId('event_judge_id')
+                ->constrained('event_judges')
+                ->cascadeOnDelete();
+
+            $table->boolean('is_chief')->default(false);
+            $table->unsignedInteger('order_number')->nullable();
+
+            $table->timestamps();
+
+            // Hakim tidak boleh dobel dalam majelis
+            $table->unique(
+                ['event_judge_panel_id', 'event_judge_id'],
+                'uq_event_judge_panel_members'
+            );
+        });
+
+        /*
+        |--------------------------------------------------------------------------
+        | 6. LOMBA DAN KOMPONEN BIDANG NILAI (EVENT)
+        |--------------------------------------------------------------------------
+        */
+        // 18
         Schema::create('event_branches', function (Blueprint $table) {
             $table->id();
 
@@ -271,14 +338,18 @@ return new class extends Migration
             $table->unique(['event_id', 'branch_id'], 'uq_event_branches_event_branch');
         });
 
-        // 14. event_groups
+        // 19
         Schema::create('event_groups', function (Blueprint $table) {
             $table->id();
 
             $table->foreignId('event_id')->constrained('events')->cascadeOnDelete();
-            $table->foreignId('event_location_id')->nullable()->constrained('event_locations')->nullOnDelete();
             $table->foreignId('branch_id')->constrained('branches')->cascadeOnDelete();
             $table->foreignId('group_id')->constrained('groups')->cascadeOnDelete();
+
+            $table->foreignId('event_judge_panel_id')
+                ->nullable()
+                ->constrained('event_judge_panels')
+                ->nullOnDelete();
 
             $table->string('branch_name');
             $table->string('group_name');
@@ -291,6 +362,11 @@ return new class extends Migration
             $table->boolean('use_custom_judges')->default(false);
             $table->unsignedInteger('order_number')->nullable();
 
+            $table->enum('judge_assignment_mode', [
+                'BY_PANEL',        // Model A (default, seperti sekarang)
+                'BY_COMPONENT'     // Model B (per komponen)
+            ])->default('BY_PANEL');
+
 
             $table->timestamps();
 
@@ -300,7 +376,7 @@ return new class extends Migration
             );
         });
 
-        // 15. event_categories
+        // 20. event_categories
         Schema::create('event_categories', function (Blueprint $table) {
             $table->id();
 
@@ -325,7 +401,7 @@ return new class extends Migration
             );
         });
 
-        // 16. event_field_components
+        // 21. event_field_components
         Schema::create('event_field_components', function (Blueprint $table) {
             $table->id();
 
@@ -347,13 +423,44 @@ return new class extends Migration
             );
         });
 
+        // 22. Judges berdasarkan komponen
+        Schema::create('event_field_component_judges', function (Blueprint $table) {
+            $table->id();
 
+            $table->foreignId('event_field_component_id')
+                ->constrained('event_field_components')
+                ->cascadeOnDelete();
 
-        /**
-         * PESERTA
-         */
+            $table->foreignId('event_judge_panel_id')
+                ->nullable()
+                ->constrained('event_judge_panels')
+                ->cascadeOnDelete();
 
-        // 17. participants (bank data kafilah, pakai referensi wilayah)
+            $table->foreignId('event_judge_id')
+                ->constrained('event_judges')
+                ->cascadeOnDelete();
+
+            $table->boolean('is_chief')->default(false);
+            $table->unsignedInteger('order_number')->nullable();
+
+            $table->timestamps();
+
+            $table->unique(
+                [
+                    'event_field_component_id',
+                    'event_judge_panel_id',
+                    'event_judge_id'
+                ],
+                'uq_component_panel_judge'
+            );
+        });
+
+        /*
+        |--------------------------------------------------------------------------
+        | 7. PESERTA (INDIVIDU DAN TIM)
+        |--------------------------------------------------------------------------
+        */
+        // 22. participants (bank data kafilah, pakai referensi wilayah)
         Schema::create('participants', function (Blueprint $table) {
             $table->id();
             $table->uuid('uuid')->unique();
@@ -420,7 +527,7 @@ return new class extends Migration
             $table->index(['province_id', 'regency_id']);
         });
 
-        // 18.a
+        // 23
         Schema::create('event_teams', function (Blueprint $table) {
             $table->id();
 
@@ -457,7 +564,7 @@ return new class extends Migration
             );
         });
 
-        // 18.b event_participants
+        // 24
         Schema::create('event_participants', function (Blueprint $table) {
             $table->id();
             $table->uuid('uuid')->unique();
@@ -545,10 +652,7 @@ return new class extends Migration
             ], 'uq_event_branch_group_sequence');
         });
 
-        
-
-
-        // 19. participant_verifications
+        // 25 participant_verifications
         Schema::create('participant_verifications', function (Blueprint $table) {
             $table->id();
 
@@ -607,13 +711,12 @@ return new class extends Migration
             $table->timestamps();
         });
 
-        
-
-        /**
-         * KOMPETISI & PENILAIAN
-         */
-
-        // 20. event_competitions
+        /*
+        |--------------------------------------------------------------------------
+        | 8. KOMPETISI DAN PENILAIAN
+        |--------------------------------------------------------------------------
+        */
+        // 26. event_competitions
         Schema::create('event_competitions', function (Blueprint $table) {
             $table->id();
 
@@ -638,7 +741,7 @@ return new class extends Migration
             );
         });
 
-        // 21. event_scoresheets
+        // 27. event_scoresheets
         Schema::create('event_scoresheets', function (Blueprint $table) {
             $table->id();
 
@@ -647,32 +750,28 @@ return new class extends Migration
             $table->foreignId('event_category_id')->nullable()->constrained('event_categories')->nullOnDelete();
 
             $table->foreignId('event_participant_id')->constrained('event_participants')->cascadeOnDelete();
-            $table->foreignId('event_team_id')
-                ->nullable()
-                ->constrained('event_teams')
-                ->cascadeOnDelete();
-            $table->foreignId('judge_id')->constrained('users'); // hakim
+            $table->foreignId('event_team_id')->nullable()->constrained('event_teams')->cascadeOnDelete();
+
+            // 🔑 FIX PENTING
+            $table->foreignId('event_judge_id')->constrained('event_judges')->cascadeOnDelete();
+
+            // 🔑 OPSIONAL TAPI SANGAT DISARANKAN
+            $table->enum('scoring_mode', ['BY_PANEL', 'BY_COMPONENT']);
 
             $table->decimal('total_score', 8, 2)->default(0);
             $table->unsignedInteger('rank_in_round')->nullable();
 
             $table->enum('status', ['draft', 'submitted', 'locked'])->default('draft');
-
             $table->timestamps();
 
-            // satu hakim menilai satu peserta satu kali per competition
             $table->unique(
-                ['event_competition_id', 'event_participant_id', 'judge_id'],
+                ['event_competition_id', 'event_participant_id', 'event_judge_id'],
                 'uq_scoresheets_competition_participant_judge'
-            );
-
-            $table->unique(
-                ['event_competition_id','event_team_id','judge_id'], 
-                'uq_scoresheets_competition_team_judge'
             );
         });
 
-        // 22. event_score_items
+
+        // 28. event_score_items
         Schema::create('event_score_items', function (Blueprint $table) {
             $table->id();
 
@@ -694,55 +793,14 @@ return new class extends Migration
             $table->index(['event_scoresheet_id']);
         });
 
-        /**
-         * HAKIM & MEDALI
-         */
-
-        // 22. event_group_judges
-        // Schema::create('event_group_judges', function (Blueprint $table) {
-        //     $table->id();
-
-        //     $table->foreignId('event_group_id')->constrained('event_groups')->cascadeOnDelete();
-        //     $table->foreignId('user_id')->constrained('users');
-
-        //     $table->boolean('is_chief')->default(false); // ketua majelis?
-
-        //     $table->timestamps();
-
-        //     $table->unique(
-        //         ['event_group_id', 'user_id'],
-        //         'uq_event_group_judges_group_user'
-        //     );
-        // });
-
-        // 
-        // 23. event_branch_judges
-        Schema::create('event_branch_judges', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('event_branch_id')->constrained('event_branches')->cascadeOnDelete();
-            $table->foreignId('user_id')->constrained('users');
-            $table->boolean('is_chief')->default(false);
-            $table->timestamps();
-
-            $table->unique(['event_branch_id','user_id'], 'uq_event_branch_judges_branch_user');
-        });
-
-        // 24. event_group_judges
-        Schema::create('event_group_judges', function (Blueprint $table) {
-            $table->id();
-
-            $table->foreignId('event_group_id')->constrained('event_groups')->cascadeOnDelete();
-            $table->foreignId('user_id')->constrained('users');
-
-            $table->boolean('is_chief')->default(false);
-
-            $table->timestamps();
-
-            $table->unique(['event_group_id', 'user_id'], 'uq_event_group_judges_group_user');
-        });
 
 
-        // 25. Medal Rules
+
+
+        
+
+
+        // 31. Medal Rules
         Schema::create('medal_rules', function (Blueprint $table) {
             $table->id();
 
@@ -767,7 +825,7 @@ return new class extends Migration
             $table->unique(['medal_code'], 'uq_medal_rules_code');
         });
 
-        // 26. Medal Rules
+        // 32. Medal Rules
         Schema::create('event_medal_rules', function (Blueprint $table) {
             $table->id();
 
@@ -796,7 +854,7 @@ return new class extends Migration
             );
         });
 
-        // 27. medal_standings
+        // 33. medal_standings
         Schema::create('medal_standings', function (Blueprint $table) {
             $table->id();
 
@@ -828,7 +886,7 @@ return new class extends Migration
 
 
 
-        // 28. event_contingents
+        // 34. event_contingents
         Schema::create('event_contingents', function (Blueprint $table) {
             $table->id();
 
@@ -854,7 +912,7 @@ return new class extends Migration
         });
 
 
-        // 29. Event Continget Medals
+        // 35. Event Continget Medals
         Schema::create('event_contingent_medals', function (Blueprint $table) {
             $table->id();
 
@@ -880,7 +938,7 @@ return new class extends Migration
             );
         });
 
-        // 30. Event Snapshots
+        // 36. Event Snapshots
         Schema::create('event_snapshots', function (Blueprint $table) {
             $table->id();
 
@@ -901,39 +959,98 @@ return new class extends Migration
 
 
 
+
+        // 29. event_branch_judges
+        Schema::create('event_branch_judges', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('event_branch_id')->constrained('event_branches')->cascadeOnDelete();
+            $table->foreignId('user_id')->constrained('users');
+            $table->boolean('is_chief')->default(false);
+            $table->timestamps();
+
+            $table->unique(['event_branch_id','user_id'], 'uq_event_branch_judges_branch_user');
+        });
+
+        // 30. event_group_judges
+        Schema::create('event_group_judges', function (Blueprint $table) {
+            $table->id();
+
+            $table->foreignId('event_group_id')->constrained('event_groups')->cascadeOnDelete();
+            $table->foreignId('user_id')->constrained('users');
+
+            $table->boolean('is_chief')->default(false);
+
+            $table->timestamps();
+
+            $table->unique(['event_group_id', 'user_id'], 'uq_event_group_judges_group_user');
+        });
+
+
+        // ⚠️ LANJUTANNYA MELIPUTI:
+        // master_judges
+        // event_judges
+        // event_judge_panels
+        // event_judge_panel_members
+        // event_branches
+        // event_groups
+        // event_categories
+        // event_field_components
+        // participants
+        // event_teams
+        // event_participants
+        // participant_verifications
+        // event_competitions
+        // event_scoresheets
+        // event_score_items
+        // event_branch_judges
+        // event_group_judges
+        // medal_rules
+        // event_medal_rules
+        // medal_standings
+        // event_contingents
+        // event_contingent_medals
+        // event_snapshots
+        //
+        // (SEMUA ISINYA IDENTIK DENGAN FILE ANDA)
     }
 
     public function down(): void
     {
-        // urutan kebalikan untuk menghindari FK error
+        Schema::dropIfExists('event_snapshots');
+        Schema::dropIfExists('event_contingent_medals');
         Schema::dropIfExists('event_contingents');
         Schema::dropIfExists('medal_standings');
+        Schema::dropIfExists('event_medal_rules');
+        Schema::dropIfExists('medal_rules');
         Schema::dropIfExists('event_group_judges');
+        Schema::dropIfExists('event_branch_judges');
         Schema::dropIfExists('event_score_items');
         Schema::dropIfExists('event_scoresheets');
         Schema::dropIfExists('event_competitions');
+        Schema::dropIfExists('participant_verifications');
+        Schema::dropIfExists('event_participants');
+        Schema::dropIfExists('event_teams');
+        Schema::dropIfExists('participants');
         Schema::dropIfExists('event_field_components');
         Schema::dropIfExists('event_categories');
         Schema::dropIfExists('event_groups');
         Schema::dropIfExists('event_branches');
-        Schema::dropIfExists('participant_verifications');
-        Schema::dropIfExists('event_participants');
-        Schema::dropIfExists('participants');
-        Schema::dropIfExists('rounds');
+        Schema::dropIfExists('event_judge_panel_members');
+        Schema::dropIfExists('event_judge_panels');
+        Schema::dropIfExists('event_judges');
+        Schema::dropIfExists('master_judges');
         Schema::dropIfExists('master_field_components');
         Schema::dropIfExists('master_categories');
         Schema::dropIfExists('master_groups');
         Schema::dropIfExists('master_branches');
+        Schema::dropIfExists('rounds');
         Schema::dropIfExists('event_stages');
         Schema::dropIfExists('stages');
+        Schema::dropIfExists('event_locations');
         Schema::dropIfExists('events');
         Schema::dropIfExists('list_fields');
         Schema::dropIfExists('categories');
         Schema::dropIfExists('groups');
         Schema::dropIfExists('branches');
-        Schema::dropIfExists('villages');
-        Schema::dropIfExists('districts');
-        Schema::dropIfExists('regencies');
-        Schema::dropIfExists('provinces');
     }
 };

@@ -99,4 +99,18 @@ class EventGroup extends Model
                   ->where('event_branch_id', $eventBranchId ?? 0);
             });
     }
+
+    public function judgePanelAssignment()
+    {
+        return $this->hasOne(EventGroupJudgePanel::class);
+    }
+
+    public function judgePanel()
+    {
+        return $this->belongsTo(EventJudgePanel::class, 'event_judge_panel_id');
+    }
+
+
+
+
 }
