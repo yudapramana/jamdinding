@@ -39,7 +39,7 @@ class EventCompetitionScoringController extends Controller
         $judges = $group->judgePanel
             ->members
             ->map(fn ($m) => [
-                'id'   => $m->event_judge_id,
+                'id'   => (int) $m->event_judge_id,
                 'name' => $m->eventJudge->masterJudge->full_name,
             ])
             ->values();
@@ -93,7 +93,7 @@ class EventCompetitionScoringController extends Controller
                 'is_team' => $group->is_team,
                 'judge_assignment_mode' => $group->judge_assignment_mode,
             ],
-            'participant' => $request->event_participant_id,
+            'participant' => (int) $request->event_participant_id,
             'judges' => $judges,
             'components' => $components,
             'scoresheets' => $scoresheets,
