@@ -268,6 +268,7 @@ class _EventJudgeSeeder extends Seeder
                     'role_id'           => RoleType::DEWAN_HAKIM->value,
                     'remember_token'    => Str::random(10),
                     'is_active'         => true,
+                    'event_id'          => $eventId,
                 ]
             );
 

@@ -163,6 +163,12 @@ class EventCompetitionScoringController extends Controller
                 ->toArray();
         }
 
+        \Log::info('SAVE DRAFT DEBUG', [
+            'scoring_mode' => $scoringMode,
+            'component_map_count' => $componentMap->count(),
+            'component_judge_map' => $componentJudgeMap,
+        ]);
+
         DB::transaction(function () use (
             $data,
             $eventCompetition,
@@ -210,6 +216,14 @@ class EventCompetitionScoringController extends Controller
                 foreach ($row['items'] as $item) {
                     $componentId = (int) $item['event_field_component_id'];
 
+                    \Log::info('ITEM CHECK', [
+                        'judge_id' => $judgeId,
+                        'component_id' => $componentId,
+                        'allowed_judges' => $componentJudgeMap[$componentId] ?? null,
+                        'notes' => 'Allowed Judges will null if the scoringMode is not BY_COMPONENT'
+                    ]);
+
+
                     // Komponen bukan milik group
                     if (!$componentMap->has($componentId)) {
                         continue;
@@ -220,6 +234,13 @@ class EventCompetitionScoringController extends Controller
                     // ==========================================
                     if ($scoringMode === 'BY_COMPONENT') {
                         $allowedJudges = $componentJudgeMap[$componentId] ?? [];
+
+                        if ($scoringMode === 'BY_COMPONENT' && empty($allowedJudges)) {
+                            throw new \RuntimeException(
+                                "Component {$componentId} has no assigned judges"
+                            );
+                        }
+
 
                         if (!in_array($judgeId, $allowedJudges, true)) {
                             continue;
@@ -256,6 +277,9 @@ class EventCompetitionScoringController extends Controller
                 ]);
             }
         });
+
+        
+
 
         return response()->json([
             'message' => 'Draft penilaian berhasil disimpan.',
