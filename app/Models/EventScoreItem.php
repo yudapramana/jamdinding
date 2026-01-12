@@ -16,7 +16,6 @@ class EventScoreItem extends Model
         'max_score' => 'float',
         'weight' => 'integer',
         'weighted_score' => 'float',
-        'event_field_component_id' => 'integer',
     ];
 
     public function scoresheet()
