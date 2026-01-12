@@ -130,6 +130,11 @@ class EventCompetitionScoringController extends Controller
             ->where('event_id', $eventCompetition->event_id)
             ->firstOrFail();
 
+        \Log::info('EVENT PARTICIPANT', [
+            'eventParticipant' => $eventParticipant,
+            
+        ]);
+
         // ==========================================
         // Ambil group + scoring mode
         // ==========================================
