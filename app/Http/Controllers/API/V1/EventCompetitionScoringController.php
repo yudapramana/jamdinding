@@ -51,7 +51,7 @@ class EventCompetitionScoringController extends Controller
                 $assigned = EventFieldComponentJudge::where(
                     'event_field_component_id',
                     $c->id
-                )->pluck('event_judge_id')->values();
+                )->pluck('event_judge_id')->map('intval')->values();
             } else {
                 // BY_PANEL → semua hakim boleh menilai
                 $assigned = null;
