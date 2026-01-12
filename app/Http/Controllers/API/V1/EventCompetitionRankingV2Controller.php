@@ -438,7 +438,12 @@ class EventCompetitionRankingV2Controller extends Controller
             ->get([
                 'ej.id',
                 'mj.full_name as name',
+            ])
+            ->map(fn ($row) => [
+                'id'   => (int) $row->id,
+                'name' => $row->name,
             ]);
+
     }
 
     protected function getJudgesByField(EventCompetition $competition): array
@@ -539,7 +544,7 @@ class EventCompetitionRankingV2Controller extends Controller
         foreach ($rowsRaw as $r) {
             $pid = $r->event_participant_id;
 
-            $rows[$pid]['event_participant_id'] = $pid;
+            $rows[$pid]['event_participant_id'] = (int) $pid;
             $rows[$pid]['full_name'] = $r->full_name;
             $rows[$pid]['contingent'] = $r->contingent;
 
