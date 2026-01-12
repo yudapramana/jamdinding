@@ -14,6 +14,7 @@ class EventScoresheet extends Model
     protected $casts = [
         'total_score' => 'float',
         'rank_in_round' => 'integer',
+        'event_judge_id' => 'integer',
     ];
 
     public function competition()
