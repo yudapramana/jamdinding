@@ -220,7 +220,6 @@ class EventCompetitionScoringController extends Controller
                         'judge_id' => $judgeId,
                         'component_id' => $componentId,
                         'allowed_judges' => $componentJudgeMap[$componentId] ?? null,
-                        'notes' => 'Allowed Judges will null if the scoringMode is not BY_COMPONENT'
                     ]);
 
 
