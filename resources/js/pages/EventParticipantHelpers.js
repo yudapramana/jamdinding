@@ -549,10 +549,11 @@ export const eventParticipantRequiredFields = [
   'participant.bank_account_number',
   'participant.bank_account_name',
   'participant.bank_name',
-  'participant.tanggal_terbit_ktp',
-  'participant.tanggal_terbit_kk',
   'event_participant.event_category_id',
 ]
+
+// 'participant.tanggal_terbit_ktp',
+// 'participant.tanggal_terbit_kk',
 
 export const getNestedFieldValue = (obj, path) => {
   return path.split('.').reduce((o, key) => (o ? o[key] : undefined), obj)

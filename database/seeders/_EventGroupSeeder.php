@@ -28,6 +28,41 @@ class _EventGroupSeeder extends Seeder
             return;
         }
 
+        /**
+         * DAFTAR GOLONGAN AKTIF
+         */
+        $activeGroups = [
+            "Seni Baca Al Qur'an (Tilawah) Taman Kanak-Kanak",
+            "Seni Baca Al Qur'an (Tilawah) Anak-anak",
+            "Seni Baca Al Qur'an (Tilawah) Remaja",
+            "Seni Baca Al Qur'an (Tilawah) Dewasa",
+            "Seni Baca Al Qur'an (Tilawah) Cacat Netra",
+            "Tartil Al Qur'an Dasar",
+            "Tartil Al Qur'an Menengah",
+            "Tartil Al Qur'an Umum",
+            "Hafalan Al Qur'an 1 Juz + Tilawah",
+            "Hafalan Al Qur'an 5 Juz + Tilawah",
+            "Hafalan Al Qur'an 1 Juz Non Tilawah",
+            "Hafalan Al Qur'an 5 Juz Non Tilawah",
+            "Hafalan Al Qur'an 10 Juz",
+            "Kitab Standar Umum",
+            "Tafsir Al Qur'an Bahasa Arab",
+            "Tafsir Al Qur'an Bahasa Indonesia",
+            "Tafsir Al Qur'an Bahasa Inggris",
+            "Fahm Al Qur'an Beregu",
+            "Syarhil Qur'an Beregu",
+            "Seni Kaligrafi Al Qur'an Naskah",
+            "Seni Kaligrafi Al Qur'an Hiasan Mushaf",
+            "Seni Kaligrafi Al Qur'an Dekorasi",
+            "Seni Kaligrafi Al Qur'an Kontemporer",
+            "Khutbah Jum'at & Adzan Khatib + Mu'adzin",
+            "Karya Tulis Ilmiah Al Qur'an (KTIQ) Umum",
+            "Karya Tulis Ilmiah Hadits (KTIH) Umum",
+        ];
+
+        /**
+         * PANEL HAKIM AKTIF
+         */
         $panels = EventJudgePanel::where('event_id', $event->id)
             ->where('is_active', true)
             ->orderBy('id')
@@ -43,12 +78,24 @@ class _EventGroupSeeder extends Seeder
         );
 
         $panelCount = $panels->count();
+        $panelIndex = 0;
         $order      = 1;
 
-        foreach ($masterGroups as $index => $mg) {
+        foreach ($masterGroups as $mg) {
 
-            // ROUND ROBIN panel assignment
-            $panel = $panels[$index % $panelCount];
+            /**
+             * CEK STATUS AKTIF
+             */
+            $isActive = in_array($mg->full_name, $activeGroups, true);
+
+            /**
+             * PANEL HANYA UNTUK GROUP AKTIF
+             */
+            $panelId = null;
+            if ($isActive) {
+                $panelId = $panels[$panelIndex % $panelCount]->id;
+                $panelIndex++;
+            }
 
             EventGroup::updateOrCreate(
                 [
@@ -57,18 +104,20 @@ class _EventGroupSeeder extends Seeder
                     'group_id'  => $mg->group_id,
                 ],
                 [
-                    'event_judge_panel_id' => $panel->id,
+                    'event_judge_panel_id' => $panelId,
 
                     'branch_name' => $mg->branch_name,
                     'group_name'  => $mg->group_name,
                     'full_name'   => $mg->full_name,
 
-                    'max_age'     => $mg->max_age ?? 0,
+                    // aturan: max_age master - 1
+                    'max_age'     => $mg->max_age ? ($mg->max_age - 1) : 0,
                     'is_team'     => (bool) $mg->is_team,
 
-                    'status'      => 'active',
-                    'use_custom_judges' => false,
-                    'judge_assignment_mode' => 'BY_PANEL',
+                    'status'      => $isActive ? 'active' : 'inactive',
+
+                    'use_custom_judges'    => false,
+                    'judge_assignment_mode'=> 'BY_PANEL',
 
                     'order_number' => $order++,
                 ]
@@ -76,7 +125,7 @@ class _EventGroupSeeder extends Seeder
         }
 
         $this->command?->info(
-            "✔ Seeder selesai: {$masterGroups->count()} event_groups → {$panelCount} panel (round-robin)"
+            "✔ Seeder selesai: {$masterGroups->count()} event_groups, panel hanya untuk group ACTIVE"
         );
     }
 }

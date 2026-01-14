@@ -71,7 +71,16 @@
                 <option :value="50">50</option>
                 <option :value="100">100</option>
               </select>
-              <label class="mb-0 text-sm text-muted">Entri</label>
+              <label class="mb-0 text-sm text-muted mr-2">|</label>
+
+              <select
+                v-model="statusFilter"
+                class="form-control form-control-sm w-auto"
+              >
+                <option value="active">Aktif</option>
+                <option value="inactive">Nonaktif</option>
+                <option value="all">Semua</option>
+              </select>
             </div>
 
             <!-- RIGHT: search -->
@@ -365,6 +374,7 @@ const items = ref([])
 const branches = ref([])
 const groups = ref([])
 const categories = ref([])
+const statusFilter = ref('active') // 'active' | 'inactive' | 'all'
 
 const search = ref('')
 const perPage = ref(10)
@@ -419,6 +429,7 @@ const fetchItems = async (page = 1) => {
         event_id: eventId.value,
         branch_id: selectedBranchId.value || undefined, // 👈
         group_id: selectedGroupId.value || undefined,   // 👈
+        status: statusFilter.value, // 👈 TAMBAH INI
         page,
         per_page: perPage.value,
         search: search.value,
@@ -601,6 +612,13 @@ const generateFromTemplate = async () => {
     isGenerating.value = false
   }
 }
+
+watch(
+  () => statusFilter.value,
+  () => {
+    fetchItems(1)
+  }
+)
 
 // search debounce
 watch(

@@ -809,10 +809,10 @@ class EventParticipantController extends Controller
             'participant.bank_name.string'   => 'Nama bank harus berupa teks.',
             'participant.bank_name.max'      => 'Nama bank maksimal 100 karakter.',
 
-            'participant.tanggal_terbit_ktp.required' => 'Tanggal terbit KTP wajib diisi.',
+            // 'participant.tanggal_terbit_ktp.required' => 'Tanggal terbit KTP wajib diisi.',
             'participant.tanggal_terbit_ktp.date'     => 'Tanggal terbit KTP tidak valid.',
 
-            'participant.tanggal_terbit_kk.required' => 'Tanggal terbit KK wajib diisi.',
+            // 'participant.tanggal_terbit_kk.required' => 'Tanggal terbit KK wajib diisi.',
             'participant.tanggal_terbit_kk.date'     => 'Tanggal terbit KK tidak valid.',
 
             // EVENT PARTICIPANT
@@ -869,8 +869,8 @@ class EventParticipantController extends Controller
             'participant.bank_account_name'   => ['required', 'string', 'max:255'],
             'participant.bank_name'           => ['required', 'string', 'max:100'],
 
-            'participant.tanggal_terbit_ktp'  => ['required', 'date'],
-            'participant.tanggal_terbit_kk'   => ['required', 'date'],
+            'participant.tanggal_terbit_ktp'  => ['sometimes', 'date'],
+            'participant.tanggal_terbit_kk'   => ['sometimes', 'date'],
 
             // EVENT PARTICIPANT
             'event_participant.id'                => ['nullable', 'exists:event_participants,id'],

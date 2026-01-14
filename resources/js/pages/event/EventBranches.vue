@@ -54,17 +54,31 @@
                 <option :value="50">50</option>
                 <option :value="100">100</option>
               </select>
-              <label class="mb-0 text-sm text-muted">Entri</label>
+              <label class="mb-0 text-sm text-muted mr-2">|</label>
+
+              <select
+                v-model="statusFilter"
+                class="form-control form-control-sm w-auto"
+              >
+                <option value="active">Aktif</option>
+                <option value="inactive">Nonaktif</option>
+                <option value="all">Semua</option>
+              </select>
             </div>
 
-            <!-- RIGHT: search -->
-            <input
-              v-model="search"
-              type="text"
-              class="form-control form-control-sm w-auto"
-              style="min-width: 220px"
-              placeholder="Cari nama cabang..."
-            />
+            <!-- RIGHT: search + status -->
+            <div class="d-flex align-items-center gap-2">
+              
+
+              <input
+                v-model="search"
+                type="text"
+                class="form-control form-control-sm w-auto"
+                style="min-width: 220px"
+                placeholder="Cari nama cabang..."
+              />
+            </div>
+
           </div>
         </div>
 
@@ -321,8 +335,9 @@ const eventId = computed(() => eventData.value?.id || null)
 const items = ref([])
 const branches = ref([])
 
+const statusFilter = ref('active') // 'active' | 'inactive' | 'all'
 const search = ref('')
-const perPage = ref(10)
+const perPage = ref(25)
 const isLoading = ref(false)
 const isEdit = ref(false)
 const isSubmitting = ref(false)
@@ -357,9 +372,7 @@ const fetchBranches = async () => {
 }
 
 const fetchItems = async (page = 1) => {
-  if (!eventId.value) {
-    return
-  }
+  if (!eventId.value) return
 
   isLoading.value = true
   try {
@@ -369,6 +382,7 @@ const fetchItems = async (page = 1) => {
         page,
         per_page: perPage.value,
         search: search.value,
+        status: statusFilter.value, // 👈 TAMBAH INI
         from_crud: 1,
       },
     })
@@ -385,12 +399,7 @@ const fetchItems = async (page = 1) => {
     }
   } catch (error) {
     console.error('Gagal memuat event_branches:', error)
-    // optional: logout kalau 401
-    if (error.response && error.response.status === 401) {
-      authUserStore.logout()
-    } else {
-      Swal.fire('Gagal', 'Gagal memuat data event branches.', 'error')
-    }
+    Swal.fire('Gagal', 'Gagal memuat data event branches.', 'error')
   } finally {
     isLoading.value = false
   }
@@ -546,6 +555,14 @@ const generateFromTemplate = async () => {
     isGenerating.value = false
   }
 }
+
+
+watch(
+  () => statusFilter.value,
+  () => {
+    fetchItems(1)
+  }
+)
 
 // search debounce
 watch(

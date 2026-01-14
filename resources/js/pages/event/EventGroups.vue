@@ -61,7 +61,16 @@
                 <option :value="50">50</option>
                 <option :value="100">100</option>
               </select>
-              <label class="mb-0 text-sm text-muted">Entri</label>
+              <label class="mb-0 text-sm text-muted mr-2">|</label>
+
+              <select
+                v-model="statusFilter"
+                class="form-control form-control-sm w-auto"
+              >
+                <option value="active">Aktif</option>
+                <option value="inactive">Nonaktif</option>
+                <option value="all">Semua</option>
+              </select>
             </div>
 
             <!-- RIGHT: search -->
@@ -142,6 +151,7 @@
                     class="form-control form-control-sm"
                     :value="item.event_judge_panel_id"
                     @change="assignJudgePanel(item.id, $event.target.value)"
+                    :disabled="item.status == 'inactive'"
                   >
                     <option value="">— Belum Ditentukan —</option>
                     <option
@@ -662,9 +672,10 @@ const eventId = computed(() => eventData.value?.id || null)
 const items = ref([])
 const branches = ref([])
 const groups = ref([])
+const statusFilter = ref('active') // 'active' | 'inactive' | 'all'
 
 const search = ref('')
-const perPage = ref(10)
+const perPage = ref(50)
 const isLoading = ref(false)
 const isEdit = ref(false)
 const isSubmitting = ref(false)
@@ -727,6 +738,7 @@ const fetchItems = async (page = 1) => {
       params: {
         event_id: eventId.value,
         branch_id: selectedBranchId.value || undefined, // 👈 filter optional
+        status: statusFilter.value, // 👈 TAMBAH INI
         page,
         per_page: perPage.value,
         search: search.value,
@@ -1003,6 +1015,12 @@ const saveComponentJudges = () => {
 
 
 
+watch(
+  () => statusFilter.value,
+  () => {
+    fetchItems(1)
+  }
+)
 
 
 

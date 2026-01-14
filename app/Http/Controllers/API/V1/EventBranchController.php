@@ -14,8 +14,11 @@ class EventBranchController extends Controller
 {
     public function index(Request $request)
     {
-        $eventId = $request->get('event_id');
-        $fromCrud   = $request->boolean('from_crud');    // 👈 PENENTU MODE
+        $eventId   = $request->get('event_id');
+        $fromCrud  = $request->boolean('from_crud');
+        $status    = $request->get('status', 'active'); // 👈 DEFAULT active
+        $search    = $request->get('search');
+        $perPage   = (int) ($request->get('per_page') ?? 10);
 
         if (!$eventId) {
             return response()->json([
@@ -23,28 +26,42 @@ class EventBranchController extends Controller
             ], 422);
         }
 
-        $search  = $request->get('search');
-        $perPage = (int) ($request->get('per_page') ?? 10);
-
         $query = EventBranch::where('event_id', $eventId);
 
         /**
-         * DEFAULT FILTER:
-         * jika BUKAN dari halaman CRUD → hanya tampilkan status ACTIVE
+         * ============================
+         * FILTER STATUS
+         * ============================
+         *
+         * - Jika from_crud = false → FORCE active
+         * - Jika from_crud = true:
+         *     - status=active → active
+         *     - status=inactive → inactive
+         *     - status=all → tanpa filter
          */
         if (!$fromCrud) {
             $query->where('status', 'active');
+        } else {
+            if ($status === 'active') {
+                $query->where('status', 'active');
+            } elseif ($status === 'inactive') {
+                $query->where('status', 'inactive');
+            }
+            // status === 'all' → tidak difilter
         }
-        
+
+        /**
+         * SEARCH
+         */
         if ($search) {
             $query->where(function ($q) use ($search) {
                 $q->where('branch_name', 'like', "%{$search}%")
-                  ->orWhere('full_name', 'like', "%{$search}%");
+                ->orWhere('full_name', 'like', "%{$search}%");
             });
         }
 
         $query->orderByRaw('COALESCE(order_number, 9999)')
-              ->orderBy('branch_name');
+            ->orderBy('branch_name');
 
         $branches = $query->paginate($perPage);
 

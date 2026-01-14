@@ -475,6 +475,50 @@
                       </div>
                   </div>
 
+                  <div class="col-md-4" >
+                      <div class="form-group" v-if="showTanggalTerbit">
+                      <label class="mb-1">Tanggal Terbit KTP <span class="text-danger">*</span></label>
+                      <input
+                          v-model="form.participant.tanggal_terbit_ktp"
+                          type="date"
+                          class="form-control form-control-sm"
+                          @blur="validateField('participant.tanggal_terbit_ktp')"
+                          :class="{
+                          'is-invalid': fieldErrors['participant.tanggal_terbit_ktp'],
+                          'is-valid': !fieldErrors['participant.tanggal_terbit_ktp'] && form.participant.tanggal_terbit_ktp
+                          }"
+                      />
+                      <div
+                          class="invalid-feedback"
+                          v-if="fieldErrors['participant.tanggal_terbit_ktp']"
+                      >
+                          {{ fieldErrors['participant.tanggal_terbit_ktp'] }}
+                      </div>
+                      </div>
+                  </div>
+
+                  <div class="col-md-4" >
+                      <div class="form-group" v-if="showTanggalTerbit">
+                      <label class="mb-1">Tanggal Terbit KK <span class="text-danger">*</span></label>
+                      <input
+                          v-model="form.participant.tanggal_terbit_kk"
+                          type="date"
+                          class="form-control form-control-sm"
+                          @blur="validateField('participant.tanggal_terbit_kk')"
+                          :class="{
+                          'is-invalid': fieldErrors['participant.tanggal_terbit_kk'],
+                          'is-valid': !fieldErrors['participant.tanggal_terbit_kk'] && form.participant.tanggal_terbit_kk
+                          }"
+                      />
+                      <div
+                          class="invalid-feedback"
+                          v-if="fieldErrors['participant.tanggal_terbit_kk']"
+                      >
+                          {{ fieldErrors['participant.tanggal_terbit_kk'] }}
+                      </div>
+                      </div>
+                  </div>
+
                   <div class="col-md-4">
                       <div class="form-group">
                       <label class="mb-1">
@@ -529,6 +573,12 @@
                       </div>
                   </div>
 
+                  
+
+                    
+
+
+
                   <div class="col-md-4">
                       <div class="form-group">
                       <label class="mb-1">Nomor HP <span class="text-danger">*</span></label>
@@ -550,6 +600,8 @@
                       </div>
                       </div>
                   </div>
+
+                  
 
                   <!-- TEMPAT LAHIR, TANGGAL LAHIR, JENIS KELAMIN -->
                   <div class="col-md-4">
@@ -938,50 +990,7 @@
                       </div>
                   </div>
 
-                  <!-- TANGGAL TERBIT DOKUMEN -->
-                  <div class="col-md-4">
-                      <div class="form-group">
-                      <label class="mb-1">Tanggal Terbit KTP <span class="text-danger">*</span></label>
-                      <input
-                          v-model="form.participant.tanggal_terbit_ktp"
-                          type="date"
-                          class="form-control form-control-sm"
-                          @blur="validateField('participant.tanggal_terbit_ktp')"
-                          :class="{
-                          'is-invalid': fieldErrors['participant.tanggal_terbit_ktp'],
-                          'is-valid': !fieldErrors['participant.tanggal_terbit_ktp'] && form.participant.tanggal_terbit_ktp
-                          }"
-                      />
-                      <div
-                          class="invalid-feedback"
-                          v-if="fieldErrors['participant.tanggal_terbit_ktp']"
-                      >
-                          {{ fieldErrors['participant.tanggal_terbit_ktp'] }}
-                      </div>
-                      </div>
-                  </div>
-
-                  <div class="col-md-4">
-                      <div class="form-group">
-                      <label class="mb-1">Tanggal Terbit KK <span class="text-danger">*</span></label>
-                      <input
-                          v-model="form.participant.tanggal_terbit_kk"
-                          type="date"
-                          class="form-control form-control-sm"
-                          @blur="validateField('participant.tanggal_terbit_kk')"
-                          :class="{
-                          'is-invalid': fieldErrors['participant.tanggal_terbit_kk'],
-                          'is-valid': !fieldErrors['participant.tanggal_terbit_kk'] && form.participant.tanggal_terbit_kk
-                          }"
-                      />
-                      <div
-                          class="invalid-feedback"
-                          v-if="fieldErrors['participant.tanggal_terbit_kk']"
-                      >
-                          {{ fieldErrors['participant.tanggal_terbit_kk'] }}
-                      </div>
-                      </div>
-                  </div>
+                  
 
                       <!-- ===================== DATA LOMBA ===================== -->
                       <!-- <div class="col-12 mt-3">
@@ -1344,203 +1353,19 @@
       </div>
     </div>
 
-    <!-- MODAL MUTASI PESERTA -->
-    <div class="modal fade" id="mutasiModal" tabindex="-1" role="dialog">
-      <div class="modal-dialog" role="document">
-        <div class="modal-content">
-          <!-- HEADER -->
-          <div class="modal-header">
-            <h5 class="modal-title">Mutasi Peserta</h5>
-            <button type="button" class="close" data-dismiss="modal">
-              <span>&times;</span>
-            </button>
-          </div>
+    <MutasiParticipantModal
+      ref="mutasiModalRef"
+      :participant-id="mutasiParticipantId"
+      :initial-region="mutasiInitialRegion"
+      @success="fetchItems(meta.current_page)"
+    />
 
-          <!-- BODY -->
-          <div class="modal-body">
-            <div class="form-group">
-              <label>Provinsi</label>
-              <select
-                v-model="mutasiForm.province_id"
-                class="form-control form-control-sm"
-                :class="{ 'is-invalid': mutasiErrors.province_id }"
-                @change="onMutasiProvinceChange"
-              >
-                <option value="">Pilih Provinsi</option>
-                <option
-                  v-for="p in mutasiProvinceOptions"
-                  :key="p.id"
-                  :value="p.id"
-                >
-                  {{ p.name }}
-                </option>
-              </select>
-              <div class="invalid-feedback" v-if="mutasiErrors.province_id">
-                {{ mutasiErrors.province_id }}
-              </div>
-            </div>
+    <RegisterParticipantsModal
+      :participants="selectedParticipants"
+      :is-submitting="isRegistering"
+      @confirm="submitRegisterParticipants"
+    />
 
-            <div class="form-group">
-              <label>Kab / Kota</label>
-              <select
-                v-model="mutasiForm.regency_id"
-                class="form-control form-control-sm"
-                :class="{ 'is-invalid': mutasiErrors.regency_id }"
-                @change="onMutasiRegencyChange"
-              >
-                <option value="">Pilih Kab / Kota</option>
-                <option
-                  v-for="r in mutasiRegencyOptions"
-                  :key="r.id"
-                  :value="r.id"
-                >
-                  {{ r.name }}
-                </option>
-              </select>
-              <div class="invalid-feedback" v-if="mutasiErrors.regency_id">
-                {{ mutasiErrors.regency_id }}
-              </div>
-            </div>
-
-            <div class="form-group mb-1">
-              <label>Kecamatan</label>
-              <select
-                v-model="mutasiForm.district_id"
-                class="form-control form-control-sm"
-                :class="{ 'is-invalid': mutasiErrors.district_id }"
-              >
-                <option value="">Pilih Kecamatan</option>
-                <option
-                  v-for="d in mutasiDistrictOptions"
-                  :key="d.id"
-                  :value="d.id"
-                >
-                  {{ d.name }}
-                </option>
-              </select>
-              <div class="invalid-feedback" v-if="mutasiErrors.district_id">
-                {{ mutasiErrors.district_id }}
-              </div>
-            </div>
-
-            <small class="text-danger d-block mt-2">
-              <i class="fas fa-exclamation-circle mr-1"></i>
-              Disarankan input kecamatan agar data lebih spesifik, sesuaikan data
-              dengan KTP atau KK.
-            </small>
-          </div>
-
-          <!-- FOOTER -->
-          <div class="modal-footer">
-            <button
-              type="button"
-              class="btn btn-sm btn-secondary"
-              data-dismiss="modal"
-            >
-              Tidak
-            </button>
-            <button
-              type="button"
-              class="btn btn-sm btn-primary"
-              :disabled="isMutasiSubmitting"
-              @click="submitMutasi"
-            >
-              <i
-                v-if="isMutasiSubmitting"
-                class="fas fa-spinner fa-spin mr-1"
-              ></i>
-              Pindahkan
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- MODAL KONFIRMASI DAFTARKAN PESERTA -->
-    <div class="modal fade" id="registerParticipantsModal" tabindex="-1" role="dialog">
-      <div class="modal-dialog modal-lg" role="document">
-        <div class="modal-content">
-          <div class="modal-header py-2">
-            <h5 class="modal-title">
-              <i class="fas fa-check-double mr-2"></i>
-              Konfirmasi Pendaftaran Peserta
-            </h5>
-            <button type="button" class="close" data-dismiss="modal">
-              <span>&times;</span>
-            </button>
-          </div>
-
-          <div class="modal-body">
-            <p class="mb-2">
-              Anda akan mendaftarkan <strong>{{ selectedParticipants.length }}</strong> peserta
-              untuk event ini dan mengubah
-              <code>registration_status</code> menjadi
-              <span class="badge badge-info">process</span>.
-            </p>
-
-            <div v-if="selectedParticipants.length">
-              <table class="table table-sm table-bordered mb-0">
-                <thead>
-                  <tr>
-                    <th style="width: 50px;">#</th>
-                    <th>Nama Peserta</th>
-                    <th>NIK</th>
-                    <th>Cabang / Golongan</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr
-                    v-for="(ep, idx) in selectedParticipants"
-                    :key="ep.id"
-                  >
-                    <td>{{ idx + 1 }}</td>
-                    <td>{{ ep.participant?.full_name }}</td>
-                    <td class="text-monospace">{{ ep.participant?.nik }}</td>
-                    <td>
-                      {{
-                        ep.event_category?.full_name
-                        || ep.event_group?.full_name
-                        || ep.event_branch?.full_name
-                        || '-'
-                      }}
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-
-            <div v-else class="text-muted">
-              Tidak ada peserta yang dipilih.
-            </div>
-          </div>
-
-          <div class="modal-footer py-2">
-            <button
-              type="button"
-              class="btn btn-sm btn-secondary"
-              data-dismiss="modal"
-              :disabled="isRegistering"
-            >
-              Batal
-            </button>
-            <button
-              type="button"
-              class="btn btn-sm btn-success"
-              :disabled="!selectedParticipants.length || isRegistering"
-              @click="submitRegisterParticipants"
-            >
-              <i v-if="isRegistering" class="fas fa-spinner fa-spin mr-1"></i>
-              <i v-else class="fas fa-check mr-1"></i>
-              Ya, Daftarkan
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-
-
-
-  
     <ViewParticipantModal :selected-participant="selectedParticipant" />
   </section>
 </template>
@@ -1554,6 +1379,9 @@ import { useAuthUserStore } from '../stores/AuthUserStore'
 import { useSettingStore } from '../stores/SettingStore'
 import { useMasterDataStore } from '../stores/MasterDataStore'
 import ViewParticipantModal from './ViewParticipantModal.vue'
+import RegisterParticipantsModal from './RegisterParticipantsModal.vue'
+import MutasiParticipantModal from './MutasiParticipantModal.vue'
+
 import {
   formatDate,
   formatDateTime,
@@ -1579,6 +1407,8 @@ const printKokarde = (item) => {
   window.open(url, '_blank')
 }
 
+
+const isTanggalTerbitRequired = ref(false)
 
 
 // ==========================================
@@ -1804,7 +1634,8 @@ const fieldErrors = ref({})
 const nikError = ref('') 
 const isNikChecking = ref(false)
 
-
+const showTanggalTerbit = ref(false)
+const requireTanggalTerbit = ref(false)
 const requiredFields = eventParticipantRequiredFields
 
 const getFieldValue = (path) => {
@@ -1822,6 +1653,17 @@ const validateField = (field) => {
       msg = 'Kolom ini wajib diisi.'
     }
   }
+
+  // tanggal terbit hanya wajib jika requireTanggalTerbit = true
+  if (
+    (field === 'participant.tanggal_terbit_ktp' ||
+    field === 'participant.tanggal_terbit_kk') &&
+    requireTanggalTerbit.value &&
+    !val
+  ) {
+    msg = 'Kolom ini wajib diisi karena NIK tidak sesuai wilayah event.'
+  }
+
 
   // VALIDASI NIK (kalau kamu pakai nikError hasil cek ke backend)
   if (field === 'participant.nik' && !msg && nikError.value) {
@@ -2066,6 +1908,103 @@ const prefillFormFromParticipant = async (p) => {
   }
 }
 
+
+/**
+ * Validasi NIK berdasarkan event_level dan data participant di form
+ * CATATAN:
+ * Jika tanggal_terbit_ktp & tanggal_terbit_kk TERISI,
+ * maka VALIDASI NIK WILAYAH DILEWATI (langsung valid)
+ */
+const validateNikByEventLevel = () => {
+  const p = form.value.participant
+  const level = eventData.value?.event_level
+
+  const result = {
+    valid: true,
+    error: '',
+    showTanggalTerbit: false,
+    requireTanggalTerbit: false,
+  }
+
+  if (!p?.nik) return result
+
+  const nik = p.nik.replace(/\D/g, '')
+  if (nik.length !== 16) {
+    result.valid = false
+    result.error = 'NIK harus terdiri dari 16 digit angka'
+    return result
+  }
+
+  const nikProvince = nik.substring(0, 2)
+  const nikRegency  = nik.substring(0, 4)
+  const nikDistrict = nik.substring(0, 6)
+  const nikVillage  = nik.substring(0, 10)
+
+  const handleMismatch = (errorMessage) => {
+    result.showTanggalTerbit = true
+
+    // ⬇️ INI INTI LOGIKANYA
+    if (p.tanggal_terbit_ktp && p.tanggal_terbit_kk) {
+      // tanggal sudah diisi → VALID
+      result.valid = true
+      result.requireTanggalTerbit = false
+      result.error = ''
+    } else {
+      // tanggal kosong → INVALID
+      result.valid = false
+      result.requireTanggalTerbit = true
+      result.error = errorMessage
+    }
+
+    return result
+  }
+
+  switch (level) {
+    case 'national':
+      if (p.province_id && nikProvince !== String(p.province_id).substring(0, 2)) {
+        return handleMismatch(
+          'NIK tidak sesuai dengan provinsi peserta. Silahkan isi tanggal terbit KTP dan KK'
+        )
+      }
+      break
+
+    case 'province':
+      if (p.regency_id && nikRegency !== String(p.regency_id).substring(0, 4)) {
+        return handleMismatch(
+          'NIK tidak sesuai dengan kabupaten/kota peserta. Silahkan isi tanggal terbit KTP dan KK'
+        )
+      }
+      break
+
+    case 'regency':
+      if (p.district_id && nikDistrict !== String(p.district_id).substring(0, 6)) {
+        return handleMismatch(
+          'NIK tidak sesuai dengan kecamatan peserta. Silahkan isi tanggal terbit KTP dan KK'
+        )
+      }
+      break
+
+    case 'district':
+      if (p.village_id) {
+        const villageCode = String(p.village_id)
+        if (villageCode.length >= 10 && nikVillage !== villageCode.substring(0, 10)) {
+          return handleMismatch(
+            'NIK tidak sesuai dengan desa/kelurahan peserta. Silahkan isi tanggal terbit KTP dan KK'
+          )
+        }
+      }
+      break
+  }
+
+  return result
+}
+
+
+
+
+
+
+
 /**
  * VALIDASI NIK (format, extract DOB/gender, cek konflik ke server)
  * —> dipanggil lebih dulu sebelum onSearchNik / searchExistingParticipantByNik
@@ -2096,6 +2035,18 @@ const validateNik = async () => {
     fieldErrors.value['participant.nik'] = nikError.value
     return false
   }
+
+  // ============================
+  // VALIDASI WILAYAH BERDASARKAN EVENT LEVEL
+  // ============================
+  const regionCheck = validateNikByEventLevel()
+
+  if (regionCheck !== true) {
+    nikError.value = regionCheck
+    fieldErrors.value['participant.nik'] = regionCheck
+    return false
+  }
+
 
   // isi otomatis tanggal lahir & gender dari NIK
   form.value.participant.date_of_birth = result.dateOfBirth
@@ -2291,6 +2242,7 @@ const resetForm = () => {
   // 🔒 matikan efek watcher wilayah selama reset
   isInitLocation.value = true
   try {
+    requireTanggalTerbit.value = false
     // tab default ke Biodata
     activeTab.value = 'biodata'
 
@@ -2846,161 +2798,23 @@ const validateAgeForGroup = () => {
 // ==================================================
 // MUTASI WILAYAH
 // ==================================================
-const isMutasiSubmitting = ref(false)
-
-const mutasiForm = ref({
-  id: null,           // <-- ini akan diisi participant.id
+const mutasiModalRef = ref(null)
+const mutasiParticipantId = ref(null)
+const mutasiInitialRegion = ref({
   province_id: '',
   regency_id: '',
   district_id: '',
 })
 
-const mutasiErrors = ref({
-  province_id: '',
-  regency_id: '',
-  district_id: '',
-})
-
-const mutasiProvinceOptions = ref([])
-const mutasiRegencyOptions = ref([])
-const mutasiDistrictOptions = ref([])
-
-const loadMutasiProvinces = async () => {
-  try {
-    const res = await axios.get('/api/v1/get/provinces')
-    mutasiProvinceOptions.value = res.data.data || res.data || []
-  } catch (e) {
-    console.error('Gagal memuat provinsi mutasi:', e)
-  }
-}
-
-const loadMutasiRegencies = async () => {
-  if (!mutasiForm.value.province_id) {
-    mutasiRegencyOptions.value = []
-    mutasiForm.value.regency_id = ''
-    mutasiDistrictOptions.value = []
-    mutasiForm.value.district_id = ''
-    return
-  }
-
-  try {
-    const res = await axios.get('/api/v1/get/regencies', {
-      params: { province_id: mutasiForm.value.province_id },
-    })
-    mutasiRegencyOptions.value = res.data.data || res.data || []
-  } catch (e) {
-    console.error('Gagal memuat kab/kota mutasi:', e)
-  }
-}
-
-const loadMutasiDistricts = async () => {
-  if (!mutasiForm.value.regency_id) {
-    mutasiDistrictOptions.value = []
-    mutasiForm.value.district_id = ''
-    return
-  }
-
-  try {
-    const res = await axios.get('/api/v1/get/districts', {
-      params: { regency_id: mutasiForm.value.regency_id },
-    })
-    mutasiDistrictOptions.value = res.data.data || res.data || []
-  } catch (e) {
-    console.error('Gagal memuat kecamatan mutasi:', e)
-  }
-}
-
-const onMutasiProvinceChange = () => {
-  mutasiForm.value.regency_id = ''
-  mutasiForm.value.district_id = ''
-  mutasiRegencyOptions.value = []
-  mutasiDistrictOptions.value = []
-  loadMutasiRegencies()
-}
-
-const onMutasiRegencyChange = () => {
-  mutasiForm.value.district_id = ''
-  mutasiDistrictOptions.value = []
-  loadMutasiDistricts()
-}
-
-const openMutasiModal = async (item) => {
-  // item = event_participant (punya nested participant)
-  mutasiErrors.value = {
-    province_id: '',
-    regency_id: '',
-    district_id: '',
-  }
-
-  mutasiForm.value = {
-    id: item.participant?.id || null,                        // <-- pakai participant.id
+const openMutasiModal = (item) => {
+  mutasiParticipantId.value = item.participant?.id
+  mutasiInitialRegion.value = {
     province_id: item.participant?.province_id || '',
     regency_id: item.participant?.regency_id || '',
     district_id: item.participant?.district_id || '',
   }
 
-  await loadMutasiProvinces()
-  await loadMutasiRegencies()
-  await loadMutasiDistricts()
-
-  $('#mutasiModal').modal('show')
-}
-
-const submitMutasi = async () => {
-  mutasiErrors.value = {
-    province_id: '',
-    regency_id: '',
-    district_id: '',
-  }
-
-  if (!mutasiForm.value.province_id) {
-    mutasiErrors.value.province_id = 'Provinsi wajib dipilih.'
-  }
-  if (!mutasiForm.value.regency_id) {
-    mutasiErrors.value.regency_id = 'Kabupaten/Kota wajib dipilih.'
-  }
-  if (!mutasiForm.value.district_id) {
-    mutasiErrors.value.district_id = 'Kecamatan wajib dipilih.'
-  }
-
-  if (
-    mutasiErrors.value.province_id ||
-    mutasiErrors.value.regency_id ||
-    mutasiErrors.value.district_id
-  ) {
-    return
-  }
-
-  if (!mutasiForm.value.id) return
-
-  isMutasiSubmitting.value = true
-
-  try {
-    await axios.post(
-      `/api/v1/event-participants/${mutasiForm.value.id}/mutasi-wilayah`,
-      {
-        province_id: mutasiForm.value.province_id,
-        regency_id: mutasiForm.value.regency_id,
-        district_id: mutasiForm.value.district_id,
-      }
-    )
-
-    $('#mutasiModal').modal('hide')
-
-    Swal.fire({
-      icon: 'success',
-      title: 'Wilayah peserta berhasil dipindahkan.',
-    })
-
-    // reload list event_participants
-    fetchItems(meta.value.current_page)
-  } catch (error) {
-    console.error('Gagal mutasi peserta:', error)
-    const msg = error.response?.data?.message || 'Gagal memindahkan peserta.'
-    Swal.fire({ icon: 'error', title: 'Error', text: msg })
-  } finally {
-    isMutasiSubmitting.value = false
-  }
+  mutasiModalRef.value?.open()
 }
 
 // ==================================================
@@ -3170,6 +2984,76 @@ const submitRegisterParticipants = async () => {
     isRegistering.value = false
   }
 }
+
+const tanggalTerbitFields = [
+  'participant.tanggal_terbit_ktp',
+  'participant.tanggal_terbit_kk',
+]
+
+const addTanggalTerbitToRequired = () => {
+  tanggalTerbitFields.forEach((field) => {
+    if (!requiredFields.includes(field)) {
+      requiredFields.push(field)
+    }
+  })
+}
+
+const removeTanggalTerbitFromRequired = () => {
+  tanggalTerbitFields.forEach((field) => {
+    const idx = requiredFields.indexOf(field)
+    if (idx !== -1) {
+      requiredFields.splice(idx, 1)
+    }
+  })
+}
+
+
+watch(
+  () => [
+    form.value.participant.nik,
+    form.value.participant.province_id,
+    form.value.participant.regency_id,
+    form.value.participant.district_id,
+    form.value.participant.village_id,
+    form.value.participant.tanggal_terbit_ktp,
+    form.value.participant.tanggal_terbit_kk,
+    eventData.value?.event_level,
+  ],
+  () => {
+    const result = validateNikByEventLevel()
+
+    // ==========================
+    // ERROR NIK
+    // ==========================
+    if (!result.valid) {
+      nikError.value = result.error
+      fieldErrors.value['participant.nik'] = result.error
+    } else {
+      nikError.value = ''
+      fieldErrors.value['participant.nik'] = ''
+    }
+
+    // ==========================
+    // TAMPILKAN FIELD TANGGAL
+    // ==========================
+    showTanggalTerbit.value = result.showTanggalTerbit
+
+    // ==========================
+    // REQUIRED TANGGAL
+    // ==========================
+    requireTanggalTerbit.value = result.requireTanggalTerbit
+
+    if (result.requireTanggalTerbit) {
+      addTanggalTerbitToRequired()
+    } else {
+      removeTanggalTerbitFromRequired()
+    }
+  },
+  { immediate: true }
+)
+
+
+
 
 
 

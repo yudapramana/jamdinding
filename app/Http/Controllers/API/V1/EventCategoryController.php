@@ -16,6 +16,7 @@ class EventCategoryController extends Controller
 {
     public function index(Request $request)
     {
+        $status    = $request->get('status', 'active'); // 👈 DEFAULT active
         $eventId = $request->get('event_id');
         $fromCrud   = $request->boolean('from_crud');    // 👈 PENENTU MODE
 
@@ -33,11 +34,22 @@ class EventCategoryController extends Controller
         $query = EventCategory::where('event_id', $eventId);
 
         /**
-         * DEFAULT FILTER:
-         * jika BUKAN dari halaman CRUD → hanya tampilkan status ACTIVE
+         * FILTER STATUS
+         * - non CRUD → default hanya ACTIVE
+         * - CRUD:
+         *   - status=active → active
+         *   - status=inactive → inactive
+         *   - status=all / null → semua
          */
         if (!$fromCrud) {
             $query->where('status', 'active');
+        } else {
+            if ($status === 'active') {
+                $query->where('status', 'active');
+            } elseif ($status === 'inactive') {
+                $query->where('status', 'inactive');
+            }
+            // status=all → tidak difilter
         }
 
         if ($branchId) {
