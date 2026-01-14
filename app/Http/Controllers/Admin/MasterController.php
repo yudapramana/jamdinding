@@ -53,6 +53,7 @@ class MasterController extends Controller
              * ========================= */
             case 'event_branches':
                 $data = EventBranch::where('event_id', $eventId)
+                    ->where('status', 'active')
                     ->orderBy('order_number')
                     ->get()
                     ->map(fn ($b) => [
@@ -73,6 +74,7 @@ class MasterController extends Controller
                 $branchId = $request->query('event_branch_id'); // optional
 
                 $data = EventGroup::where('event_id', $eventId)
+                    ->where('status', 'active')
                     ->when($branchId, fn ($q) =>
                         $q->where('branch_id', $branchId)
                     )
@@ -98,6 +100,7 @@ class MasterController extends Controller
                 $groupId = $request->query('event_group_id'); // optional
 
                 $data = EventCategory::where('event_id', $eventId)
+                    ->where('status', 'active')
                     ->when($groupId, fn ($q) =>
                         $q->where('group_id', $groupId)
                     )
