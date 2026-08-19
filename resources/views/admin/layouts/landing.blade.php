@@ -14,7 +14,7 @@
 
     <link href="{{ asset('app_logo.png') }}" rel="icon">
     <link rel="apple-touch-icon" href="{{ asset('app_logo.png') }}">
-    <link rel="manifest" href="{{ asset('/manifest.json') }}">
+    {{-- <link rel="manifest" href="{{ asset('/manifest.json') }}"> --}}
 
     <style>
         [v-cloak]>* {
