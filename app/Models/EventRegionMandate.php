@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Str;
 
 class EventRegionMandate extends Model
 {
@@ -49,6 +50,24 @@ class EventRegionMandate extends Model
     /* =========================
      |  RELATIONSHIPS
      ========================= */
+
+    protected function secureUrl($value)
+    {
+        if (!$value) return null;
+
+        // Jika sudah URL absolut (http / https), return langsung
+        if (Str::startsWith($value, ['http://', 'https://'])) {
+            return $value;
+        }
+
+        // Jika path lokal, bungkus dengan /secure/
+        return '/secure/' . ltrim($value, '/');
+    }
+
+    public function getMandateFileUrlAttribute($value)
+    {
+        return $this->secureUrl($value);
+    }
 
     public function event()
     {

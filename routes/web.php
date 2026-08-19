@@ -34,6 +34,7 @@ use App\Models\Event;
 use App\Models\VervalLog;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Auth\CaptchaController;
+use App\Http\Controllers\MandateDocController;
 use App\Http\Controllers\PublicParticipantController;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -1027,6 +1028,14 @@ Route::middleware('auth')->group(function () {
             'filename'    => '[^/]+',
         ])
         ->name('secure.docs.stream');
+
+
+    Route::get('/secure/mandates/{event}/{filename}', [MandateDocController::class, 'stream'])
+        ->where([
+            'event'    => '[0-9]+',
+            'filename' => '[^/]+',
+        ])
+        ->name('secure.mandates.stream');
 
 });
 

@@ -6,8 +6,10 @@ use App\Http\Controllers\Controller;
 use App\Models\Event;
 use App\Models\EventRegionMandate;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 class EventRegionMandateController extends Controller
 {
@@ -70,6 +72,7 @@ class EventRegionMandateController extends Controller
      * POST /api/v1/events/{event}/region-mandates/upload
      *
      * Hanya role 'pendaftaran' yang boleh upload, dan hanya untuk wilayahnya sendiri.
+     * File disimpan di disk 'privatedisk' (tidak publik), path relatif disimpan ke DB.
      */
     public function upload(Request $request, Event $event)
     {
@@ -92,23 +95,99 @@ class EventRegionMandateController extends Controller
             'notes'        => ['nullable', 'string', 'max:1000'],
         ]);
 
-        $path = $request->file('mandate_file')->store("mandates/{$event->id}", 'public');
-        $fileUrl = Storage::disk('public')->url($path);
+        $disk = Storage::disk('privatedisk');
+
+        /** @var UploadedFile $file */
+        $file = $request->file('mandate_file');
+
+        if (! $file->isValid()) {
+            throw new \RuntimeException('Upload mandate_file gagal.');
+        }
+
+        if ($file->getSize() > 2048 * 1024) {
+            throw new \RuntimeException('Ukuran mandate_file melebihi 2 MB.');
+        }
+
+        $extension = strtolower($file->getClientOriginalExtension());
+        $mime      = $file->getMimeType();
+
+        $allowedExtensions = ['pdf'];
+
+        if (! in_array($extension, $allowedExtensions, true)) {
+            throw new \RuntimeException('Ekstensi mandate_file tidak diizinkan.');
+        }
+
+        $allowedMimeMap = [
+            'pdf'  => ['application/pdf'],
+        ];
+
+        if (! in_array($mime, $allowedMimeMap[$extension] ?? [], true)) {
+            throw new \RuntimeException('Mime type mandate_file tidak valid.');
+        }
+
+        // ===============================
+        // VALIDASI ISI FILE (CONTENT-BASED)
+        // ===============================
+        if ($extension === 'pdf') {
+            $fh = fopen($file->getRealPath(), 'rb');
+            $header = fread($fh, 4);
+            fclose($fh);
+
+            if ($header !== '%PDF') {
+                throw new \RuntimeException('PDF mandate_file tidak valid.');
+            }
+        }
+
+        if (in_array($extension, ['jpg', 'jpeg', 'png'], true)) {
+            if (! @getimagesize($file->getRealPath())) {
+                throw new \RuntimeException('File mandate_file bukan image valid.');
+            }
+        }
 
         $mandate = EventRegionMandate::firstOrCreateFor($event->id, $regionType, $regionId);
 
-        // kalau ada file lama, hapus supaya storage tidak menumpuk
+        /* ===============================
+         * HAPUS FILE LAMA (JIKA ADA)
+         * =============================== */
         if ($mandate->mandate_file_url) {
-            $this->deleteOldFile($mandate->mandate_file_url);
+            $oldPath = ltrim($mandate->mandate_file_url, '/');
+
+            if (str_starts_with($oldPath, "mandates/{$event->id}/") && $disk->exists($oldPath)) {
+                $disk->delete($oldPath);
+            }
         }
 
-        $mandate->markUploaded($fileUrl, $user->id);
+        /* ===============================
+         * SIMPAN FILE BARU
+         * =============================== */
+        $fileName = Str::uuid()->toString() . '.' . $extension;
+
+        $storedPath = $file->storeAs(
+            "mandates/{$event->id}",
+            $fileName,
+            'privatedisk'
+        );
+
+        $mandate->markUploaded($storedPath, $user->id);
 
         if (!empty($data['notes'])) {
             $mandate->update(['notes' => $data['notes']]);
         }
 
         $mandate->append('region_name');
+
+        $userForLog = Auth::user();
+
+        \Log::channel('security')->info('Event region mandate uploaded', [
+            'user_id'    => $userForLog?->id,
+            'user_name'  => $userForLog?->name,
+            'event_id'   => $event->id,
+            'region_type'=> $regionType,
+            'region_id'  => $regionId,
+            'mandate_id' => $mandate->id,
+            'ip'         => request()->ip(),
+            'ua'         => substr(request()->userAgent(), 0, 255),
+        ]);
 
         return response()->json([
             'message' => 'Mandat berhasil diupload dan menunggu persetujuan.',
@@ -164,15 +243,6 @@ class EventRegionMandateController extends Controller
 
         if (!in_array($slug, ['superadmin', 'admin_event'])) {
             abort(403, 'Anda tidak memiliki izin untuk melakukan aksi ini.');
-        }
-    }
-
-    private function deleteOldFile(string $fileUrl): void
-    {
-        // fileUrl berbentuk /storage/mandates/{event_id}/xxxx.pdf
-        $relativePath = str_replace('/storage/', '', parse_url($fileUrl, PHP_URL_PATH));
-        if ($relativePath && Storage::disk('public')->exists($relativePath)) {
-            Storage::disk('public')->delete($relativePath);
         }
     }
 }
