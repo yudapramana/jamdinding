@@ -122,21 +122,57 @@ class EventJudgeController extends Controller
             /* =========================
             * USER
             * ========================= */
+            // $userData = [
+            //     'name'     => strtoupper($validated['user']['name']),
+            //     'email'    => $validated['user']['email'],
+            //     'username' => $validated['user']['username'],
+            //     'event_id' => $validated['event_id'], // ✅ FIX: selalu set
+            // ];
+
+            // if ($request->filled('user.id')) {
+
+            //     // UPDATE USER
+            //     $user = User::findOrFail($request->input('user.id'));
+            //     $user->update($userData);
+
+            // } else {
+
+            //     // CREATE USER
+            //     $user = User::create(array_merge($userData, [
+            //         'password'  => Hash::make('password123'),
+            //         'role_id'   => RoleType::DEWAN_HAKIM->value,
+            //         'is_active' => true,
+            //     ]));
+            // }
+
+
+            // $user = User::updateOrCreate(
+            //     ['id' => $request->input('user.id')],
+            //     $request->filled('user.id')
+            //         ? $userData
+            //         : array_merge($userData, [
+            //             'password'  => Hash::make('password123'),
+            //             'role_id'   => RoleType::DEWAN_HAKIM->value,
+            //             'event_id'  => $validated['event_id'],
+            //             'is_active' => true,
+            //         ])
+            // );
+
+            /* =========================
+            * USER
+            * ========================= */
             $userData = [
                 'name'     => strtoupper($validated['user']['name']),
                 'email'    => $validated['user']['email'],
                 'username' => $validated['user']['username'],
-                'event_id' => $validated['event_id'], // ✅ FIX: selalu set
+                'event_id' => $validated['event_id'],
             ];
 
             if ($request->filled('user.id')) {
-
                 // UPDATE USER
                 $user = User::findOrFail($request->input('user.id'));
                 $user->update($userData);
-
             } else {
-
                 // CREATE USER
                 $user = User::create(array_merge($userData, [
                     'password'  => Hash::make('password123'),
@@ -144,19 +180,6 @@ class EventJudgeController extends Controller
                     'is_active' => true,
                 ]));
             }
-
-
-            $user = User::updateOrCreate(
-                ['id' => $request->input('user.id')],
-                $request->filled('user.id')
-                    ? $userData
-                    : array_merge($userData, [
-                        'password'  => Hash::make('password123'),
-                        'role_id'   => RoleType::DEWAN_HAKIM->value,
-                        'event_id'  => $validated['event_id'],
-                        'is_active' => true,
-                    ])
-            );
 
             /* =========================
             * MASTER JUDGE

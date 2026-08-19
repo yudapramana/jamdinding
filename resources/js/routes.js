@@ -127,6 +127,11 @@ export default [
         },
       },
       {
+        path: 'event/mandate',
+        name: 'admin.event.participants.mandat',
+        component: () => import('./pages/mandate/EventRegionMandates.vue'),
+      },
+      {
         path: 'event/participants/bank-data',
         name: 'admin.event.participants.bank-data',
         component: () => import('./pages/EventParticipants.vue'),

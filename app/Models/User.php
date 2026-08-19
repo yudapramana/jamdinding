@@ -272,4 +272,20 @@ class User extends Authenticatable
             ->withPivot(['is_chief'])
             ->withTimestamps();
     }
+
+    /**
+     * Ambil ID wilayah user berdasarkan region_type tertentu.
+     * Karena kolomnya province_id/regency_id/district_id/village_id,
+     * pola namanya konsisten jadi bisa dynamic property access.
+     */
+    public function getRegionId(string $regionType): ?int
+    {
+        $column = "{$regionType}_id"; // district_id, regency_id, dst
+
+        if (!in_array($column, ['province_id', 'regency_id', 'district_id', 'village_id'])) {
+            throw new \InvalidArgumentException("region_type tidak valid: {$regionType}");
+        }
+
+        return $this->{$column};
+    }
 }

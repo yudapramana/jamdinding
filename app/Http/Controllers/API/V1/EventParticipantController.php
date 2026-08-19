@@ -358,6 +358,24 @@ class EventParticipantController extends Controller
     {
         $user     = $request->user();
         $roleSlug = optional($user->role)->slug ?? null;
+        // Ini yang Baru
+        
+        // if ($roleSlug !== 'superadmin' && $roleSlug !== 'admin_event') {
+        //     $regionType = $event->getContingentRegionType(); // otomatis 'district' untuk MTQ Kabupaten
+        //     $regionId = $user()->getRegionId($regionType);
+
+        //     if (!$regionId) {
+        //         abort(403, "Akun Anda tidak punya {$regionType} yang terdaftar.");
+        //     }
+
+        //     $allowed = EventRegionMandate::isRegionMandateUploaded($event->id, $regionType, $regionId);
+
+        //     if (!$allowed) {
+        //         abort(403, 'Wilayah Anda belum upload mandat untuk event ini.');
+        //     }
+        // }
+
+        // End yang Baru
 
         $search                = $request->get('search');
         $perPage               = (int) $request->get('per_page', 10);
@@ -869,8 +887,8 @@ class EventParticipantController extends Controller
             'participant.bank_account_name'   => ['required', 'string', 'max:255'],
             'participant.bank_name'           => ['required', 'string', 'max:100'],
 
-            'participant.tanggal_terbit_ktp'  => ['sometimes', 'date'],
-            'participant.tanggal_terbit_kk'   => ['sometimes', 'date'],
+            'participant.tanggal_terbit_ktp'  => ['sometimes', 'nullable', 'date'],
+            'participant.tanggal_terbit_kk'   => ['sometimes', 'nullable', 'date'],
 
             // EVENT PARTICIPANT
             'event_participant.id'                => ['nullable', 'exists:event_participants,id'],

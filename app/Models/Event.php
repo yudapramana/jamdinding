@@ -199,6 +199,27 @@ class Event extends Model
     }
 
 
+    public const LEVEL_NATIONAL = 'national';
+    public const LEVEL_PROVINCE = 'province';
+    public const LEVEL_REGENCY  = 'regency';
+    public const LEVEL_DISTRICT = 'district';
+
+    /**
+     * Menentukan region_type kontingen berdasarkan level event.
+     * Level kontingen selalu satu tingkat di bawah level event.
+     */
+    public function getContingentRegionType(): string
+    {
+        return match ($this->event_level) {
+            self::LEVEL_NATIONAL => 'province',
+            self::LEVEL_PROVINCE => 'regency',
+            self::LEVEL_REGENCY  => 'district',
+            self::LEVEL_DISTRICT => 'village',
+            default => throw new \RuntimeException("Event level '{$this->event_level}' tidak punya mapping region kontingen."),
+        };
+    }
+
+
 
 
 }

@@ -985,6 +985,39 @@ return new class extends Migration
             $table->unique(['event_group_id', 'user_id'], 'uq_event_group_judges_group_user');
         });
 
+        // 31. event_district_mandates
+        Schema::create('event_region_mandates', function (Blueprint $table) {
+            $table->id();
+
+            $table->foreignId('event_id')->constrained('events')->cascadeOnDelete();
+
+            // 🔑 polymorphic region (konsisten dengan event_contingents)
+            $table->string('region_type'); // province | regency | district | village
+            $table->unsignedBigInteger('region_id');
+
+            $table->string('mandate_file_url')->nullable();
+
+            $table->enum('status', ['not_uploaded', 'uploaded', 'approved', 'rejected'])
+                ->default('not_uploaded');
+
+            $table->foreignId('uploaded_by')->nullable()->constrained('users')->nullOnDelete();
+            $table->timestamp('uploaded_at')->nullable();
+
+            $table->foreignId('approved_by')->nullable()->constrained('users')->nullOnDelete();
+            $table->timestamp('approved_at')->nullable();
+
+            $table->text('notes')->nullable();
+
+            $table->timestamps();
+
+            $table->unique(
+                ['event_id', 'region_type', 'region_id'],
+                'uq_event_region_mandates_event_region'
+            );
+
+            $table->index(['region_type', 'region_id']);
+        });
+
 
         // ⚠️ LANJUTANNYA MELIPUTI:
         // master_judges

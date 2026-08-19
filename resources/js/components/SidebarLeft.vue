@@ -179,6 +179,7 @@ const syncOpenByRoute = () => {
   ])
 
   openMenu.value.participant = isAnyNameActive([
+    'admin.event.participants.mandat',
     'admin.event.participants.bank-data',
     'admin.event.participants.registration',
     'admin.event.participants.reregistration',
@@ -481,6 +482,13 @@ watch(
               </a>
 
               <ul class="nav nav-treeview" v-show="openMenu.participant">
+                <!-- MANDAT -->
+                <li class="nav-item" v-if="authUserStore.can('manage.event.participant.bank-data')">
+                  <router-link :to="{ name: 'admin.event.participants.mandat' }" class="nav-link" :class="{ active: isNameActive('admin.event.participants.mandat') }">
+                    <i class="far fa-circle nav-icon"></i><p>Mandat</p>
+                  </router-link>
+                </li>
+
                 <li class="nav-item" v-if="authUserStore.can('manage.event.participant.bank-data')">
                   <router-link :to="{ name: 'admin.event.participants.bank-data' }" class="nav-link" :class="{ active: isNameActive('admin.event.participants.bank-data') }">
                     <i class="far fa-circle nav-icon"></i><p>Bank Data</p>

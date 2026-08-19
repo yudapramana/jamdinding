@@ -1,6 +1,6 @@
 import axios from 'axios';
 import { defineStore } from 'pinia';
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 import { useStorage } from '@vueuse/core';
 import { useRouter } from 'vue-router';
 
@@ -47,6 +47,97 @@ export const useAuthUserStore = defineStore('AuthUserStore', () => {
         rolenames: [],
         permissions: [],
     }));
+
+    // ==================================================
+    // MANDAT KECAMATAN/WILAYAH (khusus role PENDAFTARAN)
+    // ==================================================
+    const mandateStatus = useStorage('AuthUserStore:mandateStatus', ref({
+        allowed: true,       // default true → tidak nge-block role lain / sebelum dicek
+        checked: false,      // sudah pernah fetch atau belum
+        status: null,        // not_uploaded | uploaded | approved | rejected
+        region_type: null,
+        region_id: null,
+        message: '',
+    }));
+
+    /**
+     * Role yang WAJIB cek mandat sebelum bisa input bank data.
+     * Kalau nanti ada role lain yang perlu dicek juga, tinggal tambah di sini.
+     */
+    const isMandateCheckRequired = computed(() => {
+        const slug = user.value?.role?.slug || '';
+        return slug === 'pendaftaran';
+    });
+
+    const fetchMandateStatus = async () => {
+        // role selain 'pendaftaran' tidak perlu cek mandat sama sekali
+        if (!isMandateCheckRequired.value) {
+            mandateStatus.value = {
+                allowed: true,
+                checked: true,
+                status: null,
+                region_type: null,
+                region_id: null,
+                message: '',
+            };
+            return;
+        }
+
+        if (!eventData.value?.id) {
+            mandateStatus.value = {
+                allowed: false,
+                checked: true,
+                status: 'not_uploaded',
+                region_type: null,
+                region_id: null,
+                message: 'Event belum dipilih.',
+            };
+            return;
+        }
+
+        try {
+            const response = await axios.get(`/api/v1/events/${eventData.value.id}/mandate-status`);
+            const status = response.data.status || 'not_uploaded';
+
+            const fallbackMessages = {
+                not_uploaded: 'Wilayah Anda belum upload mandat untuk event ini.',
+                uploaded: 'Mandat wilayah Anda sudah diupload, menunggu persetujuan (approval).',
+                approved: '',
+                rejected: 'Mandat wilayah Anda ditolak. Silakan upload ulang mandat yang valid.',
+            };
+
+            mandateStatus.value = {
+                allowed: status === 'approved',
+                checked: true,
+                status,
+                region_type: response.data.region_type,
+                region_id: response.data.region_id,
+                message: response.data.message ?? fallbackMessages[status] ?? '',
+            };
+        } catch (error) {
+            handleAuthError(error);
+            // fail-safe: gagal cek → anggap belum boleh, biar aman
+            mandateStatus.value = {
+                allowed: false,
+                checked: true,
+                status: null,
+                region_type: null,
+                region_id: null,
+                message: 'Gagal memeriksa status mandat.',
+            };
+        }
+    };
+
+    const resetMandateStatus = () => {
+        mandateStatus.value = {
+            allowed: true,
+            checked: false,
+            status: null,
+            region_type: null,
+            region_id: null,
+            message: '',
+        };
+    };
 
     const preserveEventStorage = () => {
         const savedEventData = localStorage.getItem('AuthUserStore:eventData')
@@ -210,7 +301,7 @@ export const useAuthUserStore = defineStore('AuthUserStore', () => {
             isAdminRole.value = false;
             user.value = {};
             myDocuments.value = [];
-
+            resetMandateStatus();
             await axios.get('/sanctum/csrf-cookie');
             // router.push('/login');
             window.location.href = '/';
@@ -251,7 +342,8 @@ export const useAuthUserStore = defineStore('AuthUserStore', () => {
             myDocuments.value = [];
 
             await axios.get('/sanctum/csrf-cookie');
-            router.push('/login');
+            // router.push('/login');
+            window.location.href = '/';
 
 
         } else {
@@ -273,6 +365,8 @@ export const useAuthUserStore = defineStore('AuthUserStore', () => {
         isLoggingOut,
         eventData,
         selectedEventKey,
+        mandateStatus,
+        isMandateCheckRequired,
         getAuthUser,
         getDocsUpdateState,
         getMyDocuments,
@@ -282,6 +376,8 @@ export const useAuthUserStore = defineStore('AuthUserStore', () => {
         switchLayout,
         handleAuthError,
         syncFilesIndividual,
+        fetchMandateStatus,
+        resetMandateStatus, 
         can
     };
 });

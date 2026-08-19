@@ -102,8 +102,9 @@ class _UsersbyEventSeeder extends Seeder
             $createdPanitera = 0;
             $skippedPanitera = 0;
 
-            for ($i = 1; $i <= 5; $i++) {
-                $uname = "panitera1301_{$i}";
+            for ($i = 1; $i <= 11; $i++) {
+                $padded = str_pad((string)$i, 2, '0', STR_PAD_LEFT);
+                $uname = "panitera_{$padded}";
                 $email = $uname . '@' . $defaultDomain;
 
                 $exists = User::query()

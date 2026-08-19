@@ -13,21 +13,21 @@ class __StageSeeder extends Seeder
             [
                 'order_number' => 1,
                 'name'         => 'Persiapan',
-                'days'         => 15, // 1 - 15 Mei
+                'days'         => 15, // 17 - 31 Agustus
                 'description'  => 'Tahapan awal untuk persiapan sistem, dokumen, dan koordinasi panitia.',
                 'is_active'    => true,
             ],
             [
                 'order_number' => 2,
                 'name'         => 'Pendaftaran',
-                'days'         => 12, // 16-27
+                'days'         => 21, // 01 - 21 September
                 'description'  => 'Proses peserta atau kafilah mengisi data dan mengunggah berkas.',
                 'is_active'    => true,
             ],
             [
                 'order_number' => 3,
                 'name'         => 'Verifikasi I',
-                'days'         => 4, // 28 - 31
+                'days'         => 9, // 28 - 31
                 'description'  => 'Pemeriksaan awal terhadap kelengkapan berkas peserta.',
                 'is_active'    => true,
             ],
@@ -41,35 +41,35 @@ class __StageSeeder extends Seeder
             [
                 'order_number' => 5,
                 'name'         => 'Perbaikan Berkas',
-                'days'         => 1, // 3
+                'days'         => 5, // 3
                 'description'  => 'Peserta/kafilah memperbaiki dokumen yang kurang atau salah.',
                 'is_active'    => true,
             ],
             [
                 'order_number' => 6,
                 'name'         => 'Verifikasi II',
-                'days'         => 2, // 4 - 5
+                'days'         => 11, // 4 - 5
                 'description'  => 'Pemeriksaan akhir sebelum penetapan peserta.',
                 'is_active'    => true,
             ],
             [
                 'order_number' => 7,
                 'name'         => 'Penetapan Peserta',
-                'days'         => 14, // 6 - 19
+                'days'         => 13, // 6 - 19
                 'description'  => 'Penetapan final daftar peserta yang akan mengikuti MTQ.',
                 'is_active'    => true,
             ],
             [
                 'order_number' => 8,
                 'name'         => 'Pendaftaran Ulang',
-                'days'         => 1, // 20
+                'days'         => 4, // 20
                 'description'  => 'Proses konfirmasi kehadiran dan kelengkapan akhir peserta saat H-1.',
                 'is_active'    => true,
             ],
             [
                 'order_number' => 9,
                 'name'         => 'Pelaksanaan',
-                'days'         => 5, // 21 - 25
+                'days'         => 6, // 21 - 25
                 'description'  => 'Hari pelaksanaan kegiatan MTQ.',
                 'is_active'    => true,
             ],

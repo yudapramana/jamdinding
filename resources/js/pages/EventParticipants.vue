@@ -1487,7 +1487,8 @@ const now = () => new Date()
 
 
 const canAddParticipant = computed(() => {
-  return isDevelopmentMode.value || isStageActive('Persiapan')
+  return isDevelopmentMode.value ||
+    (isStageActive('Persiapan') && mandateStatus.value.allowed)
 })
 
 const canRegisterParticipant = computed(() => {
@@ -1511,7 +1512,8 @@ const isPrivileged = computed(() => {
   return roleName === 'SUPERADMIN' || roleName === 'ADMIN_EVENT'
 })
 
-
+// ➕ TAMBAHAN: status mandat, otomatis allowed=true untuk role selain 'pendaftaran'
+const mandateStatus = computed(() => authUserStore.mandateStatus)
 
 
 const isCheckboxDisabled = (p) => {
@@ -1903,8 +1905,8 @@ const prefillFormFromParticipant = async (p) => {
     certificate_url: p.certificate_url || '',
     other_url: p.other_url || '',
 
-    tanggal_terbit_ktp: p.tanggal_terbit_ktp || '',
-    tanggal_terbit_kk: p.tanggal_terbit_kk || '',
+    tanggal_terbit_ktp: p.tanggal_terbit_ktp || null,
+    tanggal_terbit_kk: p.tanggal_terbit_kk || null,
   }
 }
 
@@ -2278,8 +2280,8 @@ const resetForm = () => {
         certificate_url: '',
         other_url: '',
 
-        tanggal_terbit_ktp: '',
-        tanggal_terbit_kk: '',
+        tanggal_terbit_ktp: null,
+        tanggal_terbit_kk: null,
       },
 
       event_participant: {
@@ -2456,6 +2458,20 @@ const submitForm = async () => {
     console.error('Gagal menyimpan peserta event:', error)
     let message = 'Terjadi kesalahan saat menyimpan data.'
 
+    // ➕ TAMBAHAN: tangani 403 (mandat belum upload / status berubah saat form terbuka)
+    if (error.response?.status === 403) {
+      message = error.response.data?.message || 'Anda tidak memiliki izin untuk menyimpan data ini.'
+      Swal.fire({
+        icon: 'error',
+        title: 'Akses Ditolak',
+        text: message,
+      })
+      $('#participantModal').modal('hide')
+      await authUserStore.fetchMandateStatus()
+      isSubmitting.value = false
+      return
+    }
+
     if (error.response?.status === 422) {
         const errors = error.response.data?.errors || {}
 
@@ -2535,6 +2551,17 @@ const openCreateModal = async () => {
     return
   }
 
+  // ➕ TAMBAHAN: cek ulang status mandat terbaru sebelum buka form
+  await authUserStore.fetchMandateStatus()
+  if (!mandateStatus.value.allowed) {
+    Swal.fire({
+      icon: 'warning',
+      title: 'Belum Bisa Menambah Peserta',
+      text: mandateStatus.value.message || 'Apalu Wilayah Anda belum upload mandat untuk event ini.',
+    })
+    return
+  }
+
   resetForm()
   isEdit.value = false
   form.value = emptyForm()
@@ -2587,8 +2614,8 @@ resetForm()
       bank_account_number: item.participant?.bank_account_number || '',
       bank_account_name: item.participant?.bank_account_name || '',
       bank_name: item.participant?.bank_name || '',
-      tanggal_terbit_ktp: item.participant?.tanggal_terbit_ktp || '',
-      tanggal_terbit_kk: item.participant?.tanggal_terbit_kk || '',
+      tanggal_terbit_ktp: item.participant?.tanggal_terbit_ktp || null,
+      tanggal_terbit_kk: item.participant?.tanggal_terbit_kk || null,
       photo_url: item.participant?.photo_url || '',
       id_card_url: item.participant?.id_card_url || '',
       family_card_url: item.participant?.family_card_url || '',
@@ -3145,6 +3172,7 @@ watch(
     if (val) {
       fetchEventMasterData()
       fetchItems(1)
+      authUserStore.fetchMandateStatus()
     }
   }
 )
@@ -3163,6 +3191,7 @@ onMounted(async () => {
     await fetchProvinceOptions()
     fetchEventMasterData()
     fetchItems()
+    authUserStore.fetchMandateStatus() 
   }
 
   $('#participantModal').on('hidden.bs.modal', () => {

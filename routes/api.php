@@ -35,6 +35,7 @@ use App\Http\Controllers\API\V1\EventMedalRuleController;
 use App\Http\Controllers\API\V1\EventMedalStandingController;
 use App\Http\Controllers\API\V1\EventParticipantController;
 use App\Http\Controllers\API\V1\EventParticipantReRegistrationController;
+use App\Http\Controllers\API\V1\EventRegionMandateController;
 use App\Http\Controllers\API\V1\EventStageController;
 use App\Http\Controllers\API\V1\GroupController;
 use App\Http\Controllers\Api\V1\JudgePanelController;
@@ -52,6 +53,7 @@ use App\Http\Controllers\API\V1\StageController;
 use App\Http\Controllers\API\V1\UserController;
 use App\Http\Controllers\WhatsAppController;
 use App\Http\Controllers\Auth\PasswordResetWhatsappController;
+use App\Http\Controllers\API\V1\MandateController;
 
 /*
 |--------------------------------------------------------------------------
@@ -94,6 +96,14 @@ Route::prefix('v1')->group(function () {
 Route::middleware(['auth:sanctum']) // kalau belum pakai sanctum, boleh dihapus dulu
     ->prefix('v1')
     ->group(function () {
+
+
+        Route::get('/events/{event}/region-mandates', [EventRegionMandateController::class, 'index']);
+        Route::post('/events/{event}/region-mandates/upload', [EventRegionMandateController::class, 'upload']);
+        Route::post('/region-mandates/{mandate}/approve', [EventRegionMandateController::class, 'approve']);
+        Route::post('/region-mandates/{mandate}/reject', [EventRegionMandateController::class, 'reject']);
+        
+        Route::get('/events/{event}/mandate-status', [MandateController::class, 'status']);
 
         Route::get('/events/{event}/build-progress', function ($eventId) {
             return DB::table('event_build_logs')
