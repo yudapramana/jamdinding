@@ -40,6 +40,11 @@ use Illuminate\Support\Facades\Log;
 use Symfony\Component\HttpKernel\Event\RequestEvent;
 use App\Models\EventLocation;
 
+
+Route::get('/test-run', function () {
+    return 'Run tested!';
+});
+
 Route::get('/test-log', function () {
     Log::info('The logging system is functioning perfectly!');
     return 'Log written!';
