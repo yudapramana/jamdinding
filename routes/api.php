@@ -81,11 +81,14 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
 Route::get('/wa/send', [WhatsAppController::class, 'sendFastGet']);
 
 Route::post('/auth/wa/request-reset', [PasswordResetWhatsappController::class, 'requestReset'])
-    ->middleware('throttle:5,1')
     ->name('api.password.wa.request');
+    // ->middleware('throttle:5,1')
+
+
 
 Route::prefix('v1')->group(function () {
-    Route::middleware(['throttle:60,1'])->get('/public-events', [PublicEventController::class, 'index']);
+    // middleware(['throttle:60,1'])->
+    Route::get('/public-events', [PublicEventController::class, 'index']);
 });
 
 Route::middleware(['auth:sanctum']) // kalau belum pakai sanctum, boleh dihapus dulu
