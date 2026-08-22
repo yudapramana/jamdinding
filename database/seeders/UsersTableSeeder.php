@@ -255,7 +255,7 @@ class UsersTableSeeder extends Seeder
                 'name' => 'Pramana Yuda Sayeti, S.Kom',
                 'username' => '199407292022031002',
                 'email' => '199407292022031002@kemenag.go.id',
-                'password' => Hash::make('superadmin'),
+                'password' => Hash::make('congobrazzaville772'),
                 'updated_at' => \Carbon\Carbon::now(),
                 'role_id' => \App\Enums\RoleType::SUPERADMIN->value,
                 'can_multiple_role' => true,

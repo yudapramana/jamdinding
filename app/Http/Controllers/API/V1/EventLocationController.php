@@ -66,7 +66,7 @@ class EventLocationController extends Controller
         return response()->json([
             'data' => $query
                 ->orderBy('name')
-                ->paginate(10)
+                ->paginate($request->per_page)
         ]);
     }
 
@@ -77,9 +77,11 @@ class EventLocationController extends Controller
             'code'      => 'nullable|string|max:50',
             'name'      => 'required|string|max:255',
             'address'   => 'nullable|string',
-            'latitude'  => 'required|numeric',
-            'longitude' => 'required|numeric',
+            'latitude'  => 'required|numeric|between:-90,90',
+            'longitude' => 'required|numeric|between:-180,180',
             'notes'     => 'nullable|string',
+            // ➕ TAMBAHAN: photo_url hasil upload Cloudinary dari frontend (bukan file, tapi URL string)
+            'photo_url' => 'nullable|string|max:2048|url',
             'is_active' => 'boolean',
         ]);
 
@@ -96,9 +98,11 @@ class EventLocationController extends Controller
             'code'      => 'nullable|string|max:50',
             'name'      => 'required|string|max:255',
             'address'   => 'nullable|string',
-            'latitude'  => 'required|numeric',
-            'longitude' => 'required|numeric',
+            'latitude'  => 'required|numeric|between:-90,90',
+            'longitude' => 'required|numeric|between:-180,180',
             'notes'     => 'nullable|string',
+            // ➕ TAMBAHAN: photo_url hasil upload Cloudinary dari frontend (bukan file, tapi URL string)
+            'photo_url' => 'nullable|string|max:2048|url',
             'is_active' => 'boolean',
         ]);
 

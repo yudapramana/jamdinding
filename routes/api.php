@@ -37,6 +37,8 @@ use App\Http\Controllers\API\V1\EventParticipantController;
 use App\Http\Controllers\API\V1\EventParticipantReRegistrationController;
 use App\Http\Controllers\API\V1\EventRegionMandateController;
 use App\Http\Controllers\API\V1\EventStageController;
+use App\Http\Controllers\API\V1\EventTeamNumberController;
+use App\Http\Controllers\API\V1\EventTeamReRegistrationController;
 use App\Http\Controllers\API\V1\GroupController;
 use App\Http\Controllers\Api\V1\JudgePanelController;
 use App\Http\Controllers\API\V1\JudgeUserController;
@@ -255,9 +257,9 @@ Route::middleware(['auth:sanctum']) // kalau belum pakai sanctum, boleh dihapus 
         Route::post('event-participants/{eventParticipant}/re-registration', [EventParticipantReRegistrationController::class, 'store']);
         Route::post('event-participants/{eventParticipant}/draw-number', [EventParticipantReRegistrationController::class, 'drawNumber']);
         Route::post('event-participants/{eventParticipant}/assign-number', [EventParticipantReRegistrationController::class, 'assignNumber']);
-        Route::post('event-teams/{eventTeam}/draw-number', [__EventTeamNumberController::class, 'drawNumber']); // EVENT TEAM REREGISTRATION AND DRAW NUMBER
-        Route::post('event-teams/{eventTeam}/assign-number', [__EventTeamNumberController::class, 'assignNumber']);
-        Route::post('event-teams/{eventTeam}/re-registration', [__EventTeamReRegistrationController::class, 'store']);
+        Route::post('event-teams/{eventTeam}/draw-number', [EventTeamNumberController::class, 'drawNumber']); // EVENT TEAM REREGISTRATION AND DRAW NUMBER
+        Route::post('event-teams/{eventTeam}/assign-number', [EventTeamNumberController::class, 'assignNumber']);
+        Route::post('event-teams/{eventTeam}/re-registration', [EventTeamReRegistrationController::class, 'store']);
         
         // EVENT PARTICIPANT - FINAL KAFILAH
         Route::get('events/{event}/kafilah-pdf', [EventParticipantController::class, 'kafilahPdf']);

@@ -34,6 +34,7 @@ use App\Models\Event;
 use App\Models\VervalLog;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Auth\CaptchaController;
+use App\Http\Controllers\Guest\EventVenueController;
 use App\Http\Controllers\MandateDocController;
 use App\Http\Controllers\PublicParticipantController;
 use Illuminate\Support\Facades\DB;
@@ -41,6 +42,9 @@ use Illuminate\Support\Facades\Log;
 use Symfony\Component\HttpKernel\Event\RequestEvent;
 use App\Models\EventLocation;
 
+
+Route::get('/event-venues', [EventVenueController::class, 'index'])
+    ->name('event.venues');
 
 Route::get('/test-run', function () {
     return 'Run tested!';
@@ -51,10 +55,12 @@ Route::get('/test-log', function () {
     return 'Log written!';
 });
 
-Route::get('/event-venues', function () {
-
+Route::get('/event-schedules', function () {
+ 
     $eventId = request()->query('event_id', 1);
-
+ 
+    $event = Event::findOrFail($eventId);
+ 
     $locations = EventLocation::query()
         ->active()
         ->forEvent($eventId)
@@ -68,39 +74,110 @@ Route::get('/event-venues', function () {
                       ]);
             }
         ])
-        ->orderBy('name')
+        ->orderBy('id')
         ->get()
         ->map(function ($location) {
-
-            $majelis = $location->judgePanels
-                ->pluck('roman_name ')
+ 
+            /**
+             * PERBAIKAN #1:
+             * Urutkan majelis 1 s.d. 12 secara NUMERIK berdasarkan
+             * angka pada kolom 'code' (MJL-01, MJL-02, ... MJL-12),
+             * bukan berdasarkan urutan relasi/insert di database.
+             */
+            $sortedPanels = $location->judgePanels
+                ->sortBy(function ($panel) {
+                    preg_match('/(\d+)/', $panel->code ?? '', $matches);
+                    return isset($matches[1]) ? (int) $matches[1] : 0;
+                })
+                ->values();
+ 
+            /**
+             * PERBAIKAN #2:
+             * Bug: pluck('roman_name ') sebelumnya ada spasi di belakang
+             * nama kolom sehingga Eloquent mencari kolom yang salah.
+             * Sudah diperbaiki menjadi 'roman_name'.
+             */
+            $majelis = $sortedPanels
+                ->pluck('roman_name')
+                ->filter()
                 ->unique()
                 ->values();
-
-            $cabang = $location->judgePanels
+ 
+            $cabang = $sortedPanels
                 ->flatMap(fn ($panel) => $panel->eventGroups)
                 ->map(fn ($group) => $group->full_name)
+                ->filter()
                 ->unique()
                 ->values();
-
+ 
             return [
                 'location_name' => $location->name,
                 'majelis'       => $majelis,
                 'cabang'        => $cabang,
             ];
         });
-
-        // return $locations;
-
+ 
     /* ===============================
      * VIEW LANGSUNG DI ROUTE
      * =============================== */
-
+ 
     return response()->view('event.jadwal', [
         'eventId'   => $eventId,
+        'event'     => $event,
         'locations' => $locations,
     ]);
 });
+
+// Route::get('/event-venues', function () {
+
+//     $eventId = request()->query('event_id', 1);
+
+//     $locations = EventLocation::query()
+//         ->active()
+//         ->forEvent($eventId)
+//         ->with([
+//             'judgePanels' => function ($panel) {
+//                 $panel->where('is_active', true)
+//                       ->with([
+//                           'eventGroups' => function ($group) {
+//                               $group->where('status', 'active');
+//                           }
+//                       ]);
+//             }
+//         ])
+//         ->orderBy('name')
+//         ->get()
+//         ->map(function ($location) {
+
+//             $majelis = $location->judgePanels
+//                 ->pluck('roman_name ')
+//                 ->unique()
+//                 ->values();
+
+//             $cabang = $location->judgePanels
+//                 ->flatMap(fn ($panel) => $panel->eventGroups)
+//                 ->map(fn ($group) => $group->full_name)
+//                 ->unique()
+//                 ->values();
+
+//             return [
+//                 'location_name' => $location->name,
+//                 'majelis'       => $majelis,
+//                 'cabang'        => $cabang,
+//             ];
+//         });
+
+//         // return $locations;
+
+//     /* ===============================
+//      * VIEW LANGSUNG DI ROUTE
+//      * =============================== */
+
+//     return response()->view('event.jadwal', [
+//         'eventId'   => $eventId,
+//         'locations' => $locations,
+//     ]);
+// });
 
 
 

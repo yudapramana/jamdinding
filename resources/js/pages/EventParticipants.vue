@@ -103,6 +103,18 @@
                 </option>
               </select>
 
+              <!-- ➕ TOMBOL REFRESH -->
+              <button
+                type="button"
+                class="btn btn-outline-secondary btn-sm"
+                title="Muat ulang data peserta"
+                :disabled="isLoading"
+                @click="refreshItems"
+              >
+                <i class="fas fa-sync-alt" :class="{ 'fa-spin': isLoading }"></i>
+                <span class="ml-1 d-none d-sm-inline">Refresh</span>
+              </button>
+
             </div>
 
             <!-- RIGHT: SEARCH -->
@@ -333,7 +345,16 @@
                           <i class="fas fa-id-badge"></i>
                         </button>
 
-                        
+                        <!-- HAPUS PESERTA EVENT (hanya bank_data & need_revision, biar konsisten dgn tombol edit) -->
+                        <button
+                          v-if="['bank_data', 'need_revision'].includes(item.registration_status) && isPrivileged"
+                          class="btn btn-outline-danger btn-xs"
+                          title="Hapus Peserta"
+                          @click="deleteItem(item)"
+                        >
+                          <i class="fas fa-trash-alt"></i>
+                        </button>
+
                     </div>
                 </td>
 
@@ -654,6 +675,13 @@
                           v-if="fieldErrors['participant.date_of_birth']"
                           >
                           {{ fieldErrors['participant.date_of_birth'] }}
+                          </div>
+
+                          <div
+                          class="valid-feedback d-block"
+                          v-if="fieldValids['participant.date_of_birth']"
+                          >
+                          {{ fieldValids['participant.date_of_birth'] }}
                           </div>
 
                           <!-- hint dari NIK -->
@@ -1633,8 +1661,13 @@ const openViewModal = (row) => {
 
 
 const fieldErrors = ref({})
+const fieldValids = ref({})
 const nikError = ref('') 
 const isNikChecking = ref(false)
+
+// ➕ TAMBAHAN: cache hasil validateNik() terakhir, biar tidak double-hit API
+const lastCheckedNik = ref('')
+const lastCheckedNikValid = ref(false)
 
 const showTanggalTerbit = ref(false)
 const requireTanggalTerbit = ref(false)
@@ -2001,6 +2034,45 @@ const validateNikByEventLevel = () => {
   return result
 }
 
+/**
+ * Single source of truth untuk sinkronisasi hasil validasi NIK vs wilayah event.
+ * Meng-update: nikError, fieldErrors['participant.nik'],
+ * showTanggalTerbit, requireTanggalTerbit, dan requiredFields (tanggal terbit).
+ *
+ * Mengembalikan object hasil validasi (bukan menulis object ke fieldErrors).
+ */
+const syncNikRegionValidation = () => {
+  const result = validateNikByEventLevel()
+
+  // ==========================
+  // ERROR NIK (selalu string, bukan object)
+  // ==========================
+  if (!result.valid) {
+    nikError.value = result.error
+    fieldErrors.value['participant.nik'] = result.error
+  } else {
+    nikError.value = ''
+    fieldErrors.value['participant.nik'] = ''
+  }
+
+  // ==========================
+  // TAMPILKAN FIELD TANGGAL TERBIT
+  // ==========================
+  showTanggalTerbit.value = result.showTanggalTerbit
+
+  // ==========================
+  // WAJIB / TIDAK TANGGAL TERBIT
+  // ==========================
+  requireTanggalTerbit.value = result.requireTanggalTerbit
+
+  if (result.requireTanggalTerbit) {
+    addTanggalTerbitToRequired()
+  } else {
+    removeTanggalTerbitFromRequired()
+  }
+
+  return result
+}
 
 
 
@@ -2038,60 +2110,86 @@ const validateNik = async () => {
     return false
   }
 
-  // ============================
-  // VALIDASI WILAYAH BERDASARKAN EVENT LEVEL
-  // ============================
-  const regionCheck = validateNikByEventLevel()
-
-  if (regionCheck !== true) {
-    nikError.value = regionCheck
-    fieldErrors.value['participant.nik'] = regionCheck
-    return false
-  }
-
-
   // isi otomatis tanggal lahir & gender dari NIK
   form.value.participant.date_of_birth = result.dateOfBirth
   form.value.participant.gender = result.gender
 
-  // kalau event belum dipilih, cukup sampai sini
-  if (!eventId.value) {
-    return true
+  // ➕ TAMBAHAN: kalau NIK ini sudah pernah dicek (sama persis dengan cache),
+  // langsung pakai hasil sebelumnya tanpa hit API/region check lagi.
+  // Catatan: nikError/fieldErrors untuk kasus invalid sudah otomatis
+  // masih menyimpan pesan lama dari pengecekan sebelumnya (tidak perlu ditulis ulang).
+  if (nik === lastCheckedNik.value) {
+    return lastCheckedNikValid.value
   }
 
-  try {
-    isNikChecking.value = true
+  // ============================
+  // VALIDASI WILAYAH BERDASARKAN EVENT LEVEL
+  // (tidak langsung return, karena masih ada pengecekan konflik ke server di bawah)
+  // ============================
+  const regionCheck = syncNikRegionValidation()
 
-    const res = await axios.get('/api/v1/check-nik', {
-      params: {
-        nik,
-        event_id: eventId.value,
-        participant_id: form.value.participant.id || null,
-        province_id: form.value.participant.province_id,
-        regency_id: form.value.participant.regency_id,
-        district_id: form.value.participant.district_id,
-        village_id: form.value.participant.village_id,
-      },
-    })
+  // ============================
+  // CEK KE SERVER: apakah NIK sudah terdaftar (conflict) di cabang/event lain
+  // Selalu dijalankan kalau eventId ada, TERLEPAS dari hasil regionCheck,
+  // karena pesan "NIK sudah terdaftar" harus diprioritaskan
+  // dibanding pesan mismatch wilayah.
+  // ============================
+  if (eventId.value) {
+    try {
+      isNikChecking.value = true
 
-    if (res.data.conflict) {
-      // contoh: "NIK ini sudah terdaftar pada cabang yang lain."
-      nikError.value = res.data.message || 'NIK konflik dengan peserta lain.'
+      const res = await axios.get('/api/v1/check-nik', {
+        params: {
+          nik,
+          event_id: eventId.value,
+          participant_id: form.value.participant.id || null,
+          province_id: form.value.participant.province_id,
+          regency_id: form.value.participant.regency_id,
+          district_id: form.value.participant.district_id,
+          village_id: form.value.participant.village_id,
+        },
+      })
+
+      if (res.data.conflict) {
+        // 🔴 pesan konflik dari server MENANG dibanding pesan wilayah
+        const conflictMsg =
+          res.data.message || 'NIK ini sudah terdaftar pada cabang yang lain.'
+        nikError.value = conflictMsg
+        fieldErrors.value['participant.nik'] = conflictMsg
+
+        // ➕ TAMBAHAN: simpan ke cache sebelum return false
+        lastCheckedNik.value = nik
+        lastCheckedNikValid.value = false
+        return false
+      }
+    } catch (e) {
+      console.error('Gagal cek NIK ke server:', e)
+      nikError.value = 'Gagal melakukan validasi NIK ke server.'
       fieldErrors.value['participant.nik'] = nikError.value
       return false
+    } finally {
+      isNikChecking.value = false
     }
-
-    nikError.value = ''
-    fieldErrors.value['participant.nik'] = ''
-    return true
-  } catch (e) {
-    console.error('Gagal cek NIK ke server:', e)
-    nikError.value = 'Gagal melakukan validasi NIK ke server.'
-    fieldErrors.value['participant.nik'] = nikError.value
-    return false
-  } finally {
-    isNikChecking.value = false
   }
+
+  // ============================
+  // Tidak ada konflik dari server → sekarang baru cek hasil validasi wilayah
+  // (pesan & fieldErrors sudah ditulis oleh syncNikRegionValidation di atas)
+  // ============================
+  if (!regionCheck.valid) {
+    // ➕ TAMBAHAN: simpan ke cache sebelum return false
+    lastCheckedNik.value = nik
+    lastCheckedNikValid.value = false
+    return false
+  }
+
+  nikError.value = ''
+  fieldErrors.value['participant.nik'] = ''
+
+  // ➕ TAMBAHAN: simpan ke cache sebelum return true
+  lastCheckedNik.value = nik
+  lastCheckedNikValid.value = true
+  return true
 }
 
 /**
@@ -2189,6 +2287,7 @@ watch(
     if (!newNik) {
       nikError.value = ''
       fieldErrors.value['participant.nik'] = ''
+      fieldValids.value['participant.date_of_birth'] = '';
       form.value.participant.date_of_birth = ''
       form.value.participant.gender = ''
       return
@@ -2205,6 +2304,7 @@ watch(
     form.value.participant.gender = result.gender
     nikError.value = ''
     fieldErrors.value['participant.nik'] = ''
+    fieldValids.value['participant.date_of_birth'] = '';
 
     debouncedNikCheck()
   }
@@ -2328,6 +2428,11 @@ const resetForm = () => {
     nikError.value = ''
     ageStatus.value = null
     ageMessage.value = ''
+    fieldValids.value['participant.date_of_birth'] = ''
+
+    // ➕ TAMBAHAN: reset cache NIK juga, biar form baru selalu mengecek ulang
+    lastCheckedNik.value = ''
+    lastCheckedNikValid.value = false
 
     resetFiles()
   } finally {
@@ -2667,6 +2772,17 @@ const changePage = (page) => {
   fetchItems(page)
 }
 
+// ➕ TAMBAHAN: refresh data di halaman saat ini (tanpa reset ke halaman 1)
+// juga sekalian refresh master data event (kategori/golongan) & status mandat,
+// karena keduanya bisa berubah dari sisi admin tanpa peserta sadar.
+const refreshItems = async () => {
+  await Promise.all([
+    fetchItems(meta.value.current_page),
+    fetchEventMasterData(),
+    authUserStore.fetchMandateStatus(),
+  ])
+}
+
 
 // ==================================================
 // WILAYAH: APPLY EVENT LEVEL KE FORM
@@ -2726,6 +2842,35 @@ const ageMessage = ref('')
 // eventGroups sudah ada dari API simple() → pastikan setiap item punya max_age
 // contoh struktur di backend: event_groups: [ { id, group_name, max_age, ... } ]
 
+// Helper: hitung selisih umur dalam format tahun/bulan/hari
+function getAgeBreakdown(dob, refDate) {
+    let years = refDate.getFullYear() - dob.getFullYear()
+    let months = refDate.getMonth() - dob.getMonth()
+    let days = refDate.getDate() - dob.getDate()
+
+    if (days < 0) {
+        months--
+        // jumlah hari di bulan sebelum refDate (menangani panjang bulan yg berbeda-beda)
+        const prevMonthLastDate = new Date(refDate.getFullYear(), refDate.getMonth(), 0)
+        days += prevMonthLastDate.getDate()
+    }
+
+    if (months < 0) {
+        years--
+        months += 12
+    }
+
+    return { years, months, days }
+}
+
+function formatAge({ years, months, days }) {
+    const parts = []
+    if (years > 0) parts.push(`${years} tahun`)
+    if (months > 0) parts.push(`${months} bulan`)
+    if (days > 0 || parts.length === 0) parts.push(`${days} hari`)
+    return parts.join(' ')
+}
+
 const validateAgeForGroup = () => {
     ageStatus.value = null
     ageMessage.value = ''
@@ -2766,13 +2911,11 @@ const validateAgeForGroup = () => {
         : []
 
     const group =
-        groups.find(g => Number(g.id) === Number(groupId)) || null
+        groups.find(g => Number(g.group_id) === Number(groupId)) || null
     console.log('group');
     console.log(group);
 
     if (!group || group.max_age == null) return
-    console.log('group and group max age');
-
 
     const dob = new Date(dobStr)
     if (isNaN(dob.getTime())) return
@@ -2780,11 +2923,14 @@ const validateAgeForGroup = () => {
     // pakai age_limit_date / tanggal_batas_umur event kalau ada, fallback ke hari ini
     const refStr =
         eventInfo.value?.age_limit_date ||
-        eventData.value?.tanggal_batas_umur ||
         null
 
     const refDate = refStr ? new Date(refStr) : new Date()
     if (isNaN(refDate.getTime())) return
+    // setelah refDate didapat & valid
+    const refDateLabel = refDate.toLocaleDateString('id-ID', {
+      day: 'numeric', month: 'long', year: 'numeric'
+    })
 
     // hitung umur dalam tahun (dibulatkan ke bawah)
     let age = refDate.getFullYear() - dob.getFullYear()
@@ -2796,13 +2942,21 @@ const validateAgeForGroup = () => {
     const maxAge = Number(group.max_age)
     if (!Number.isFinite(maxAge)) return
 
+    console.log('eventInfo.value?.age_limit_date: ' + eventInfo.value?.age_limit_date);
+    console.log('age: ' + age);
+    console.log('maxAge: ' + maxAge);
+
+    // hitung breakdown umur lengkap (tahun, bulan, hari) untuk ditampilkan
+    const ageBreakdown = getAgeBreakdown(dob, refDate)
+    const ageDisplay = formatAge(ageBreakdown)
+
     // 🔴 aturan baru: umur harus DI BAWAH max_age
     // contoh: max_age = 18 → umur 18 TIDAK BOLEH, 17 tahun 11 bulan 31 hari MASIH BOLEH
     if (age < maxAge) {
         ageStatus.value = 'valid'
         ageMessage.value =
-        `Umur memenuhi syarat untuk golongan ini (harus di bawah ${maxAge} tahun). ` +
-        `Umur peserta ${age} tahun.`
+        `Umur memenuhi syarat untuk golongan ini (maksimal ${maxAge - 1} tahun 11 bulan 29 hari). ` +
+        `Umur peserta ${ageDisplay} per ${refDateLabel}`
 
         // kalau sebelumnya ada error karena umur, bersihkan
         if (
@@ -2811,11 +2965,22 @@ const validateAgeForGroup = () => {
         ) {
         fieldErrors.value['participant.date_of_birth'] = ''
         }
+        // tandai DOB sebagai invalid
+        fieldValids.value['participant.date_of_birth'] = ageMessage.value
     } else {
         ageStatus.value = 'invalid'
         ageMessage.value =
-        `Umur tidak memenuhi syarat untuk golongan ini (harus di bawah ${maxAge} tahun). ` +
-        `Umur peserta ${age} tahun.`
+        `Umur tidak memenuhi syarat untuk golongan ini (maksimal ${maxAge - 1} tahun 11 bulan 29 hari). ` +
+        `Umur peserta ${ageDisplay} per ${refDateLabel}`
+
+        // kalau sebelumnya ada valid message karena umur, bersihkan
+        if (
+        fieldValids.value['participant.date_of_birth'] &&
+        fieldValids.value['participant.date_of_birth'].startsWith('Umur')
+        ) {
+        fieldValids.value['participant.date_of_birth'] = ''
+        }
+
 
         // tandai DOB sebagai invalid
         fieldErrors.value['participant.date_of_birth'] = ageMessage.value
@@ -3047,34 +3212,11 @@ watch(
     eventData.value?.event_level,
   ],
   () => {
-    const result = validateNikByEventLevel()
-
-    // ==========================
-    // ERROR NIK
-    // ==========================
-    if (!result.valid) {
-      nikError.value = result.error
-      fieldErrors.value['participant.nik'] = result.error
-    } else {
-      nikError.value = ''
-      fieldErrors.value['participant.nik'] = ''
-    }
-
-    // ==========================
-    // TAMPILKAN FIELD TANGGAL
-    // ==========================
-    showTanggalTerbit.value = result.showTanggalTerbit
-
-    // ==========================
-    // REQUIRED TANGGAL
-    // ==========================
-    requireTanggalTerbit.value = result.requireTanggalTerbit
-
-    if (result.requireTanggalTerbit) {
-      addTanggalTerbitToRequired()
-    } else {
-      removeTanggalTerbitFromRequired()
-    }
+    // ➕ TAMBAHAN: kalau salah satu dependency di atas berubah,
+    // hasil cek sebelumnya (cache) sudah tidak valid lagi.
+    // Reset supaya validateNik() berikutnya benar-benar hit API lagi.
+    lastCheckedNik.value = ''
+    syncNikRegionValidation()
   },
   { immediate: true }
 )

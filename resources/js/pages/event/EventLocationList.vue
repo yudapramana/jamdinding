@@ -19,25 +19,37 @@
     <div class="container-fluid">
       <div class="card">
         <!-- FILTER -->
-        <div class="card-header d-flex justify-content-between align-items-center w-100">
-          <div class="d-flex align-items-center">
+        <div class="card-header d-flex flex-wrap align-items-center w-100">
+          <div class="d-flex flex-wrap align-items-center">
             <label class="mb-0 mr-2 text-sm text-muted">Tampilkan</label>
             <select
               v-model.number="perPage"
               class="form-control form-control-sm w-auto mr-2"
-              @change="fetchData(1)"
             >
               <option :value="10">10</option>
               <option :value="25">25</option>
               <option :value="50">50</option>
               <option :value="100">100</option>
             </select>
-            <span class="text-sm text-muted">entri</span>
+            <span class="text-sm text-muted mr-2">entri</span>
+
+            <!-- TOMBOL REFRESH -->
+            <button
+              type="button"
+              class="btn btn-outline-secondary btn-sm"
+              title="Muat ulang data lokasi"
+              :disabled="loading"
+              @click="refreshData"
+            >
+              <i class="fas fa-sync-alt" :class="{ 'fa-spin': loading }"></i>
+              <span class="ml-1 d-none d-sm-inline">Refresh</span>
+            </button>
           </div>
 
+          <!-- ml-auto mendorong search ke kanan tanpa perlu justify-content-between -->
           <input
             v-model="search"
-            class="form-control form-control-sm w-50"
+            class="form-control form-control-sm w-50 ml-auto mt-2 mt-md-0"
             placeholder="Cari nama / kode majelis..."
           />
         </div>
@@ -48,6 +60,8 @@
             <thead class="thead-light">
               <tr>
                 <th style="width:50px">No</th>
+                <!-- ➕ TAMBAHAN: kolom foto -->
+                <th style="width:70px">Foto</th>
                 <th>Kode</th>
                 <th>Nama Lokasi</th>
                 <th>Koordinat</th>
@@ -57,14 +71,27 @@
             </thead>
             <tbody>
               <tr v-if="loading">
-                <td colspan="6" class="text-center">Memuat data...</td>
+                <td colspan="7" class="text-center">Memuat data...</td>
               </tr>
               <tr v-else-if="locations.length === 0">
-                <td colspan="6" class="text-center">Belum ada lokasi.</td>
+                <td colspan="7" class="text-center">Belum ada lokasi.</td>
               </tr>
               <tr v-for="(row, index) in locations" :key="row.id">
                 <td>
                   {{ index + 1 + (meta.current_page - 1) * meta.per_page }}
+                </td>
+                <!-- ➕ TAMBAHAN: thumbnail foto -->
+                <td class="text-center">
+                  <img
+                    v-if="row.photo_url"
+                    :src="row.photo_url"
+                    alt="Foto lokasi"
+                    class="rounded"
+                    style="width:48px;height:48px;object-fit:cover;"
+                  />
+                  <span v-else class="text-muted">
+                    <i class="fas fa-image"></i>
+                  </span>
                 </td>
                 <td>{{ row.code || '-' }}</td>
                 <td><strong>{{ row.name }}</strong></td>
@@ -153,17 +180,77 @@
                     <option :value="false">Nonaktif</option>
                   </select>
                 </div>
+
+                <!-- ➕ TAMBAHAN: INPUT LINK FOTO MANUAL (bukan upload, tempel URL dari luar) -->
+                <div class="form-group mb-2">
+                  <label>Link Foto Lokasi</label>
+
+                  <input
+                    v-model="form.photo_url"
+                    type="url"
+                    class="form-control form-control-sm"
+                    placeholder="https://contoh.com/gambar-lokasi.jpg"
+                    :class="{ 'is-invalid': photoUrlError }"
+                    @blur="validatePhotoUrl"
+                    @input="photoUrlError = ''"
+                  />
+                  <div class="invalid-feedback" v-if="photoUrlError">
+                    {{ photoUrlError }}
+                  </div>
+                  <small class="text-muted d-block mt-1">
+                    Tempel link foto yang sudah diupload di tempat lain (Google Drive, Imgur, Cloudinary, dll).
+                  </small>
+
+                  <div v-if="form.photo_url && !photoUrlError" class="mt-2">
+                    <img
+                      :src="form.photo_url"
+                      alt="Preview foto lokasi"
+                      class="rounded border"
+                      style="width:100%;max-height:160px;object-fit:cover;"
+                      @error="onPhotoPreviewError"
+                    />
+                  </div>
+
+                  <button
+                    v-if="form.photo_url"
+                    type="button"
+                    class="btn btn-outline-danger btn-xs mt-2"
+                    @click="removePhoto"
+                  >
+                    <i class="fas fa-trash mr-1"></i> Hapus Link Foto
+                  </button>
+                </div>
               </div>
 
               <div class="col-md-6">
+                <!-- ➕ PERUBAHAN: latitude/longitude sekarang bisa diinput manual -->
                 <div class="form-group mb-2">
                   <label>Latitude</label>
-                  <input v-model="form.latitude" class="form-control form-control-sm" readonly />
+                  <input
+                    v-model="form.latitude"
+                    type="text"
+                    inputmode="decimal"
+                    placeholder="Contoh: -1.3485450"
+                    class="form-control form-control-sm"
+                    @change="syncMapFromInputs"
+                  />
                 </div>
                 <div class="form-group mb-2">
                   <label>Longitude</label>
-                  <input v-model="form.longitude" class="form-control form-control-sm" readonly />
+                  <input
+                    v-model="form.longitude"
+                    type="text"
+                    inputmode="decimal"
+                    placeholder="Contoh: 100.5641798"
+                    class="form-control form-control-sm"
+                    @change="syncMapFromInputs"
+                  />
                 </div>
+                <small class="text-muted d-block mb-2">
+                  Latitude/Longitude bisa diisi manual, hasil pencarian lokasi,
+                  atau dengan menggeser peta (marker mengikuti tengah peta).
+                </small>
+
                 <div class="form-group mb-2">
                   <label>Catatan</label>
                   <textarea v-model="form.notes" rows="2" class="form-control form-control-sm"></textarea>
@@ -184,6 +271,15 @@
                 <button class="btn btn-outline-secondary" @click="searchMapLocation">
                   <i class="fas fa-search"></i>
                 </button>
+                <!-- ➕ TAMBAHAN: sinkronkan peta manual dari input lat/lng -->
+                <button
+                  class="btn btn-outline-secondary"
+                  type="button"
+                  title="Pindahkan peta sesuai Latitude/Longitude yang diketik"
+                  @click="syncMapFromInputs"
+                >
+                  <i class="fas fa-crosshairs"></i>
+                </button>
               </div>
             </div>
 
@@ -192,13 +288,18 @@
             <div id="map" style="height:300px" class="mt-2"></div>
 
             <small class="text-muted">
-              Ketik nama lokasi lalu geser peta untuk presisi (marker di tengah).
+              Ketik nama lokasi lalu geser peta untuk presisi (marker di tengah),
+              atau isi Latitude/Longitude secara manual lalu tekan tombol
+              <i class="fas fa-crosshairs"></i> untuk memindahkan peta ke titik tersebut.
             </small>
 
           </div>
 
           <div class="modal-footer">
-            <button class="btn btn-primary btn-sm" @click="save">
+            <button
+              class="btn btn-primary btn-sm"
+              @click="save"
+            >
               <i class="fas fa-save mr-1"></i> Simpan
             </button>
           </div>
@@ -247,8 +348,43 @@ const form = ref({
   latitude: '',
   longitude: '',
   notes: '',
+  photo_url: '', // ➕ TAMBAHAN
   is_active: true,
 })
+
+/* ================= LINK FOTO (INPUT MANUAL, BUKAN UPLOAD) ================= */
+const photoUrlError = ref('')
+
+// Validasi ringan: harus format URL yang wajar (http/https)
+const validatePhotoUrl = () => {
+  const val = (form.value.photo_url || '').trim()
+  form.value.photo_url = val
+
+  if (!val) {
+    photoUrlError.value = ''
+    return
+  }
+
+  try {
+    const parsed = new URL(val)
+    if (!['http:', 'https:'].includes(parsed.protocol)) {
+      throw new Error('invalid protocol')
+    }
+    photoUrlError.value = ''
+  } catch (e) {
+    photoUrlError.value = 'Link foto tidak valid. Pastikan diawali http:// atau https://'
+  }
+}
+
+// Kalau link ternyata bukan gambar / gagal dimuat, beri tahu user di preview
+const onPhotoPreviewError = () => {
+  photoUrlError.value = 'Link tidak dapat dimuat sebagai gambar. Periksa kembali link-nya.'
+}
+
+const removePhoto = () => {
+  form.value.photo_url = ''
+  photoUrlError.value = ''
+}
 
 /* ================= MAP ================= */
 let map = null
@@ -317,6 +453,26 @@ const searchMapLocation = async () => {
   }
 }
 
+// ➕ TAMBAHAN: pindahkan peta & marker sesuai Latitude/Longitude yang diketik manual
+const syncMapFromInputs = () => {
+  const lat = parseFloat(form.value.latitude)
+  const lng = parseFloat(form.value.longitude)
+
+  if (Number.isNaN(lat) || Number.isNaN(lng)) {
+    return
+  }
+
+  if (lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+    alert('Latitude/Longitude tidak valid.')
+    return
+  }
+
+  if (!map) return
+
+  map.setView([lat, lng], map.getZoom())
+  centerMarker.setLatLng([lat, lng])
+}
+
 
 
 /* ================= API ================= */
@@ -349,6 +505,11 @@ const changePage = (page) => {
   fetchData(page)
 }
 
+// ➕ TAMBAHAN: refresh data di halaman saat ini
+const refreshData = () => {
+  fetchData(meta.value.current_page)
+}
+
 /* ================= MODAL ================= */
 const openCreate = () => {
   isEdit.value = false
@@ -360,8 +521,10 @@ const openCreate = () => {
     latitude: '',
     longitude: '',
     notes: '',
+    photo_url: '', // ➕ TAMBAHAN
     is_active: true,
   }
+  photoUrlError.value = ''
 
   $('#locationModal').modal('show')
 
@@ -376,6 +539,7 @@ const openCreate = () => {
 const openEdit = (row) => {
   isEdit.value = true
   form.value = { ...row }
+  photoUrlError.value = ''
 
   $('#locationModal').modal('show')
 
@@ -390,13 +554,30 @@ const openEdit = (row) => {
 
 /* ================= CRUD ================= */
 const save = async () => {
+  // validasi ringan sebelum kirim: pastikan lat/lng terisi angka valid
+  const lat = parseFloat(form.value.latitude)
+  const lng = parseFloat(form.value.longitude)
+
+  if (Number.isNaN(lat) || Number.isNaN(lng)) {
+    alert('Latitude dan Longitude wajib diisi dengan angka yang valid.')
+    return
+  }
+
+  // validasi link foto (kalau diisi) sebelum kirim
+  validatePhotoUrl()
+  if (photoUrlError.value) {
+    alert(photoUrlError.value)
+    return
+  }
+
   const payload = {
     code: form.value.code,
     name: form.value.name,
     address: form.value.address,
-    latitude: form.value.latitude,
-    longitude: form.value.longitude,
+    latitude: lat,
+    longitude: lng,
     notes: form.value.notes,
+    photo_url: form.value.photo_url || null, // ➕ TAMBAHAN: link foto manual
     is_active: form.value.is_active,
   }
 
@@ -421,6 +602,7 @@ const remove = async (id) => {
 
 /* ================= WATCH ================= */
 watch(search, () => fetchData(1))
+watch(perPage, () => fetchData(1))   // ➕ TAMBAHAN: perbaikan bug per-page tidak jalan
 onMounted(() => fetchData())
 </script>
 

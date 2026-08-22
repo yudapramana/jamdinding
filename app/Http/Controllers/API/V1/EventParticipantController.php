@@ -519,7 +519,7 @@ class EventParticipantController extends Controller
             $participant = Participant::findOrFail($validated['participant_id']);
             $dob = Carbon::parse($participant->date_of_birth);
 
-            $refDate = $event->tanggal_batas_umur
+            $refDate = $event->age_limit_date
                 ?? $event->start_date
                 ?? now();
 
@@ -693,7 +693,7 @@ class EventParticipantController extends Controller
         $event = Event::findOrFail($validated['event_id']);
 
         $dob = Carbon::parse($participant->date_of_birth);
-        $refDate = $event->tanggal_batas_umur
+        $refDate = $event->age_limit_date
             ?? $event->start_date
             ?? now();
         $ref = Carbon::parse($refDate);
@@ -715,9 +715,28 @@ class EventParticipantController extends Controller
 
     public function destroy(EventParticipant $eventParticipant)
     {
-        $eventParticipant->delete();
+        $eventParticipant->load('participant');
+        Log::warning('Event participant dihapus secara permanen', [
+            'deleted_by' => [
+                'user_id' => auth()->id(),
+                'name' => auth()->user()?->name,
+                'email' => auth()->user()?->email,
+                'ip_address' => request()->ip(),
+                'deleted_at' => now()->toDateTimeString(),
+            ],
+            'event_participant' => [
+                'id' => $eventParticipant->id,
+                'event_id' => $eventParticipant->event_id,
+                'participant_id' => $eventParticipant->participant_id,
+                'data' => $eventParticipant->toArray(),
+            ]
+        ]);
 
-        return response()->json(['message' => 'Event participant deleted.']);
+        $eventParticipant->forceDelete();
+
+        return response()->json([
+            'message' => 'Event participant deleted.'
+        ]);
     }
 
         /**
@@ -1035,9 +1054,9 @@ class EventParticipantController extends Controller
             $eventParticipant->reregistration_status = $epData['reregistration_status'] ?? 'not_yet';
             $eventParticipant->reregistration_notes  = $epData['reregistration_notes'] ?? null;
 
-            // Hitung umur berdasarkan aturan event (tanggal_batas_umur / start_date / now)
+            // Hitung umur berdasarkan aturan event (age_limit_date / start_date / now)
             $dob = Carbon::parse($participant->date_of_birth);
-            $refDate = $event->tanggal_batas_umur
+            $refDate = $event->age_limit_date
                 ?? $event->start_date
                 ?? now();
             $ref = Carbon::parse($refDate);

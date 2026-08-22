@@ -60,6 +60,18 @@
                 <option value="approved">Disetujui</option>
                 <option value="rejected">Ditolak</option>
               </select>
+
+              <!-- ➕ TOMBOL REFRESH -->
+              <button
+                type="button"
+                class="btn btn-outline-secondary btn-sm"
+                title="Muat ulang data mandat"
+                :disabled="isLoading"
+                @click="refreshMandates"
+              >
+                <i class="fas fa-sync-alt" :class="{ 'fa-spin': isLoading }"></i>
+                <span class="ml-1 d-none d-sm-inline">Refresh</span>
+              </button>
             </div>
           </div>
         </div>
@@ -392,6 +404,11 @@ const fetchMandates = async (page = 1) => {
 const changePage = (page) => {
   if (page < 1 || page > meta.value.last_page) return
   fetchMandates(page)
+}
+
+// ➕ TAMBAHAN: refresh data di halaman saat ini (tanpa reset ke halaman 1)
+const refreshMandates = () => {
+  fetchMandates(meta.value.current_page)
 }
 
 // ==================================================

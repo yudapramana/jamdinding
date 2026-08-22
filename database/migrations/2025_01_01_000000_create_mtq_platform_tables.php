@@ -97,6 +97,7 @@ return new class extends Migration
             $table->decimal('latitude', 10, 7);
             $table->decimal('longitude', 10, 7);
             $table->text('notes')->nullable();
+            $table->text('photo_url')->nullable();
             $table->boolean('is_active')->default(true);
             $table->timestamps();
             $table->index(['event_id','is_active']);

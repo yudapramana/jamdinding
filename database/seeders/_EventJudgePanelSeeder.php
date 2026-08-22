@@ -8,7 +8,6 @@ use App\Models\EventJudgePanel;
 use App\Models\EventLocation;
 use App\Models\EventJudge;
 use App\Models\EventJudgePanelMember;
-use Illuminate\Support\Collection;
 
 class _EventJudgePanelSeeder extends Seeder
 {
@@ -32,39 +31,45 @@ class _EventJudgePanelSeeder extends Seeder
             }
 
             // ===============================
-            // Ambil hakim event
+            // Ambil hakim event (beserta nama cabang lomba dari MasterJudge)
+            // Diurutkan berdasarkan judge_code (JDG-01 s.d. JDG-12)
+            // supaya urutan majelis konsisten dengan urutan cabang lomba.
             // ===============================
-            $eventJudges = EventJudge::where('event_id', $event->id)
+            $eventJudges = EventJudge::with('masterJudge')
+                ->where('event_id', $event->id)
                 ->where('is_active', true)
-                ->pluck('id');
+                ->orderBy('judge_code')
+                ->get();
 
-            if ($eventJudges->count() < 3) {
-                $this->command->warn("⚠️ Event {$event->id} hakim kurang dari 3");
+            if ($eventJudges->isEmpty()) {
+                $this->command->warn("⚠️ Event {$event->id} belum punya dewan hakim");
                 continue;
             }
 
-            // Shuffle sekali agar distribusi adil
-            $eventJudges = $eventJudges->shuffle()->values();
-
             $locationCount = $locations->count();
-            $existingCount = EventJudgePanel::where('event_id', $event->id)->count();
 
             // ===============================
-            // Buat majelis (total 15)
+            // Buat 1 majelis per dewan hakim (1 hakim = 1 cabang lomba = 1 majelis = 1 ketua)
             // ===============================
-            for ($i = $existingCount + 1; $i <= 15; $i++) {
+            foreach ($eventJudges as $index => $eventJudge) {
 
+                $i = $index + 1;
                 $number = str_pad($i, 2, '0', STR_PAD_LEFT);
+
+                // Nama cabang lomba diambil dari full_name master hakim
+                // (sesuai seeder dewan hakim, full_name diisi nama cabang lomba)
+                $branchName = $eventJudge->masterJudge->full_name ?? "Cabang {$number}";
+
                 $locationIndex = ($i - 1) % $locationCount;
                 $eventLocationId = $locations[$locationIndex]->id;
 
-                $panel = EventJudgePanel::firstOrCreate(
+                $panel = EventJudgePanel::updateOrCreate(
                     [
                         'event_id' => $event->id,
-                        'name'     => "Majelis {$number}",
+                        'code'     => "MJL-{$number}",
                     ],
                     [
-                        'code'              => strtoupper($event->event_key) . "-MJ-{$number}",
+                        'name'              => "Majelis {$number} - {$branchName}",
                         'event_location_id' => $eventLocationId,
                         'notes'             => null,
                         'is_active'         => true,
@@ -72,34 +77,21 @@ class _EventJudgePanelSeeder extends Seeder
                 );
 
                 // ===============================
-                // Tentukan jumlah hakim (3–6)
+                // Assign 1 dewan hakim sebagai ketua majelis
                 // ===============================
-                $memberCount = rand(3, min(6, $eventJudges->count()));
-
-                // Ambil slice hakim (round-robin)
-                $offset = ($i - 1) * 3 % $eventJudges->count();
-                $judgesForPanel = $eventJudges
-                    ->slice($offset, $memberCount)
-                    ->values();
-
-                // ===============================
-                // Assign ke panel members
-                // ===============================
-                foreach ($judgesForPanel as $index => $eventJudgeId) {
-                    EventJudgePanelMember::firstOrCreate(
-                        [
-                            'event_judge_panel_id' => $panel->id,
-                            'event_judge_id'       => $eventJudgeId,
-                        ],
-                        [
-                            'is_chief'    => $index === 0, // ketua majelis
-                            'order_number'=> $index + 1,
-                        ]
-                    );
-                }
+                EventJudgePanelMember::updateOrCreate(
+                    [
+                        'event_judge_panel_id' => $panel->id,
+                        'event_judge_id'       => $eventJudge->id,
+                    ],
+                    [
+                        'is_chief'     => true,
+                        'order_number' => 1,
+                    ]
+                );
             }
 
-            $this->command->info("✅ Event {$event->id}: Majelis & anggota berhasil dibuat");
+            $this->command->info("✅ Event {$event->id}: 12 Majelis & ketua majelis berhasil dibuat");
         }
 
         $this->command->info('🎉 EventJudgePanelSeeder selesai');

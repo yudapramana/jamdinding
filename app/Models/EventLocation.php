@@ -23,6 +23,7 @@ class EventLocation extends Model
         'longitude',
         'notes',
         'is_active',
+        'photo_url'
     ];
 
     /**
