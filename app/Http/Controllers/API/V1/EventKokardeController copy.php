@@ -77,7 +77,7 @@ class EventKokardeController extends Controller
                 ->get();
 
             if ($rows->isEmpty()) {
-                return 'Tidak ada peserta siap cetak kokarde';
+                abort(404, 'Tidak ada peserta siap cetak kokarde');
             }
 
             return view('pdf.kokarde-mass', [
@@ -106,7 +106,7 @@ class EventKokardeController extends Controller
                 ->get();
 
             if ($rows->isEmpty()) {
-                return 'Tidak ada panitia untuk role tersebut';
+                abort(404, 'Tidak ada panitia untuk role tersebut');
             }
 
 

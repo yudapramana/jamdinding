@@ -35,7 +35,7 @@ class DatabaseSeeder extends Seeder
             $this->call(__ListFieldSeeder::class);
             $this->call(__EventSeeder::class);
             $this->call(__StageSeeder::class);
-            // $this->call(__EventLocationSeeder::class);
+            $this->call(__EventLocationSeeder::class);
             $this->call(__EventStageSeeder::class);
             $this->call(__MasterBranchSeeder::class);
             $this->call(__MasterGroupSeeder::class);
@@ -43,8 +43,8 @@ class DatabaseSeeder extends Seeder
             $this->call(__MasterFieldComponentsSeeder::class);
             $this->call(__RoundSeeder::class);
             $this->call(__MedalRuleSeeder::class);
-            // $this->call(_EventJudgeSeeder::class);
-            // $this->call(_EventJudgePanelSeeder::class);
+            $this->call(_EventJudgeSeeder::class);
+            $this->call(_EventJudgePanelSeeder::class);
             $this->call(_EventBranchSeeder::class);
             $this->call(_EventGroupSeeder::class);
             $this->call(_EventCategorySeeder::class);
