@@ -2669,7 +2669,7 @@ const openCreateModal = async () => {
 
   resetForm()
   isEdit.value = false
-  form.value = emptyForm()
+  // form.value = emptyForm()
   form.value.event_participant.event_id = eventId.value
   nikSearchResult.value = null
   nikDobHint.value = ''

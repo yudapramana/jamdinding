@@ -515,8 +515,8 @@ export const createEmptyEventParticipantForm = (eventId = null) => ({
     bank_book_url: '',
     certificate_url: '',
     other_url: '',
-    tanggal_terbit_ktp: '',
-    tanggal_terbit_kk: '',
+    tanggal_terbit_ktp: null,
+    tanggal_terbit_kk: null,
   },
 
   event_participant: {
