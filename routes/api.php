@@ -434,7 +434,8 @@ Route::middleware(['auth:sanctum']) // kalau belum pakai sanctum, boleh dihapus 
         
         // EVENT PARTICIPANTS - KOKARDE
         Route::get('/event-kokarde/export/pdf', [EventKokardeController::class, 'exportPdf']);
-
+        Route::get('/event-kokarde/export/verification-pdf', [EventKokardeController::class, 'exportVerificationPdf']);
+        
         // HELPER WILAYAH
         Route::get('get/provinces', [LocationController::class, 'provinces']);
         Route::get('get/regencies', [LocationController::class, 'regencies']);

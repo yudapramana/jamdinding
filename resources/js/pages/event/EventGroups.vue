@@ -93,7 +93,7 @@
                 <th>Golongan</th> -->
                 <th>Nama Lengkap</th>
                 <th>Majelis Hakim</th>
-                <th style="width: 80px;" class="text-center">Maks. Umur</th>
+                <th style="width: 120px;" class="text-center">Maks. Umur</th>
                 <th style="width: 90px;" class="text-center">Status</th>
                 <th style="width: 80px;" class="text-center">Tim?</th>
                 <th style="width: 80px;" class="text-center">Urutan</th>
@@ -164,7 +164,7 @@
                   </select>
                 </td>
 
-                <td class="text-center">{{ item.max_age ?? '-' }}</td>
+                <td class="text-center">{{ formatMaxAge(item.max_age) }}</td>
                 <td class="text-center">
                   <span
                     class="badge"
@@ -607,6 +607,13 @@ import axios from 'axios'
 import Swal from 'sweetalert2'
 import { useAuthUserStore } from '../../stores/AuthUserStore'
 import { useRoute, useRouter } from 'vue-router' // 👈
+
+const formatMaxAge = (maxAge) => {
+  if (maxAge === null || maxAge === undefined || maxAge === 0) {
+    return '-'
+  }
+  return `${maxAge - 1}T 11B 29H`
+}
 
 const authUserStore = useAuthUserStore()
 

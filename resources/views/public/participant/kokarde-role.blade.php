@@ -5,12 +5,10 @@
     <meta charset="UTF-8">
     <title>Kokarde Panitia</title>
 
-    <!-- paper-css -->
-    <link rel="stylesheet" href="https://unpkg.com/paper-css@0.4.1/paper.css">
-
     <style>
         @page {
-            size: A5
+            size: A5;
+            margin: 0;
         }
 
         * {
@@ -19,17 +17,39 @@
         }
 
         body {
+            margin: 0;
+            padding: 0;
             font-family: Arial, Helvetica, sans-serif;
-            background: #eee;
+        }
+
+        :root {
+            --role-panitera: #0d6efd;
+            --role-hakim: #6f42c1;
+            --role-pendaftaran: #198754;
+            --role-verifikator: #fd7e14;
+            --role-admin-event: #dc3545;
+        }
+
+        .sheet {
+            width: 148mm;
+            height: 210mm;
+            padding: 10mm;
+            box-sizing: border-box;
+            overflow: hidden;
+            background-image: url('{{ asset('images/bg-kokarde.png') }}');
+            background-size: cover;
+            background-repeat: no-repeat;
         }
 
         .kokarde {
-            height: 100%;
+            width: 100%;
+            height: 190mm;
             display: flex;
             flex-direction: column;
             justify-content: space-between;
             position: relative;
             z-index: 1;
+            overflow: hidden;
         }
 
         /* ================= HEADER ================= */
@@ -60,7 +80,6 @@
             margin-top: -15px;
             margin-bottom: 10px;
             letter-spacing: -0.5px;
-
         }
 
         .event-platform {
@@ -71,7 +90,6 @@
             margin-bottom: 10px;
             text-transform: uppercase;
             letter-spacing: -0.5px;
-
         }
 
         /* ================= BODY ================= */
@@ -83,9 +101,6 @@
             margin: 12px 0 20px;
         }
 
-        /* =========================
-        PHOTO PLACEHOLDER (3x4)
-        ========================= */
         .photo-box {
             display: flex;
             justify-content: center;
@@ -94,11 +109,10 @@
 
         .photo-frame {
             width: 4cm;
-            /* 2 */
             height: 5cm;
-            /* 3 */
             border: 2px solid #000;
             padding: 3px;
+            box-sizing: border-box;
         }
 
         .photo-frame img {
@@ -107,53 +121,6 @@
             object-fit: cover;
         }
 
-
-        /* ================= FOOTER ================= */
-        .footer {
-            padding-top: 23px;
-            text-align: center;
-            font-size: 11px;
-            font-weight: 600;
-            color: #fff;
-            margin-bottom: -27px;
-            text-transform: uppercase
-        }
-
-        .sheet {
-            background-image: url('{{ asset('images/bg-kokarde.png') }}');
-            background-size: cover;
-            background-repeat: no-repeat;
-        }
-
-        @media screen {
-            body {
-                background: #ccc;
-            }
-        }
-
-        @media print {
-            body {
-                background: #fff;
-            }
-        }
-
-        /* =========================
-        ROLE COLOR THEME
-        ========================= */
-        :root {
-            --role-panitera: #0d6efd;
-            /* biru */
-            --role-hakim: #6f42c1;
-            /* ungu */
-            --role-pendaftaran: #198754;
-            /* hijau */
-            --role-verifikator: #fd7e14;
-            /* oranye */
-            --role-admin-event: #dc3545;
-            /* merah */
-        }
-
-        /* STATUS BAR */
         .status {
             color: #fff;
             text-align: center;
@@ -162,11 +129,8 @@
             letter-spacing: 2px;
             padding: 10px 0;
             margin: 18px 0;
-            -webkit-print-color-adjust: exact;
-            print-color-adjust: exact;
         }
 
-        /* ROLE LABEL */
         .role-name {
             text-align: center;
             font-size: 18px;
@@ -176,7 +140,6 @@
             margin-top: 14px;
         }
 
-        /* CONTINGENT */
         .contingent {
             text-align: center;
             font-size: 17px;
@@ -185,9 +148,18 @@
             margin-top: 8px;
             text-transform: uppercase;
         }
+
+        /* ================= FOOTER ================= */
+        .footer {
+            padding-top: 23px;
+            text-align: center;
+            font-size: 11px;
+            font-weight: 600;
+            color: #fff;
+            text-transform: uppercase;
+        }
     </style>
 </head>
-
 
 @php
     $roleSlug = $user?->role?->slug ?? 'panitera';
@@ -203,12 +175,9 @@
     $roleClass = $roleClassMap[$roleSlug] ?? 'role-panitera';
 @endphp
 
+<body>
 
-
-<body class="A5">
-
-    <section class="sheet padding-10mm">
-
+    <section class="sheet">
         <div class="kokarde">
 
             <!-- ================= HEADER ================= -->
@@ -233,23 +202,18 @@
 
             <!-- ================= BODY ================= -->
             <div>
-
-                <!-- FOTO (BINGKAI SAJA) -->
                 <div class="photo-box">
                     <div class="photo-frame"></div>
                 </div>
 
-                <!-- NAMA -->
                 <div class="name">
                     {{ $user?->name ?? '-' }}
                 </div>
 
-                <!-- STATUS -->
                 <div class="status" style="background: var(--{{ $roleClass }});">
                     {{ strtoupper(str_replace('_', ' ', $user?->role?->name ?? '-')) }}
                 </div>
 
-                <!-- KONTINGEN (KHUSUS ROLE TERTENTU) -->
                 @if (in_array($user?->role?->slug, ['pendaftaran', 'verifikator']))
                     @php
                         $contingent = match ($event->event_level) {
@@ -265,7 +229,6 @@
                         {{ strtoupper($contingent ?? '-') }}
                     </div>
                 @endif
-
             </div>
 
             <!-- ================= FOOTER ================= -->
@@ -275,7 +238,6 @@
             </div>
 
         </div>
-
     </section>
 
 </body>

@@ -24,8 +24,6 @@
             background-size: 80px 80px;
         }
 
-        /* ➕ Pola geometris untuk header: bintang segi delapan bertumpuk,
-           lebih rapat & bertekstur dibanding pola card, kesan ornamen masjid */
         .header-pattern {
             background-image:
                 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='56' viewBox='0 0 56 56'%3E%3Cg fill='none' stroke='%23ffffff' stroke-opacity='0.12' stroke-width='1'%3E%3Cpath d='M28 2 L42 14 L42 42 L28 54 L14 42 L14 14 Z'/%3E%3Cpath d='M28 2 L14 14 L42 14 Z'/%3E%3Cpath d='M28 54 L14 42 L42 42 Z'/%3E%3Ccircle cx='28' cy='28' r='9'/%3E%3C/g%3E%3C/svg%3E"),
@@ -34,7 +32,6 @@
             background-size: 56px 56px, auto, auto;
         }
 
-        /* ➕ Lengkung dekoratif bawah header, terinspirasi siluet gerbang/mihrab masjid */
         .header-arch-divider {
             position: absolute;
             left: 0;
@@ -51,7 +48,6 @@
             display: block;
         }
 
-        /* ➕ Garis emas tipis sebagai aksen ornamen di bawah judul */
         .gold-divider {
             width: 64px;
             height: 3px;
@@ -79,21 +75,24 @@
             z-index: 20;
         }
 
-        /* Foto sebagai banner kartu, rasio 16:9 - konsisten & modern di semua ukuran layar */
         .venue-banner {
-            aspect-ratio: 16 / 10;
+            aspect-ratio: 16 / 9;
             width: 100%;
             object-fit: cover;
         }
 
         .venue-banner-fallback {
-            aspect-ratio: 16 / 10;
+            aspect-ratio: 16 / 9;
             width: 100%;
         }
 
-        /* Tombol aksi minimal 46px tinggi - nyaman disentuh semua kalangan */
         .btn-primary-action {
             min-height: 48px;
+        }
+
+        /* ➕ Baris cabang lomba di dalam card venue */
+        .cabang-row+.cabang-row {
+            border-top: 1px dashed #e5e7eb;
         }
 
         #qrModal {
@@ -139,7 +138,6 @@
 
         <div class="relative max-w-4xl mx-auto px-4 pt-5 pb-9">
 
-            {{-- LOGO ROW: compact, wrap rapi di layar sempit --}}
             <div class="flex flex-wrap justify-center items-center gap-2 sm:gap-3 mb-4">
                 @php
                     $logos = [$event->logo_event, $event->logo_sponsor_1, $event->logo_sponsor_2, $event->logo_sponsor_3];
@@ -181,7 +179,6 @@
             </div>
         </div>
 
-        {{-- Lengkung dekoratif ala gerbang/mihrab masjid, transisi ke background halaman --}}
         <div class="header-arch-divider">
             <svg viewBox="0 0 480 28" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
                 <path d="M0,28
@@ -199,13 +196,13 @@
     </div>
 
     {{-- ===============================
-         SEARCH (sticky, modern rounded-full)
+         SEARCH (sticky)
          =============================== --}}
     <div class="search-sticky bg-white/95 backdrop-blur border-b border-gray-200 shadow-sm">
         <div class="max-w-4xl mx-auto px-4 py-3">
             <div class="relative">
                 <span class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-lg pointer-events-none">🔍</span>
-                <input type="text" id="searchInput" placeholder="Cari bidang lomba atau tempat lomba..." class="w-full border border-gray-300 rounded-full pl-11 pr-11 py-3 text-base focus:outline-none focus:ring-2 focus:ring-green-600 focus:border-green-600 transition" oninput="filterVenues()">
+                <input type="text" id="searchInput" placeholder="Cari bidang lomba, majelis, atau tempat lomba..." class="w-full border border-gray-300 rounded-full pl-11 pr-11 py-3 text-base focus:outline-none focus:ring-2 focus:ring-green-600 focus:border-green-600 transition" oninput="filterVenues()">
                 <button type="button" id="clearSearchBtn" onclick="clearSearch()" class="hidden absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center text-gray-400 hover:text-gray-600 text-xl leading-none" aria-label="Hapus pencarian">&times;</button>
             </div>
             <p id="resultCount" class="text-sm text-gray-500 mt-2 px-1"></p>
@@ -213,77 +210,101 @@
     </div>
 
     {{-- ===============================
-         LIST LOKASI LOMBA
+         LIST VENUE (dikelompokkan per lokasi, urut id venue terkecil)
          =============================== --}}
     <div class="max-w-4xl mx-auto px-4 py-5">
 
-        <div id="venueList" class="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5">
+        <div id="venueList" class="grid grid-cols-1 gap-5">
 
-            @forelse ($groups as $index => $item)
-                <div class="venue-card bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-lg transition-shadow duration-200" data-search="{{ strtolower($item['bidang_lomba'] . ' ' . $item['tempat_lomba']) }}">
-                    {{-- FOTO BANNER --}}
-                    <div class="relative">
-                        @if (!empty($item['photo_url']))
-                            <img src="{{ $item['photo_url'] }}" alt="{{ $item['tempat_lomba'] }}" class="venue-banner" loading="lazy" onerror="this.replaceWith(Object.assign(document.createElement('div'), { className: 'venue-banner-fallback bg-gradient-to-br from-green-50 to-green-100 flex items-center justify-center text-5xl', innerHTML: '🕌' }))">
-                        @else
-                            <div class="venue-banner-fallback bg-gradient-to-br from-green-50 to-green-100 flex items-center justify-center text-5xl">
-                                🕌
-                            </div>
-                        @endif
+            @forelse ($venues as $index => $venue)
+                @php
+                    $searchHaystack = collect([$venue['tempat_lomba']])
+                        ->concat($venue['cabang']->pluck('bidang_lomba'))
+                        ->concat($venue['cabang']->pluck('majelis'))
+                        ->filter()
+                        ->implode(' ');
+                @endphp
 
-                        {{-- Overlay gradasi bawah biar teks nomor lebih terbaca di atas foto apapun --}}
-                        <div class="absolute inset-x-0 bottom-0 h-14 bg-gradient-to-t from-black/30 to-transparent pointer-events-none"></div>
+                <div class="venue-card bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-lg transition-shadow duration-200" data-search="{{ strtolower($searchHaystack) }}">
 
-                        {{-- NOMOR (pojok kiri atas) --}}
-                        <span class="absolute top-3 left-3 bg-white text-green-700 text-sm font-bold w-8 h-8 rounded-full flex items-center justify-center shadow-md">
-                            {{ $index + 1 }}
-                        </span>
+                    {{-- FOTO BANNER + INFO VENUE --}}
+                    <div class="sm:flex">
+                        <div class="relative sm:w-64 shrink-0">
+                            @if (!empty($venue['photo_url']))
+                                <img src="{{ $venue['photo_url'] }}" alt="{{ $venue['tempat_lomba'] }}" class="venue-banner sm:h-full" loading="lazy" onerror="this.replaceWith(Object.assign(document.createElement('div'), { className: 'venue-banner-fallback sm:h-full bg-gradient-to-br from-green-50 to-green-100 flex items-center justify-center text-5xl', innerHTML: '🕌' }))">
+                            @else
+                                <div class="venue-banner-fallback sm:h-full bg-gradient-to-br from-green-50 to-green-100 flex items-center justify-center text-5xl">
+                                    🕌
+                                </div>
+                            @endif
 
-                        {{-- TOMBOL QR (pojok kanan atas, floating) --}}
-                        @if ($item['qr_code_url'])
-                            <button type="button" class="absolute top-3 right-3 bg-white/95 hover:bg-white w-10 h-10 rounded-full shadow-md flex items-center justify-center text-lg transition-colors" title="Lihat QR Code" onclick="openQrModal(
-                                    '{{ addslashes($item['qr_code_url']) }}',
-                                    '{{ addslashes($item['tempat_lomba']) }}',
-                                    '{{ addslashes($item['maps_url'] ?? '') }}'
-                                )">
-                                🔳
-                            </button>
-                        @endif
-                    </div>
+                            <div class="absolute inset-x-0 bottom-0 h-14 bg-gradient-to-t from-black/30 to-transparent pointer-events-none sm:hidden"></div>
 
-                    {{-- KONTEN --}}
-                    <div class="p-4">
-                        <div class="text-gray-900 font-bold text-lg leading-snug">
-                            {{ $item['bidang_lomba'] }}
+                            {{-- NOMOR URUT VENUE --}}
+                            <span class="absolute top-3 left-3 bg-white text-green-700 text-sm font-bold w-8 h-8 rounded-full flex items-center justify-center shadow-md">
+                                {{ $index + 1 }}
+                            </span>
+
+                            {{-- TOMBOL QR --}}
+                            @if ($venue['qr_code_url'])
+                                <button type="button" class="absolute top-3 right-3 bg-white/95 hover:bg-white w-10 h-10 rounded-full shadow-md flex items-center justify-center text-lg transition-colors" title="Lihat QR Code" onclick="openQrModal(
+                                        '{{ addslashes($venue['qr_code_url']) }}',
+                                        '{{ addslashes($venue['tempat_lomba']) }}',
+                                        '{{ addslashes($venue['maps_url'] ?? '') }}'
+                                    )">
+                                    🔳
+                                </button>
+                            @endif
                         </div>
 
-                        @if ($item['majelis'])
-                            <span class="inline-block bg-green-50 text-green-700 text-xs font-semibold px-2.5 py-1 rounded-full mt-2">
-                                {{ $item['majelis'] }}
-                            </span>
-                        @endif
+                        <div class="p-4 sm:flex-1">
+                            <div class="flex items-start gap-2">
+                                <span class="shrink-0 mt-0.5 text-green-700">📍</span>
+                                <div class="leading-snug">
+                                    <div class="font-bold text-gray-900 text-lg">{{ $venue['tempat_lomba'] }}</div>
+                                    @if ($venue['address'])
+                                        <div class="text-gray-500 text-sm mt-0.5">{{ $venue['address'] }}</div>
+                                    @endif
+                                </div>
+                            </div>
 
-                        <div class="flex items-start gap-2 mt-3 text-gray-600">
-                            <span class="shrink-0 mt-0.5">📍</span>
-                            <div class="text-sm leading-snug">
-                                <div class="font-semibold text-gray-800">{{ $item['tempat_lomba'] }}</div>
-                                @if ($item['address'])
-                                    <div class="text-gray-500 mt-0.5">{{ $item['address'] }}</div>
+                            <span class="inline-block bg-green-50 text-green-700 text-xs font-semibold px-2.5 py-1 rounded-full mt-3">
+                                {{ $venue['cabang']->count() }} Cabang Lomba
+                            </span>
+
+                            {{-- CTA MAPS --}}
+                            <div class="mt-4">
+                                @if ($venue['maps_url'])
+                                    <a href="{{ $venue['maps_url'] }}" target="_blank" rel="noopener" class="btn-primary-action w-full flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 active:bg-green-800 text-white text-base font-semibold rounded-2xl transition-colors">
+                                        🗺️ Buka di Google Maps
+                                    </a>
+                                @else
+                                    <div class="btn-primary-action w-full flex items-center justify-center text-sm text-gray-400 italic bg-gray-50 rounded-2xl">
+                                        Koordinat belum tersedia
+                                    </div>
                                 @endif
                             </div>
                         </div>
+                    </div>
 
-                        {{-- CTA UTAMA --}}
-                        <div class="mt-4">
-                            @if ($item['maps_url'])
-                                <a href="{{ $item['maps_url'] }}" target="_blank" rel="noopener" class="btn-primary-action w-full flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 active:bg-green-800 text-white text-base font-semibold rounded-2xl transition-colors">
-                                    🗺️ Buka di Google Maps
-                                </a>
-                            @else
-                                <div class="btn-primary-action w-full flex items-center justify-center text-sm text-gray-400 italic bg-gray-50 rounded-2xl">
-                                    Koordinat belum tersedia
+                    {{-- DAFTAR SEMUA CABANG LOMBA + MAJELIS DI VENUE INI --}}
+                    <div class="border-t border-gray-100 bg-gray-50/60 px-4 py-3">
+                        <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+                            Cabang Lomba di Lokasi Ini
+                        </p>
+                        <div class="divide-y divide-dashed divide-gray-200">
+                            @foreach ($venue['cabang'] as $cabang)
+                                <div class="cabang-row flex items-center justify-between gap-3 py-2.5">
+                                    <span class="text-gray-800 font-medium text-sm leading-snug">
+                                        {{ $cabang['bidang_lomba'] }}
+                                    </span>
+                                    @if ($cabang['majelis'])
+                                        <span class="shrink-0 bg-white border border-green-200 text-green-700 text-xs font-semibold px-2.5 py-1 rounded-full">
+                                            {{ $cabang['majelis'] }}
+                                        </span>
+                                    @endif
                                 </div>
-                            @endif
+                            @endforeach
                         </div>
                     </div>
                 </div>

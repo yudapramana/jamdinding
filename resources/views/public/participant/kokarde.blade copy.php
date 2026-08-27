@@ -297,7 +297,7 @@
                 </div>
 
                 <div class="event-title">
-                    MTQN XLI
+                    MTQN XLII
                 </div>
                 <div class="event-subtitle">
                     KECAMATAN IV JURAI PESISIR SELATAN

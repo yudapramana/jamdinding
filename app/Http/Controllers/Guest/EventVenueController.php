@@ -6,17 +6,20 @@ use App\Models\Event;
 use App\Models\EventGroup;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
+use SimpleSoftwareIO\QrCode\Facades\QrCode;
 
 class EventVenueController extends Controller
 {
     /**
-     * Menampilkan halaman "Lokasi Lomba" — daftar bidang lomba beserta
-     * tempat pelaksanaan (venue) dan QR code ke lokasi Google Maps.
+     * Menampilkan halaman "Lokasi Lomba" — dikelompokkan berdasarkan
+     * VENUE (event_locations), diurutkan dari id venue terkecil.
+     * Di dalam setiap venue ditampilkan semua bidang/cabang lomba
+     * beserta nama majelisnya.
      *
      * Data diambil dari:
-     * - event_groups   (bidang/golongan lomba, kolom full_name, status, order_number)
-     * - event_judge_panels (majelis, relasi ke event_groups via event_judge_panel_id)
-     * - event_locations (venue, relasi ke event_judge_panels via event_location_id)
+     * - event_groups        (bidang/golongan lomba, kolom full_name, status, order_number)
+     * - event_judge_panels  (majelis, relasi ke event_groups via event_judge_panel_id)
+     * - event_locations     (venue, relasi ke event_judge_panels via event_location_id)
      *
      * ⚠️ ASUMSI RELASI (sesuaikan nama relasi kalau berbeda di model Anda):
      * - EventGroup::judgePanel()      -> belongsTo(EventJudgePanel::class, 'event_judge_panel_id')
@@ -28,16 +31,24 @@ class EventVenueController extends Controller
 
         $event = Event::findOrFail($eventId);
 
-        $groups = EventGroup::query()
+        $rawGroups = EventGroup::query()
             ->where('event_id', $event->id)
             ->where('status', 'active')
             ->whereNotNull('event_judge_panel_id')
             ->with(['judgePanel.location'])
             ->orderBy('order_number')
-            ->get()
-            ->map(function ($group) {
+            ->get();
 
-                $panel    = $group->judgePanel;
+        // Kelompokkan bidang lomba berdasarkan id venue (event_locations.id).
+        // Kalau ada panel yang belum punya lokasi, dikumpulkan di key 0 (paling atas).
+        $venues = $rawGroups
+            ->groupBy(function ($group) {
+                return optional(optional($group->judgePanel)->location)->id ?? 0;
+            })
+            ->sortKeys() // urut berdasarkan id venue terkecil
+            ->map(function ($items, $locationId) {
+
+                $panel    = $items->first()->judgePanel;
                 $location = $panel?->location;
 
                 $mapsUrl = null;
@@ -46,24 +57,37 @@ class EventVenueController extends Controller
                 }
 
                 return [
-                    'bidang_lomba' => $group->full_name,
-                    'majelis'      => $panel->roman_name ?? $panel->name ?? null,
-                    'tempat_lomba' => $location->name ?? '-',
+                    'location_id'  => $locationId,
+                    'tempat_lomba' => $location->name ?? 'Lokasi Belum Ditentukan',
                     'address'      => $location->address ?? null,
-                    'photo_url'    => $location->photo_url ?? null, // ➕ TAMBAHAN
+                    'photo_url'    => $location->photo_url ?? null,
                     'maps_url'     => $mapsUrl,
 
-                    // QR code digenerate via API publik qrserver.com (tanpa perlu install package tambahan).
-                    // Kalau butuh QR offline / self-hosted, ganti dengan package "simplesoftwareio/simple-qrcode".
+                    // QR code digenerate secara lokal pakai BaconQrCode (simplesoftwareio/simple-qrcode),
+                    // sama seperti dipakai di halaman kokarde. Di-encode sebagai data URI SVG base64
+                    // supaya bisa langsung dipasang ke atribut src <img> tanpa route/controller tambahan.
                     'qr_code_url' => $mapsUrl
-                        ? 'https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=' . urlencode($mapsUrl)
+                        ? 'data:image/svg+xml;base64,' . base64_encode(
+                            QrCode::format('svg')->margin(1)->size(220)->generate($mapsUrl)
+                        )
                         : null,
+
+                    // Semua cabang lomba + majelis yang berada di venue ini.
+                    'cabang' => $items->map(function ($group) {
+                        $panel = $group->judgePanel;
+
+                        return [
+                            'bidang_lomba' => $group->full_name,
+                            'majelis'      => $panel->roman_name ?? $panel->name ?? null,
+                        ];
+                    })->values(),
                 ];
-            });
+            })
+            ->values();
 
         return view('event.venues', [
             'event'  => $event,
-            'groups' => $groups,
+            'venues' => $venues,
         ]);
     }
 }

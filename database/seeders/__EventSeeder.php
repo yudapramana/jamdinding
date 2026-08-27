@@ -13,7 +13,7 @@ class __EventSeeder extends Seeder
             [
                 'event_key'         => 'MTQXLIPSL',
                 'app_name'          => 'e-MTQ Kabupaten Pesisir Selatan',
-                'event_name'        => 'MTQ XLI KABUPATEN PESISIR SELATAN',
+                'event_name'        => 'MTQ XLII KABUPATEN PESISIR SELATAN',
                 'event_year'        => '2026',
                 'event_location'    => 'IV JURAI PESISIR SELATAN',
                 'event_tagline'     => 'Menuju MTQ yang Bermartabat',

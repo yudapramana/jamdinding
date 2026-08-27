@@ -15,10 +15,6 @@
             margin: 0;
             padding: 0;
         }
-
-        .page-break {
-            page-break-after: always;
-        }
     </style>
 </head>
 
@@ -35,9 +31,10 @@
             ])
         @endif
 
-        <div style="page-break-after: always;"></div>
+        @if (!$loop->last)
+            <div style="page-break-after: always;"></div>
+        @endif
     @endforeach
-
 
 </body>
 

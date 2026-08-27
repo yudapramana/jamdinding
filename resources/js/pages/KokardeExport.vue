@@ -56,6 +56,7 @@
                 <select v-model="printType" class="form-control">
                   <option value="participant">Peserta</option>
                   <option value="role">Panitia / Role</option>
+                  <option value="verification">Verifikasi Foto per Golongan (A4, 1 Peserta/Halaman)</option>
                 </select>
               </div>
             </div>
@@ -116,6 +117,31 @@
               </div>
             </div>
 
+            <!-- PILIH CABANG/GOLONGAN -->
+            <div v-if="printType === 'verification'" class="col-md-6">
+              <div class="form-group">
+                <label>Golongan / Cabang <span class="text-danger">*</span></label>
+                <select
+                  v-model="eventGroupId"
+                  class="form-control"
+                  :disabled="masterDataStore.eventGroups.length === 0"
+                >
+                  <option value="">-- Pilih Golongan --</option>
+                  <option
+                    v-for="g in masterDataStore.eventGroups"
+                    :key="g.id"
+                    :value="String(g.id)"
+                  >
+                    {{ g.full_name || g.name || g.group_name || ('Gol #' + g.id) }}
+                  </option>
+                </select>
+
+                <small v-if="masterDataStore.eventGroups.length === 0" class="text-muted">
+                  Data golongan belum tersedia
+                </small>
+              </div>
+            </div>
+
 
 
           </div>
@@ -138,23 +164,32 @@ import { ref, computed, onMounted, watch } from 'vue'
 import axios from 'axios'
 import Swal from 'sweetalert2'
 import { useAuthUserStore } from '../stores/AuthUserStore'
+import { useMasterDataStore } from '../stores/MasterDataStore'
 
+const branchId = ref('')
+const branchOptions = ref([])
+
+const fetchBranches = async () => {
+  try {
+    const res = await axios.get('/api/v1/master', {
+      params: { type: 'event_branches', event_id: eventId.value },
+    })
+    branchOptions.value = res.data.data || []
+  } catch (error) {
+    console.error('Gagal memuat cabang lomba:', error)
+  }
+}
+
+const eventGroupId = ref('')
 
 const canExport = computed(() => {
-  if (!eventId.value || isExporting.value) {
-    return false
-  }
-
-  if (printType.value === 'participant') {
-    return !!regionId.value
-  }
-
-  if (printType.value === 'role') {
-    return !!roleId.value
-  }
-
+  if (!eventId.value || isExporting.value) return false
+  if (printType.value === 'participant') return !!regionId.value
+  if (printType.value === 'role') return !!roleId.value
+  if (printType.value === 'verification') return !!eventGroupId.value
   return false
 })
+
 
 
 
@@ -162,6 +197,7 @@ const canExport = computed(() => {
  |  AUTH & EVENT
  ====================== */
 const authUserStore = useAuthUserStore()
+const masterDataStore = useMasterDataStore()
 
 const eventData = computed(() => authUserStore.eventData || null)
 const eventId = computed(() => eventData.value?.id || null)
@@ -215,43 +251,28 @@ const fetchRoles = async () => {
  |  EXPORT PDF
  ====================== */
 const exportPdf = () => {
-  if (!eventId.value) {
-    Swal.fire('Event belum dipilih', '', 'warning')
-    return
-  }
+  if (!eventId.value) { Swal.fire('Event belum dipilih', '', 'warning'); return }
+  if (printType.value === 'participant' && !regionId.value) { Swal.fire('Kontingen belum dipilih', '', 'warning'); return }
+  if (printType.value === 'role' && !roleId.value) { Swal.fire('Role belum dipilih', '', 'warning'); return }
+  if (printType.value === 'verification' && !eventGroupId.value) { Swal.fire('Golongan belum dipilih', '', 'warning'); return }
 
-  if (printType.value === 'participant' && !regionId.value) {
-    Swal.fire('Kontingen belum dipilih', '', 'warning')
-    return
-  }
-
-  if (printType.value === 'role' && !roleId.value) {
-    Swal.fire('Role belum dipilih', '', 'warning')
-    return
-  }
-
-
-  let url =
-    `/api/v1/event-kokarde/export/pdf` +
-    `?event_id=${eventId.value}&type=${printType.value}`
+  let url = ''
 
   if (printType.value === 'participant') {
-    url += `&region_id=${regionId.value}`
-  }
-
-  if (printType.value === 'role') {
-    url += `&role_id=${roleId.value}`
+    url = `/api/v1/event-kokarde/export/pdf?event_id=${eventId.value}&type=participant&region_id=${regionId.value}`
+  } else if (printType.value === 'role') {
+    url = `/api/v1/event-kokarde/export/pdf?event_id=${eventId.value}&type=role&role_id=${roleId.value}`
+  } else if (printType.value === 'verification') {
+    url = `/api/v1/event-kokarde/export/verification-pdf?event_id=${eventId.value}&event_group_id=${eventGroupId.value}`
   }
 
   window.open(url, '_blank')
 }
 
-watch(printType, (val) => {
-  if (val === 'participant') {
-    roleId.value = ''
-  } else {
-    regionId.value = ''
-  }
+watch(printType, () => {
+  regionId.value = ''
+  roleId.value = ''
+  eventGroupId.value = ''
 })
 
 /* ======================
@@ -259,14 +280,15 @@ watch(printType, (val) => {
  ====================== */
 onMounted(() => {
   if (!eventId.value) {
-    Swal.fire(
-      'Event belum dipilih',
-      'Silakan pilih event melalui Portal Event terlebih dahulu.',
-      'info'
-    )
+    Swal.fire('Event belum dipilih', 'Silakan pilih event melalui Portal Event terlebih dahulu.', 'info')
   } else {
     fetchRegions()
     fetchRoles()
+
+    // pastikan master data groups sudah tersedia di store
+    if (!masterDataStore.eventGroups?.length) {
+      masterDataStore.fetchEventGroups?.(eventId.value)
+    }
   }
 })
 </script>
