@@ -1167,7 +1167,7 @@
                           </label>
                           </div>
                           <small class="text-muted d-block mt-1 text-xs">
-                          Format <strong>PDF/PNG/JPG/JPEG</strong>, maksimal
+                          Format <strong>PDF</strong>, maksimal
                           <strong>1 MB</strong>.
                           </small>
                       </div>
@@ -1545,8 +1545,8 @@ const mandateStatus = computed(() => authUserStore.mandateStatus)
 
 
 const isCheckboxDisabled = (p) => {
-  if (isDevelopmentMode.value) return false
-  if (!canRegisterParticipant.value) return true
+  // dev mode hanya bypass batasan TAHAPAN event, bukan syarat kelengkapan lampiran
+  if (!isDevelopmentMode.value && !canRegisterParticipant.value) return true
 
   return (
     !['bank_data', 'need_revision'].includes(
@@ -3023,26 +3023,11 @@ const selectedParticipants = computed(() =>
 
 // apakah di halaman ini semua peserta sudah tercentang
 const isAllSelected = computed(() => {
-
-  if (isDevelopmentMode.value) {
-    return items.value.length &&
-      items.value.every(ep =>
-        selectedParticipantIds.value.includes(ep.id)
-      )
-  }
-
   if (!items.value.length) return false
-
-  // hanya peserta yang BISA dipilih (bank_data + lampiran >=80) yang dihitung
   const selectableIds = items.value
-    .filter(ep =>
-      (ep.registration_status || '').toLowerCase() === 'bank_data' &&
-      (ep.participant?.lampiran_completion_percent || 0) >= 80
-    )
+    .filter(ep => !isCheckboxDisabled(ep))
     .map(ep => ep.id)
-
   if (!selectableIds.length) return false
-
   return selectableIds.every(id => selectedParticipantIds.value.includes(id))
 })
 
@@ -3050,16 +3035,9 @@ const toggleSelectAll = (event) => {
   const checked = event.target.checked
 
   // 🧪 DEVELOPMENT MODE → semua bisa dipilih
-  const selectableIds = isDevelopmentMode.value
-    ? items.value.map(ep => ep.id)
-    : items.value
-        .filter(ep =>
-          ['bank_data', 'need_revision'].includes(
-            (ep.registration_status || '').toLowerCase()
-          ) &&
-          (ep.participant?.lampiran_completion_percent || 0) >= 80
-        )
-        .map(ep => ep.id)
+  const selectableIds = items.value
+    .filter(ep => !isCheckboxDisabled(ep))
+    .map(ep => ep.id)
 
 
   if (checked) {
