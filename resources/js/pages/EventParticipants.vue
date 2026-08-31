@@ -1437,7 +1437,8 @@ const printKokarde = (item) => {
 
 
 const isTanggalTerbitRequired = ref(false)
-
+// tambahkan di dekat state lain
+const registerResult = ref({ success: [], failed: [] })
 
 // ==========================================
 // START DATE PELAKSANAAN EVENT
@@ -3071,15 +3072,12 @@ const submitRegisterParticipants = async () => {
   }
 
   const selected = selectedParticipants.value
-
   const allowedStatuses = ['bank_data', 'need_revision']
 
-  // peserta yang BUKAN bank_data / need_revision
   const invalidSelected = selected.filter(
     ep => !allowedStatuses.includes((ep.registration_status || '').toLowerCase())
   )
 
-  // peserta yang boleh didaftarkan (bank_data atau need_revision)
   const bankdataParticipants = selected.filter(
     ep => allowedStatuses.includes((ep.registration_status || '').toLowerCase())
   )
@@ -3093,7 +3091,6 @@ const submitRegisterParticipants = async () => {
     return
   }
 
-
   if (invalidSelected.length) {
     const names = invalidSelected
       .slice(0, 5)
@@ -3103,7 +3100,7 @@ const submitRegisterParticipants = async () => {
     Swal.fire({
       icon: 'warning',
       title: 'Sebagian peserta tidak bisa didaftarkan',
-      text: 'Hanya peserta dengan status "bank_data" yang akan diproses. Periksa kembali daftar peserta.',
+      text: 'Hanya peserta dengan status "bank_data" / "need_revision" yang akan diproses. Periksa kembali daftar peserta.',
       footer: `<pre style="text-align:left;margin:0;">${names}${invalidSelected.length > 5 ? '\n... dan lainnya' : ''}</pre>`,
     })
   }
@@ -3126,9 +3123,8 @@ const submitRegisterParticipants = async () => {
   isRegistering.value = true
 
   try {
-    // ⚠️ endpoint disesuaikan untuk EVENT PARTICIPANTS
-    await axios.post('/api/v1/event-participants/bulk-register', {
-      ids: idsToRegister,          // id EventParticipant
+    const res = await axios.post('/api/v1/event-participants/bulk-register', {
+      ids: idsToRegister,
       event_id: eventId.value,
       registration_status: 'process',
     })
@@ -3137,10 +3133,32 @@ const submitRegisterParticipants = async () => {
     selectedParticipantIds.value = []
     await fetchItems(meta.value.current_page)
 
+    const successList = res.data.success_participants || []
+    const failedList = res.data.failed_participants || []
+    registerResult.value = { success: successList, failed: failedList }
+
+    const successHtml = successList.length
+      ? `<div class="text-left mb-2">
+           <strong class="text-success"><i class="fas fa-check-circle mr-1"></i>Berhasil (${successList.length})</strong>
+           <ul class="mb-0 pl-3">
+             ${successList.map(p => `<li>${p.name}</li>`).join('')}
+           </ul>
+         </div>`
+      : ''
+
+    const failedHtml = failedList.length
+      ? `<div class="text-left">
+           <strong class="text-danger"><i class="fas fa-times-circle mr-1"></i>Gagal (${failedList.length})</strong>
+           <ul class="mb-0 pl-3">
+             ${failedList.map(p => `<li>${p.name || ('ID #' + p.id)} — <span class="text-muted">${p.reason}</span></li>`).join('')}
+           </ul>
+         </div>`
+      : ''
+
     Swal.fire({
-      icon: 'success',
-      title: 'Pendaftaran berhasil',
-      text: `Sebanyak ${idsToRegister.length} peserta berstatus BANKDATA berhasil dipindahkan ke status "process".`,
+      icon: successList.length ? (failedList.length ? 'warning' : 'success') : 'error',
+      title: 'Hasil Pendaftaran',
+      html: (successHtml + failedHtml) || 'Tidak ada peserta yang diproses.',
     })
   } catch (error) {
     console.error('Gagal mendaftarkan peserta:', error)

@@ -1451,7 +1451,6 @@ class EventParticipantController extends Controller
         ], $context));
     }
 
-
     public function bulkRegister(Request $request)
     {
         $data = $request->validate([
@@ -1475,53 +1474,119 @@ class EventParticipantController extends Controller
         $status = $data['registration_status'] ?? 'process';
         $user   = auth()->user();
 
+        // field lampiran yang dihitung untuk persentase kelengkapan
+        // HARUS sinkron dengan attachmentFields di frontend (EventParticipantHelpers.js)
+        $attachmentFields = [
+            'id_card_url',
+            'family_card_url',
+            'bank_book_url',
+            'certificate_url',
+            'other_url',
+        ];
+        $minCompletionPercent = 80;
+
         DB::beginTransaction();
 
         try {
-
-            $query = EventParticipant::query()
+            // Ambil semua event_participant yang diminta beserta data participant-nya
+            $requested = EventParticipant::with('participant')
                 ->whereIn('id', $data['ids'])
                 ->where('event_id', $data['event_id'])
-                ->whereIn('registration_status', ['bank_data', 'need_revision'])
-                ->when(app()->environment('production'), function ($q) {
-                    $q->whereHas('participant', function ($q) {
-                        $q->whereRaw('
-                            (
-                                (id_card_url IS NOT NULL) +
-                                (family_card_url IS NOT NULL) +
-                                (bank_book_url IS NOT NULL) +
-                                (certificate_url IS NOT NULL) +
-                                (other_url IS NOT NULL)
-                            ) >= 4
-                        ');
-                    });
-                });
+                ->get()
+                ->keyBy('id');
 
+            $success = [];
+            $failed  = [];
 
-            $affected = $query->count();
+            foreach ($data['ids'] as $id) {
+                /** @var EventParticipant|null $ep */
+                $ep = $requested->get($id);
 
-            $query->update([
-                'registration_status' => $status,
-                'updated_at' => now(),
-            ]);
+                // Tidak ditemukan / bukan milik event ini
+                if (!$ep) {
+                    $failed[] = [
+                        'id'     => $id,
+                        'name'   => null,
+                        'reason' => 'Data peserta event tidak ditemukan pada event ini.',
+                    ];
+                    continue;
+                }
+
+                $name = $ep->participant?->full_name ?? '(Tanpa Nama)';
+
+                // Status tidak eligible
+                if (!in_array($ep->registration_status, ['bank_data', 'need_revision'])) {
+                    $failed[] = [
+                        'id'     => $ep->id,
+                        'name'   => $name,
+                        'reason' => "Status pendaftaran saat ini ({$ep->registration_status}) tidak dapat didaftarkan.",
+                    ];
+                    continue;
+                }
+
+                // ==========================================
+                // CEK KELENGKAPAN LAMPIRAN (SELALU DICEK,
+                // BAIK DI DEVELOPMENT MAUPUN PRODUCTION)
+                // ==========================================
+                $p = $ep->participant;
+
+                $completedCount = 0;
+                foreach ($attachmentFields as $field) {
+                    if (!empty($p?->{$field})) {
+                        $completedCount++;
+                    }
+                }
+
+                $totalFields = count($attachmentFields);
+                $completionPercent = $totalFields > 0
+                    ? (int) round(($completedCount / $totalFields) * 100)
+                    : 0;
+
+                if ($completionPercent < $minCompletionPercent) {
+                    $failed[] = [
+                        'id'     => $ep->id,
+                        'name'   => $name,
+                        'reason' => "Lampiran belum lengkap ({$completionPercent}% dari {$minCompletionPercent}% yang disyaratkan).",
+                    ];
+                    continue;
+                }
+
+                $success[] = [
+                    'id'   => $ep->id,
+                    'name' => $name,
+                ];
+            }
+
+            if (!empty($success)) {
+                EventParticipant::whereIn('id', collect($success)->pluck('id'))
+                    ->update([
+                        'registration_status' => $status,
+                        'updated_at' => now(),
+                    ]);
+            }
 
             // =========================
             // AUDIT LOG (BULK)
             // =========================
             $this->auditLog('Bulk participant registration status updated', [
-                'event_id'           => $event->id,
-                'event_name'         => $event->name,
-                'registration_status'=> $status,
-                'affected_rows'      => $affected,
-                'participant_ids'    => $data['ids'],
+                'event_id'            => $event->id,
+                'event_name'          => $event->name,
+                'registration_status' => $status,
+                'affected_rows'       => count($success),
+                'failed_rows'         => count($failed),
+                'participant_ids'     => $data['ids'],
             ]);
 
             DB::commit();
 
             return response()->json([
-                'success' => true,
-                'affected' => $affected,
-                'message' => "Status pendaftaran berhasil diubah menjadi {$status}.",
+                'success'  => true,
+                'affected' => count($success),
+                'message'  => count($success) > 0
+                    ? 'Berhasil mendaftarkan ' . count($success) . ' peserta, gagal ' . count($failed) . ' peserta.'
+                    : 'Tidak ada peserta yang berhasil didaftarkan.',
+                'success_participants' => $success, // [{id, name}]
+                'failed_participants'  => $failed,  // [{id, name, reason}]
             ]);
 
         } catch (\Throwable $e) {
@@ -1529,9 +1594,9 @@ class EventParticipantController extends Controller
             DB::rollBack();
 
             \Log::channel('security')->error('Bulk register failed', [
-                'user_id' => $user?->id,
+                'user_id'  => $user?->id,
                 'event_id' => $data['event_id'],
-                'error' => $e->getMessage(),
+                'error'    => $e->getMessage(),
             ]);
 
             return response()->json([
@@ -1539,6 +1604,94 @@ class EventParticipantController extends Controller
             ], 500);
         }
     }
+
+    // public function bulkRegister(Request $request)
+    // {
+    //     $data = $request->validate([
+    //         'ids' => ['required', 'array'],
+    //         'ids.*' => ['integer', 'exists:event_participants,id'],
+    //         'event_id' => ['required', 'exists:events,id'],
+    //         'registration_status' => [
+    //             'nullable',
+    //             Rule::in(['process', 'bank_data', 'verified', 'need_revision'])
+    //         ],
+    //     ]);
+
+    //     $event = Event::findOrFail($data['event_id']);
+
+    //     if (!$event->isStageActive('pendaftaran')) {
+    //         return response()->json([
+    //             'message' => 'Tahap pendaftaran belum dimulai atau sudah berakhir.'
+    //         ], 403);
+    //     }
+
+    //     $status = $data['registration_status'] ?? 'process';
+    //     $user   = auth()->user();
+
+    //     DB::beginTransaction();
+
+    //     try {
+
+    //         $query = EventParticipant::query()
+    //             ->whereIn('id', $data['ids'])
+    //             ->where('event_id', $data['event_id'])
+    //             ->whereIn('registration_status', ['bank_data', 'need_revision'])
+    //             ->when(app()->environment('production'), function ($q) {
+    //                 $q->whereHas('participant', function ($q) {
+    //                     $q->whereRaw('
+    //                         (
+    //                             (id_card_url IS NOT NULL) +
+    //                             (family_card_url IS NOT NULL) +
+    //                             (bank_book_url IS NOT NULL) +
+    //                             (certificate_url IS NOT NULL) +
+    //                             (other_url IS NOT NULL)
+    //                         ) >= 4
+    //                     ');
+    //                 });
+    //             });
+
+
+    //         $affected = $query->count();
+
+    //         $query->update([
+    //             'registration_status' => $status,
+    //             'updated_at' => now(),
+    //         ]);
+
+    //         // =========================
+    //         // AUDIT LOG (BULK)
+    //         // =========================
+    //         $this->auditLog('Bulk participant registration status updated', [
+    //             'event_id'           => $event->id,
+    //             'event_name'         => $event->name,
+    //             'registration_status'=> $status,
+    //             'affected_rows'      => $affected,
+    //             'participant_ids'    => $data['ids'],
+    //         ]);
+
+    //         DB::commit();
+
+    //         return response()->json([
+    //             'success' => true,
+    //             'affected' => $affected,
+    //             'message' => "Status pendaftaran berhasil diubah menjadi {$status}.",
+    //         ]);
+
+    //     } catch (\Throwable $e) {
+
+    //         DB::rollBack();
+
+    //         \Log::channel('security')->error('Bulk register failed', [
+    //             'user_id' => $user?->id,
+    //             'event_id' => $data['event_id'],
+    //             'error' => $e->getMessage(),
+    //         ]);
+
+    //         return response()->json([
+    //             'message' => 'Terjadi kesalahan saat memproses data.'
+    //         ], 500);
+    //     }
+    // }
 
 
     public function statusCounts(Request $request)
