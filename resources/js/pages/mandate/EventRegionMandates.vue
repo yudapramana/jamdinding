@@ -14,8 +14,9 @@
           </p>
         </div>
 
+        <!-- Tombol upload hanya muncul jika: belum ada mandat, ATAU mandat sebelumnya ditolak -->
         <button
-          v-if="!isAdminView"
+          v-if="!isAdminView && canUploadMandate"
           class="btn btn-primary btn-sm"
           :disabled="!eventId"
           @click="openUploadModal"
@@ -23,6 +24,15 @@
           <i class="fas fa-upload mr-1"></i>
           {{ myMandate ? 'Upload Ulang Mandat' : 'Upload Mandat' }}
         </button>
+
+        <!-- Info status ketika tombol upload tidak tersedia (menunggu persetujuan / sudah disetujui) -->
+        <span
+          v-else-if="!isAdminView && myMandate"
+          class="badge"
+          :class="statusBadgeClass(myMandate.status)"
+        >
+          {{ statusLabel(myMandate.status) }}
+        </span>
       </div>
 
       <p v-if="!eventId" class="text-danger text-sm mt-2 mb-0">
@@ -361,6 +371,14 @@ const filters = ref({ status: '' })
 // mandat milik user sendiri (role pendaftaran) — dipakai untuk tombol upload
 const myMandate = computed(() => (!isAdminView.value ? mandates.value[0] || null : null))
 
+// ➕ TAMBAHAN: tombol upload hanya boleh tampil jika belum ada mandat sama sekali,
+// atau mandat sebelumnya berstatus 'rejected'. Ketika 'uploaded' (menunggu persetujuan)
+// atau 'approved' (disetujui), tombol upload disembunyikan.
+const canUploadMandate = computed(() => {
+  if (!myMandate.value) return true
+  return myMandate.value.status === 'rejected'
+})
+
 const fetchMandates = async (page = 1) => {
   if (!eventId.value) return
 
@@ -443,6 +461,19 @@ const uploadErrors = ref({})
 const isUploading = ref(false)
 
 const openUploadModal = () => {
+  // Guard tambahan: cegah membuka modal upload jika status tidak mengizinkan
+  // (misalnya dipanggil langsung/manual di luar tombol yang sudah di-guard v-if)
+  if (!canUploadMandate.value) {
+    Swal.fire(
+      'Tidak dapat upload',
+      myMandate.value?.status === 'approved'
+        ? 'Mandat Anda sudah disetujui dan tidak dapat diupload ulang.'
+        : 'Mandat Anda sedang menunggu persetujuan.',
+      'info'
+    )
+    return
+  }
+
   mandateFile.value = null
   uploadNotes.value = ''
   uploadErrors.value = {}
