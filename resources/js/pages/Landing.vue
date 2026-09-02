@@ -255,8 +255,8 @@
             Untuk koordinasi, presentasi sistem, atau penggunaan aplikasi e-MTQ, silakan hubungi kami.
           </p>
           <div class="flex flex-col sm:flex-row gap-x-6 gap-y-1 text-[13px]">
-            <p>Email: <strong class="text-[var(--gold)]">admin@emtq-platform.id</strong></p>
-            <p>WhatsApp: <strong class="text-[var(--gold)]">+62-8xx-xxxx-xxxx</strong></p>
+            <p>Email: <strong class="text-[var(--gold)]">it.kemenagpessel@gmail.com</strong></p>
+            <p>WhatsApp: <strong class="text-[var(--gold)]">+62-822-9847-6941</strong></p>
           </div>
         </div>
       </div>
