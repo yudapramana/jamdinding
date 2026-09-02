@@ -59,6 +59,11 @@ const headerLogoSponsor3 = computed(() => {
 
 onMounted(() => {
   window.addEventListener('pageshow', onPageShow)
+
+  // 🛡️ Cek apakah event sudah dipilih sebelumnya
+  if (!authUserStore.selectedEventKey || !authUserStore.eventData) {
+    window.location.href = '/landing' // Sesuaikan dengan URL route halaman landing Anda
+  }
 })
 
 onBeforeUnmount(() => {
@@ -143,6 +148,7 @@ const handleSubmit = async () => {
     }
 
     errorMessage.value = msg
+    refreshCaptcha()
   } finally {
     setTimeout(() => (loading.value = false), 400)
   }
@@ -345,7 +351,7 @@ const handleSubmit = async () => {
               <div class="mtq-login-footer-links">
                 <p class="mb-1">
                   Lupa Password?
-                  <a href="/password/wa/request" target="_blank">Reset di sini</a>
+                  <!-- <a href="/password/wa/request" target="_blank">Reset di sini</a> -->
                 </p>
                 <p class="mb-0">
                   <a

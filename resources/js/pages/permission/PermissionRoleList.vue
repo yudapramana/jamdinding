@@ -205,7 +205,7 @@ const fetchRoles = async () => {
     roles.value = res.data || []
   } catch (error) {
     console.error('Gagal memuat roles:', error)
-    if (error.response && error.response.status === 401) authUserStore.logout()
+    if (error.response && error.response.status === 401) authUserStore.handleAuthError(error)
   } finally {
     isLoadingRoles.value = false
   }
@@ -358,7 +358,7 @@ const openPermissionModal = async (role) => {
     selectedPermissionIds.value = rolePermissionPivots.value.map(pr => pr.permission_id)
   } catch (error) {
     console.error('Gagal memuat permission role:', error)
-    if (error.response && error.response.status === 401) authUserStore.logout()
+    if (error.response && error.response.status === 401) authUserStore.handleAuthError(error)
   } finally {
     isLoadingModal.value = false
   }

@@ -573,7 +573,7 @@ const fetchEvents = async (page = 1) => {
   } catch (error) {
     console.error('Gagal memuat data event:', error)
     if (error.response && error.response.status === 401) {
-      authUserStore.logout()
+      authUserStore.handleAuthError(error)
     }
   } finally {
     isLoading.value = false

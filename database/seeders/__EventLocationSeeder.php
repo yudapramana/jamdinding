@@ -83,14 +83,23 @@ class __EventLocationSeeder extends Seeder
 
             // 7
             [
-                'code' => 'MSJ-DARULMUNIR-KINCIR',
-                'name' => 'Masjid Darul Munir',
-                'address' => 'Kincir Salido, Kecamatan IV Jurai, Pesisir Selatan',
-                'latitude' => -1.325333739938216, 
-                'longitude' => 100.56328915096573,
+                'code' => 'MSJ-MUJAHIDIN-KPBARUSAGO',
+                'name' => 'Masjid Mujahidin Sago',
+                'address' => 'Sago Salido, Kecamatan IV Jurai, Pesisir Selatan',
+                'latitude' => -1.3062407,
+                'longitude' => 100.5453838, 
                 'notes' => 'Cabang Lomba: Tartil Dasar Menengah dan Umum.',
-                'photo_url' => 'https://res.cloudinary.com/dezj1x6xp/image/upload/v1787389497/PandanViewMandeh/mk81rs0hfiqqc6qrq92b.png'
+                'photo_url' => 'http://res.cloudinary.com/dezj1x6xp/image/upload/v1788274912/PandanViewMandeh/zmbwes8uzkogxuszgxzd.png'
             ],
+            // [
+            //     'code' => 'MSJ-DARULMUNIR-KINCIR',
+            //     'name' => 'Masjid Darul Munir',
+            //     'address' => 'Kincir Salido, Kecamatan IV Jurai, Pesisir Selatan',
+            //     'latitude' => -1.325333739938216, 
+            //     'longitude' => 100.56328915096573,
+            //     'notes' => 'Cabang Lomba: Tartil Dasar Menengah dan Umum.',
+            //     'photo_url' => 'https://res.cloudinary.com/dezj1x6xp/image/upload/v1787389497/PandanViewMandeh/mk81rs0hfiqqc6qrq92b.png'
+            // ],
 
             // 8
             [

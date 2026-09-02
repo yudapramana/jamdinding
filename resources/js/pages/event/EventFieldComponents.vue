@@ -572,7 +572,7 @@ const fetchGroupsWithComponents = async (page = 1) => {
   } catch (error) {
     console.error('Gagal memuat event groups:', error)
     if (error.response && error.response.status === 401) {
-      authUserStore.logout()
+      authUserStore.handleAuthError(error)
     } else {
       Swal.fire('Gagal', 'Gagal memuat data Golongan Event.', 'error')
     }

@@ -705,11 +705,11 @@ watch(
           </template>
 
 
-          <li class="nav-header">KELOLA</li>
+          <li class="nav-header"  v-if="authUserStore.user?.role === 'SUPERADMIN'">KELOLA</li>
 
                     
                    
-          <li class="nav-item">
+          <li class="nav-item" v-if="authUserStore.user?.role === 'SUPERADMIN'">
               <router-link to="/admin/settings" active-class="active" class="nav-link">
                   <i class="nav-icon fas fa-cog"></i>
                   <p>

@@ -568,7 +568,7 @@ const fetchBranches = async (page = 1) => {
   } catch (error) {
     if (error.response && error.response.status === 401) {
       console.warn('Unauthorized. Logging out...')
-      authUserStore.logout()
+      authUserStore.handleAuthError(error)
     } else {
       console.error('Gagal memuat cabang event:', error)
     }

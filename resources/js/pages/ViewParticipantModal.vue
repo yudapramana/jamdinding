@@ -265,7 +265,7 @@
                       </span>
                     </li>
                     <li class="list-group-item d-flex justify-content-between align-items-center">
-                      <span>Berkas Lain</span>
+                      <span>Akta Kelahiran</span>
                       <span
                         class="badge badge-pill"
                         :class="hasFileDetail('other_url') ? 'badge-success' : 'badge-secondary'"

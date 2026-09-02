@@ -107,7 +107,7 @@
 
               <tr v-else-if="items.length === 0">
                 <td colspan="7" class="text-center py-4">
-                  Belum ada data daftar ulang.
+                  Belum ada data daftar ulang / Silahkan pilih cabang untuk load Data.
                 </td>
               </tr>
 

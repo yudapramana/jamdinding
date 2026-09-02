@@ -665,7 +665,7 @@ const fetchBranches = async (page = 1) => {
   } catch (error) {
     console.error('Gagal memuat branches:', error)
     if (error.response && error.response.status === 401) {
-      authUserStore.logout()
+      authUserStore.handleAuthError(error)
     }
   } finally {
     branchLoading.value = false
@@ -792,7 +792,7 @@ const fetchGroups = async (page = 1) => {
   } catch (error) {
     console.error('Gagal memuat groups:', error)
     if (error.response && error.response.status === 401) {
-      authUserStore.logout()
+      authUserStore.handleAuthError(error)
     }
   } finally {
     groupLoading.value = false
@@ -916,7 +916,7 @@ const fetchCategories = async (page = 1) => {
   } catch (error) {
     console.error('Gagal memuat categories:', error)
     if (error.response && error.response.status === 401) {
-      authUserStore.logout()
+      authUserStore.handleAuthError(error)
     }
   } finally {
     categoryLoading.value = false

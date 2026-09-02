@@ -776,9 +776,9 @@ class EventParticipantController extends Controller
 
         $event = Event::findOrFail($request['event_participant']['event_id']);
 
-        if (!$event->isStageActive('persiapan')) {
+        if (!$event->isStageActive('persiapan') || !$event->isStageActive('pendaftaran')) {
             return response()->json([
-                'message' => 'Tahap persiapan belum dimulai atau sudah berakhir.'
+                'message' => 'Tahap persiapan/pendaftaran belum dimulai atau sudah berakhir.'
             ], 403);
         }
 

@@ -19,7 +19,7 @@ class __EventSeeder extends Seeder
                 'event_tagline'     => 'Menuju MTQ yang Bermartabat',
                 'assessment_token'  => 'pessel2026',
 
-                'start_date'        => '2026-08-17',
+                'start_date'        => '2026-09-07',
                 'end_date'          => '2026-11-09',
                 'age_limit_date'    => '2026-07-01',
 

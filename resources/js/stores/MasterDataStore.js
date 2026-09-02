@@ -21,7 +21,7 @@ export const useMasterDataStore = defineStore('MasterDataStore', () => {
   /* =========================
    * INTERNAL HELPER
    * ========================= */
-  const fetchMaster = async (type, params = {}) => {
+  const fetchMaster = async (type, params = {}, force = false) => {
     if (!authUserStore.eventData?.id) return []
 
     // 🔎 Tentukan storage target
@@ -34,9 +34,9 @@ export const useMasterDataStore = defineStore('MasterDataStore', () => {
 
     const target = storageMap[type]
 
-    // ✅ Jika TANPA filter & data sudah ada → pakai cache
+    // ✅ Jika TANPA filter, TIDAK force, & data sudah ada → pakai cache
     const hasFilter = Object.keys(params).length > 0
-    if (!hasFilter && target?.value?.length) {
+    if (!force && !hasFilter && target?.value?.length) {
       return target.value
     }
 
@@ -61,8 +61,8 @@ export const useMasterDataStore = defineStore('MasterDataStore', () => {
    * ========================= */
 
   /* ---------- STAGES ---------- */
-  const loadEventStages = async () => {
-    eventStages.value = await fetchMaster('event_stages')
+  const loadEventStages = async (force = false) => {
+    eventStages.value = await fetchMaster('event_stages', {}, force)
   }
 
   /* ---------- BRANCHES ---------- */

@@ -167,199 +167,177 @@
                   </small>
                 </td>
               </tr>
-              <tr
-                v-for="(item, index) in items"
+              
+              <!-- Gunakan <template> untuk membungkus multiple <tr> dalam satu loop -->
+              <template 
+                v-for="(item, index) in items" 
                 :key="item.id"
               >
-                <td class="text-center">
-                  <input
-                    type="checkbox"
-                    :value="item.id"
-                    v-model="selectedParticipantIds"
-                    :disabled="isCheckboxDisabled(item)"
+                <!-- BARIS UTAMA PESERTA -->
+                <tr>
+                  <td class="text-center">
+                    <input
+                      type="checkbox"
+                      :value="item.id"
+                      v-model="selectedParticipantIds"
+                      :disabled="isCheckboxDisabled(item)"
+                    />
+                  </td>
 
+                  <!-- Nomor -->
+                  <td>{{ index + 1 + (meta.current_page - 1) * meta.per_page }}</td>
 
-                  />
-                </td>
-
-                <!-- Nomor -->
-                <td>{{ index + 1 + (meta.current_page - 1) * meta.per_page }}</td>
-
-                <!-- Nama Peserta -->
-                <td>
-                  
-                  <strong>{{ item.participant?.full_name }}</strong>
-                  
-                  <br>
-                  <span
-                    class="badge mr-1" style="width:17px;"
-                    :class="item.participant?.gender === 'MALE' ? 'badge-primary' : 'badge-pink'"
-                  >
-                    <i :class="item.participant?.gender === 'MALE' ? 'fas fa-mars' : 'fas fa-venus'"></i>
-                  </span>
-
-                  <span
-                    class="badge"
-                    :class="registrationBadgeClass(item.registration_status)"
-                  >
-                    {{ registrationStatusLabel(item.registration_status) }}
-                  </span>
-                </td>
-
-                <!-- NIK -->
-                <td>
-                    <strong>{{ item.participant?.nik }}</strong>
-                    <div v-if="item.age_year !== null" class="text-xs text-muted">
-                        Umur:
-                        {{ item.age_year }}T
-                        {{ item.age_month }}B
-                        {{ item.age_day }}H
-                    </div> 
-                  <!-- <div>
-                    {{ item.participant?.place_of_birth || '-' }},
-                    {{ formatDate(item.participant?.date_of_birth) || '-' }}
-                  </div>
-                  <span
-                    class="badge mt-1"
-                    :class="item.participant?.gender === 'MALE' ? 'badge-primary' : 'badge-pink'"
-                  >
-                    {{ item.participant?.gender === 'MALE' ? 'Laki-laki' : 'Perempuan' }}
-                  </span>
-                  <div v-if="item.age_year !== null" class="text-xs text-muted mt-1">
-                    Umur:
-                    {{ item.age_year }} th
-                    <span v-if="item.age_month"> {{ item.age_month }} bln</span>
-                  </div> -->
-                </td>
-
-                <td>
-                    <strong>{{ item.event_group.full_name }}</strong>
-                    <div class="text-xs text-muted" v-if="item.event_group">
-                        Batas:
-                        {{ item.event_group.max_age - 1 }}T
-                        11B
-                        29H
-                    </div>
-                </td>
-
-                <td>
-                  <span class="badge badge-light border">
-                    {{ item.contingent || '-' }}
-                  </span>
-                </td>
-
-                <td class="align-center text-center">
-                  <div class="progress" style="height: 16px; font-size: 10px;">
-                    <div
-                      class="progress-bar d-flex justify-content-center align-items-center"
-                      :class="{
-                        'bg-danger': item.participant.lampiran_completion_percent <= 20,
-                        'bg-warning': item.participant.lampiran_completion_percent > 20 && item.participant.lampiran_completion_percent <= 50,
-                        'bg-info': item.participant.lampiran_completion_percent > 50 && item.participant.lampiran_completion_percent <= 80,
-                        'bg-success': item.participant.lampiran_completion_percent > 80
-                      }"
-                      role="progressbar"
-                      :style="{ width: item.participant.lampiran_completion_percent + '%' }"
-                      :aria-valuenow="item.participant.lampiran_completion_percent"
-                      aria-valuemin="0"
-                      aria-valuemax="100"
+                  <!-- Nama Peserta -->
+                  <td>
+                    <strong>{{ item.participant?.full_name }}</strong>
+                    <br>
+                    <span
+                      class="badge mr-1" style="width:17px;"
+                      :class="item.participant?.gender === 'MALE' ? 'badge-primary' : 'badge-pink'"
                     >
-                      {{ item.participant.lampiran_completion_percent }}%
+                      <i :class="item.participant?.gender === 'MALE' ? 'fas fa-mars' : 'fas fa-venus'"></i>
+                    </span>
+
+                    <span
+                      class="badge"
+                      :class="registrationBadgeClass(item.registration_status)"
+                    >
+                      {{ registrationStatusLabel(item.registration_status) }}
+                    </span>
+
+                    <!-- BLOCK CATATAN REVISI -->
+                    <div 
+                      v-if="item.registration_status === 'need_revision'" 
+                      class="mt-2 text-danger p-1 rounded" 
+                      style="font-size: 11px; background-color: #fff9fa; border: 1px dashed #ffc0cb; max-width: 250px; white-space: normal;"
+                    >
+                      <i class="fas fa-exclamation-triangle mr-1"></i>
+                      <strong>Revisi:</strong> {{ item.registration_notes || 'Tidak ada catatan.' }}
                     </div>
-                  </div>
-                </td>
 
-                <!-- <td>
-                  <span
-                    class="badge"
-                    :class="registrationBadgeClass(item.registration_status)"
-                  >
-                    {{ registrationStatusLabel(item.registration_status) }}
-                  </span>
-                  <div v-if="item.registration_notes" class="text-xs text-muted mt-1">
-                    {{ item.registration_notes }}
-                  </div>
-                </td>
-
-                <td>
-                  <span
-                    class="badge"
-                    :class="reregistrationBadgeClass(item.reregistration_status)"
-                  >
-                    {{ reregistrationStatusLabel(item.reregistration_status) }}
-                  </span>
-                  <div v-if="item.reregistered_at" class="text-xs text-muted mt-1">
-                    {{ formatDateTime(item.reregistered_at) }}
-                  </div>
-                </td> -->
-
-                <td class="text-center">
-                    <div class="btn-group btn-group-sm">
-                        <!-- EDIT BIODATA (hanya bank_data & need_revision) -->
-                        <button
-                        v-if="['bank_data', 'need_revision'].includes(item.registration_status)"
-                        class="btn btn-outline-warning btn-xs"
-                        title="Edit Biodata"
-                        @click="openEditModal(item)"
-                        >
-                        <i class="fas fa-user-edit"></i>
-                        </button>
-
-                        <!-- EDIT LAMPIRAN (hanya bank_data & need_revision) -->
-                        <button
-                        v-if="['bank_data', 'need_revision'].includes(item.registration_status)"
-                        class="btn btn-outline-info btn-xs"
-                        title="Edit Lampiran"
-                        @click="openLampiranModal(item)"
-                        >
-                        <i class="fas fa-file-upload"></i>
-                        </button>
-
-                       
-                        <!-- LIHAT DATA (selalu tampil) -->
-                        <button
-                          class="btn btn-outline-primary btn-xs"
-                          title="Lihat Data Peserta"
-                          @click="openViewModal(item)" 
-                        >
-                          <i class="fas fa-eye"></i>
-                        </button>
-
-                        <!-- MUTASI PESERTA (hanya bank_data & perbaiki) -->
-                        <button
-                          v-if="['bank_data', 'perbaiki'].includes(item.registration_status)"
-                          class="btn btn-outline-success btn-xs"
-                          title="Mutasi Peserta"
-                          @click="openMutasiModal(item)"
-                        >
-                          <i class="fas fa-random"></i>
-                        </button>
-
-                        <!-- CETAK KOKARDE -->
-                        <button
-                          v-if="item.participant?.photo_url"
-                          class="btn btn-outline-primary btn-xs"
-                          title="Cetak Kokarde"
-                          @click="printKokarde(item)"
-                        >
-                          <i class="fas fa-id-badge"></i>
-                        </button>
-
-                        <!-- HAPUS PESERTA EVENT (hanya bank_data & need_revision, biar konsisten dgn tombol edit) -->
-                        <button
-                          v-if="['bank_data', 'need_revision'].includes(item.registration_status) && isPrivileged"
-                          class="btn btn-outline-danger btn-xs"
-                          title="Hapus Peserta"
-                          @click="deleteItem(item)"
-                        >
-                          <i class="fas fa-trash-alt"></i>
-                        </button>
-
+                    <div 
+                      v-if="item.registration_status === 'rejected'" 
+                      class="mt-2 bg-danger  p-1 rounded" 
+                      style="font-size: 11px; background-color: #fff9fa; border: 1px dashed #ffc0cb; max-width: 250px; white-space: normal;"
+                    >
+                      <i class="fas fa-exclamation-triangle mr-1"></i>
+                      <strong>Catatan:</strong> {{ item.registration_notes || 'Tidak ada catatan.' }}
                     </div>
-                </td>
+                  </td>
 
+                  <!-- NIK -->
+                  <td>
+                      <strong>{{ item.participant?.nik }}</strong>
+                      <div v-if="item.age_year !== null" class="text-xs text-muted">
+                          Umur:
+                          {{ item.age_year }}T
+                          {{ item.age_month }}B
+                          {{ item.age_day }}H
+                      </div> 
+                  </td>
 
-              </tr>
+                  <td>
+                      <strong>{{ item.event_group.full_name }}</strong>
+                      <div class="text-xs text-muted" v-if="item.event_group">
+                          Batas:
+                          {{ item.event_group.max_age - 1 }}T
+                          11B
+                          29H
+                      </div>
+                  </td>
+
+                  <td>
+                    <span class="badge badge-light border">
+                      {{ item.contingent || '-' }}
+                    </span>
+                  </td>
+
+                  <td class="align-center text-center">
+                    <div class="progress" style="height: 16px; font-size: 10px;">
+                      <div
+                        class="progress-bar d-flex justify-content-center align-items-center"
+                        :class="{
+                          'bg-danger': item.participant.lampiran_completion_percent <= 20,
+                          'bg-warning': item.participant.lampiran_completion_percent > 20 && item.participant.lampiran_completion_percent <= 50,
+                          'bg-info': item.participant.lampiran_completion_percent > 50 && item.participant.lampiran_completion_percent <= 80,
+                          'bg-success': item.participant.lampiran_completion_percent > 80
+                        }"
+                        role="progressbar"
+                        :style="{ width: item.participant.lampiran_completion_percent + '%' }"
+                        :aria-valuenow="item.participant.lampiran_completion_percent"
+                        aria-valuemin="0"
+                        aria-valuemax="100"
+                      >
+                        {{ item.participant.lampiran_completion_percent }}%
+                      </div>
+                    </div>
+                  </td>
+
+                  <td class="text-center">
+                      <div class="btn-group btn-group-sm">
+                          <!-- EDIT BIODATA -->
+                          <button
+                            v-if="['bank_data', 'need_revision'].includes(item.registration_status)"
+                            class="btn btn-outline-warning btn-xs"
+                            title="Edit Biodata"
+                            @click="openEditModal(item)"
+                          >
+                            <i class="fas fa-user-edit"></i>
+                          </button>
+
+                          <!-- EDIT LAMPIRAN -->
+                          <button
+                            v-if="['bank_data', 'need_revision'].includes(item.registration_status)"
+                            class="btn btn-outline-info btn-xs"
+                            title="Edit Lampiran"
+                            @click="openLampiranModal(item)"
+                          >
+                            <i class="fas fa-file-upload"></i>
+                          </button>
+
+                          <!-- LIHAT DATA -->
+                          <button
+                            class="btn btn-outline-primary btn-xs"
+                            title="Lihat Data Peserta"
+                            @click="openViewModal(item)" 
+                          >
+                            <i class="fas fa-eye"></i>
+                          </button>
+
+                          <!-- MUTASI PESERTA -->
+                          <button
+                            v-if="['bank_data', 'perbaiki'].includes(item.registration_status)"
+                            class="btn btn-outline-success btn-xs"
+                            title="Mutasi Peserta"
+                            @click="openMutasiModal(item)"
+                          >
+                            <i class="fas fa-random"></i>
+                          </button>
+
+                          <!-- CETAK KOKARDE -->
+                          <button
+                            v-if="item.participant?.photo_url"
+                            class="btn btn-outline-primary btn-xs"
+                            title="Cetak Kokarde"
+                            @click="printKokarde(item)"
+                          >
+                            <i class="fas fa-id-badge"></i>
+                          </button>
+
+                          <!-- HAPUS PESERTA EVENT -->
+                          <button
+                            v-if="['bank_data', 'need_revision'].includes(item.registration_status) && isPrivileged"
+                            class="btn btn-outline-danger btn-xs"
+                            title="Hapus Peserta"
+                            @click="deleteItem(item)"
+                          >
+                            <i class="fas fa-trash-alt"></i>
+                          </button>
+                      </div>
+                  </td>
+                </tr>
+
+              </template>
             </tbody>
           </table>
         </div>
@@ -1517,7 +1495,7 @@ const now = () => new Date()
 
 const canAddParticipant = computed(() => {
   return isDevelopmentMode.value ||
-    (isStageActive('Persiapan') && mandateStatus.value.allowed)
+    ((isStageActive('Persiapan') || isStageActive('Pendaftaran') ) && mandateStatus.value.allowed)
 })
 
 const canRegisterParticipant = computed(() => {
@@ -1870,7 +1848,8 @@ const fetchItems = async (page = 1) => {
   } catch (error) {
     console.error('Gagal memuat event_participants:', error)
     if (error.response && error.response.status === 401) {
-      authUserStore.logout()
+      // ✅ Gunakan handler bawaan store untuk penanganan error 401 yang bersih
+      authUserStore.handleAuthError(error)
     } else {
       Swal.fire('Gagal', 'Gagal memuat data peserta event.', 'error')
     }

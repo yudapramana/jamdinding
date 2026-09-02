@@ -279,13 +279,10 @@ export const useAuthUserStore = defineStore('AuthUserStore', () => {
             isLoggingOut.value = true;
             await axios.post('/logout');
 
-            // Bersihkan data
-            // preserveEventStorage()
+            // 💡 GUNAKAN PRESERVE EVENT STORAGE AGAR EVENT TIDAK HILANG SAAT LOGOUT
+            preserveEventStorage();
 
-            localStorage.clear()
-            sessionStorage.clear()
-            localStorage.clear()
-            sessionStorage.clear()
+            // Bersihkan cookie aplikasi
             document.cookie.split(";").forEach(cookie => {
                 const eqPos = cookie.indexOf("=");
                 const name = eqPos > -1 ? cookie.substr(0, eqPos) : cookie;
@@ -302,13 +299,17 @@ export const useAuthUserStore = defineStore('AuthUserStore', () => {
             user.value = {};
             myDocuments.value = [];
             resetMandateStatus();
+            
             await axios.get('/sanctum/csrf-cookie');
-            // router.push('/login');
-            window.location.href = '/';
+            
         } catch (error) {
             console.error("Logout gagal:", error);
         } finally {
+            // 💡 Matikan loading di sini agar state tersimpan bersih sebelum reload
             isLoggingOut.value = false;
+            
+            // Arahkan kembali ke halaman landing
+            window.location.href = '/';
         }
     };
 

@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted } from "vue"
+import { computed, onMounted, ref } from "vue"
 import { useAuthUserStore } from "../stores/AuthUserStore.js"
 import { useScreenDisplayStore } from "../stores/ScreenDisplayStore.js"
 import { useMasterDataStore } from "../stores/MasterDataStore.js"
@@ -16,20 +16,51 @@ onMounted(() => {
 
 const stages = computed(() => masterDataStore.eventStages)
 
+/* ================= AUTH & ROLE ================= */
+const currentUser = computed(() => authUserStore.user || {})
+
+const isSuperAdmin = computed(() => {
+  const roleName = currentUser.value?.role?.name || ''
+  return roleName === 'SUPERADMIN'
+})
+
+/* ================= REFRESH AGENDA ================= */
+const refreshingStages = ref(false)
+
+const refreshEventStages = async () => {
+  if (refreshingStages.value) return
+  refreshingStages.value = true
+  try {
+    await masterDataStore.loadEventStages(true) // force = true, lewati cache
+  } finally {
+    refreshingStages.value = false
+  }
+}
+
 /* ================= DATE & STATUS ================= */
-const today = new Date().toISOString().slice(0, 10)
+// Ambil tanggal (YYYY-MM-DD) berdasarkan waktu LOKAL (WIB),
+// bukan UTC, supaya tidak mundur/maju satu hari dibanding tampilan.
+const toLocalDateString = (date) => {
+  const d = new Date(date)
+  const year = d.getFullYear()
+  const month = String(d.getMonth() + 1).padStart(2, "0")
+  const day = String(d.getDate()).padStart(2, "0")
+  return `${year}-${month}-${day}`
+}
+
+const today = toLocalDateString(new Date())
 
 const stageStatus = (stage) => {
   if (!stage.start_date) return "upcoming"
 
-  if (
-    stage.start_date <= today &&
-    (!stage.end_date || stage.end_date >= today)
-  ) {
+  const start = toLocalDateString(stage.start_date)
+  const end = stage.end_date ? toLocalDateString(stage.end_date) : null
+
+  if (start <= today && (!end || end >= today)) {
     return "active"
   }
 
-  if (stage.end_date && stage.end_date < today) {
+  if (end && end < today) {
     return "done"
   }
 
@@ -105,6 +136,22 @@ const formatDate = (date) => {
               <h3 class="card-title font-weight-bold text-primary">
                 Agenda Event
               </h3>
+
+              <div class="card-tools">
+                <button
+                  type="button"
+                  class="btn btn-sm btn-outline-secondary"
+                  :disabled="refreshingStages"
+                  @click="refreshEventStages"
+                  title="Refresh Agenda Event"
+                >
+                  <i
+                    class="fas fa-sync-alt"
+                    :class="{ 'fa-spin': refreshingStages }"
+                  ></i>
+                  <span class="d-none d-sm-inline ml-1">Refresh</span>
+                </button>
+              </div>
             </div>
 
             <div class="card-body p-2">

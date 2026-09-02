@@ -112,6 +112,7 @@ class ParticipantVerificationController extends Controller
                     'registration_status' => $data['registration_status'],
                     'verified_by' => Auth::id(),
                     'verified_at' => now(),
+                    'registration_notes' => $data['notes'],
                 ]);
         } elseif (!empty($data['event_id'])) {
             EventParticipant::where('event_id', $data['event_id'])
@@ -120,6 +121,7 @@ class ParticipantVerificationController extends Controller
                     'registration_status' => $data['registration_status'],
                     'verified_by' => Auth::id(),
                     'verified_at' => now(),
+                    'registration_notes' => $data['notes'],
                 ]);
         }
 
