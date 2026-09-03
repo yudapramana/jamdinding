@@ -76,6 +76,14 @@ router.beforeEach(async (to, from) => {
         await settingStore.getSetting();
     }
 
+    // Pengecekan must_change_password
+    if (authUserStore.isAuthenticated && authUserStore.user?.must_change_password) {
+        // Jika user wajib ganti password dan belum berada di halaman admin profile, arahkan paksa ke sana
+        if (to.name !== 'admin.profile') {
+            return { name: 'admin.profile' };
+        }
+    }
+
     // Layout untuk route user
     if (to.name?.startsWith('admin.')) {
         authUserStore.activeLayout = 'admin';

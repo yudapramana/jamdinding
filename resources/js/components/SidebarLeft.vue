@@ -705,7 +705,7 @@ watch(
           </template>
 
 
-          <li class="nav-header"  v-if="authUserStore.user?.role.name === 'SUPERADMIN'">KELOLA</li>
+          <li class="nav-header">KELOLA</li>
 
                     
                    
@@ -714,6 +714,15 @@ watch(
                   <i class="nav-icon fas fa-cog"></i>
                   <p>
                       Pengaturan
+                  </p>
+              </router-link>
+          </li>
+
+          <li class="nav-item" >
+              <router-link to="/admin/profile" active-class="active" class="nav-link">
+                  <i class="nav-icon fas fa-cog"></i>
+                  <p>
+                      Profil
                   </p>
               </router-link>
           </li>

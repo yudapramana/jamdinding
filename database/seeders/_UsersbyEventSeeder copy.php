@@ -15,6 +15,7 @@ class _UsersbyEventSeeder extends Seeder
     public function run(): void
     {
         $eventId = 1;
+        $defaultPassword = '12345678';
         $defaultDomain = 'mtq.local';
 
         $event = Event::find($eventId);
@@ -27,6 +28,8 @@ class _UsersbyEventSeeder extends Seeder
             $this->command?->error("Generate user hanya didukung untuk event tingkat province/regency. Event ini: {$event->event_level}");
             return;
         }
+
+        $hashedPassword = Hash::make($defaultPassword);
 
         // Role yang akan digenerate
         $roleSlugs = ['pendaftaran', 'verifikator'];
@@ -74,7 +77,7 @@ class _UsersbyEventSeeder extends Seeder
                     'name'        => strtoupper('ADMIN EVENT'),
                     'email'       => $email,
                     'username'    => $uname,
-                    'password'    => Hash::make($uname), // Password = username
+                    'password'    => $hashedPassword,
                     'avatar'      => null,
                     'role_id'     => $adminRole->id,
                     'event_id'    => $event->id,
@@ -89,7 +92,7 @@ class _UsersbyEventSeeder extends Seeder
         }
 
         // =========================
-        // TAMBAHAN: 5 USER PANITERA (di script iterasi sampai 11)
+        // TAMBAHAN: 5 USER PANITERA
         // =========================
         if (!$roles->has('panitera')) {
             $this->command?->warn("Role slug 'panitera' tidak ditemukan. Skip create user panitera.");
@@ -133,7 +136,7 @@ class _UsersbyEventSeeder extends Seeder
                     'name'        => $uname,     // sesuai request
                     'email'       => $email,
                     'username'    => $uname,
-                    'password'    => Hash::make($uname), // Password = username
+                    'password'    => $hashedPassword,
                     'avatar'      => null,
                     'role_id'     => $paniteraRole->id,
                     'event_id'    => $event->id,
@@ -194,7 +197,7 @@ class _UsersbyEventSeeder extends Seeder
                         'name'        => $name,
                         'email'       => $email,
                         'username'    => $username,
-                        'password'    => Hash::make($username), // Password = username
+                        'password'    => $hashedPassword,
                         'avatar'      => null,
                         'role_id'     => $role->id,
                         'event_id'    => $event->id,
@@ -238,7 +241,7 @@ class _UsersbyEventSeeder extends Seeder
                         'name'        => $name,
                         'email'       => $email,
                         'username'    => $username,
-                        'password'    => Hash::make($username), // Password = username
+                        'password'    => $hashedPassword,
                         'avatar'      => null,
                         'role_id'     => $role->id,
                         'event_id'    => $event->id,
@@ -255,6 +258,6 @@ class _UsersbyEventSeeder extends Seeder
             $this->command?->info("Seeder UsersByEventSeeder: role={$role->slug} created={$createdCount} skipped={$skippedCount}");
         }
 
-        $this->command?->info("Selesai generate user untuk event_id={$eventId}. Password masing-masing akun di-set sama dengan username.");
+        $this->command?->info("Selesai generate user untuk event_id={$eventId} dengan password default={$defaultPassword}");
     }
 }
