@@ -889,7 +889,7 @@ const currentUser = computed(() => authUserStore.user || null)
 const canVerifyRole = computed(() => {
   const u = currentUser.value
   const roleId = u?.role_id ?? u?.role?.id ?? null
-  return [1, 4].includes(Number(roleId))
+  return [1, 2, 4].includes(Number(roleId))
 })
 
 const canShowVerifyButton = (item) => {
