@@ -122,29 +122,21 @@ class Participant extends Model
             return $value;
         }
 
-        $cleanValue = ltrim($value, '/');
-        
-        // Pecah struktur direktori menjadi array
-        $parts = explode('/', $cleanValue);
+        // Ambil HANYA nama filenya saja menggunakan basename()
+        // Contoh: 'documents//file.pdf' atau 'documents/uuid/file.pdf' akan menjadi 'file.pdf'
+        $filename = basename($value);
 
-        // Jika format database adalah: documents/{uuid}/{filename}
-        if (count($parts) === 3 && $parts[0] === 'documents') {
+        // Selama participant memiliki UUID, kita rakit URL-nya dengan aman
+        if (!empty($this->uuid)) {
             return route('secure.docs.stream', [
-                'uuid'     => $parts[1],
-                'filename' => $parts[2]
+                'uuid'     => $this->uuid,
+                'filename' => $filename
             ]);
         }
 
-        // Alternatif jika format database tersimpan: {uuid}/{filename}
-        if (count($parts) === 2) {
-            return route('secure.docs.stream', [
-                'uuid'     => $parts[0],
-                'filename' => $parts[1]
-            ]);
-        }
-
-        // Fallback aman jika path tidak beraturan, gunakan url bawaan
-        return url('/secure/' . $cleanValue);
+        // Fallback terakhir jika anehnya UUID participant tidak ada
+        // Mengarahkan ke rute catch-all yang otomatis memicu respon "invalidFormat" / File tidak ditemukan
+        return url('/secure/documents/not-found');
     }
 
 
