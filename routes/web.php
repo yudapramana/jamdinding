@@ -137,13 +137,12 @@ Route::middleware('auth')->group(function () {
     // Secure Documents (Dokumen Peserta)
     Route::get('/secure/documents/{uuid}/{filename?}', [PublicDocController::class, 'stream'])
         ->where([
-            // Izinkan UUID yang mungkin tidak sengaja tertempel ekstensi file di belakangnya
             'uuid'     => '[0-9a-fA-F]{8}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{12}(\.[a-zA-Z0-9]+)?',
-            'filename' => '.*', // Menangkap nama file apa saja secara aman
+            'filename' => '.*',
         ])
         ->name('secure.docs.stream');
 
-    // Catch-all untuk format URL salah
+    // 2. Catch-all untuk menangani double slash, parameter kosong, atau format salah di bawah /secure/documents/
     Route::get('/secure/documents/{any?}', [PublicDocController::class, 'invalidFormat'])
         ->where('any', '.*');
 
