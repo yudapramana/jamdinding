@@ -1678,4 +1678,8 @@ Route::middleware('auth')->group(function () {
 
 });
 
-Route::get('{view}', ApplicationController::class)->where('view', '(.*)')->middleware('auth');
+// Route::get('{view}', ApplicationController::class)->where('view', '(.*)')->middleware('auth');
+
+Route::get('{view}', ApplicationController::class)
+    ->where('view', '^(?!api|storage|build|assets|secure|_debugbar).*$')
+    ->middleware('auth');
