@@ -20,6 +20,8 @@ use Log;
 class EmpDocumentController extends Controller
 {
 
+    public function autoVerval(Request $request) { /* Paste closure /auto-verval */ }
+
     public function show(Request $request)
     {
         $path = $request->query('path');

@@ -9,6 +9,25 @@ use Illuminate\Validation\Rule;
 
 class EventController extends Controller
 {
+    public function byKey(Request $request, $key) { 
+        $event = \App\Models\Event::where('event_key', $key)->first();
+
+        if (!$event) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Event tidak ditemukan.',
+                'data' => null
+            ], 404);
+        }
+
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Event ditemukan.',
+            'data' => $event
+        ], 200);
+    }
+
     public function index(Request $request)
     {
         $search  = $request->get('search');

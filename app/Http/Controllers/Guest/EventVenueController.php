@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Guest;
 
 use App\Models\Event;
 use App\Models\EventGroup;
+use App\Models\EventLocation;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use SimpleSoftwareIO\QrCode\Facades\QrCode;
@@ -88,6 +89,190 @@ class EventVenueController extends Controller
         return view('event.venues', [
             'event'  => $event,
             'venues' => $venues,
+        ]);
+    }
+
+    public function schedules() { 
+        $eventId = request()->query('event_id', 1);
+ 
+        $event = Event::findOrFail($eventId);
+    
+        $locations = EventLocation::query()
+            ->active()
+            ->forEvent($eventId)
+            ->with([
+                'judgePanels' => function ($panel) {
+                    $panel->where('is_active', true)
+                        ->with([
+                            'eventGroups' => function ($group) {
+                                $group->where('status', 'active');
+                            }
+                        ]);
+                }
+            ])
+            ->orderBy('id')
+            ->get()
+            ->map(function ($location) {
+    
+                /**
+                 * PERBAIKAN #1:
+                 * Urutkan majelis 1 s.d. 12 secara NUMERIK berdasarkan
+                 * angka pada kolom 'code' (MJL-01, MJL-02, ... MJL-12),
+                 * bukan berdasarkan urutan relasi/insert di database.
+                 */
+                $sortedPanels = $location->judgePanels
+                    ->sortBy(function ($panel) {
+                        preg_match('/(\d+)/', $panel->code ?? '', $matches);
+                        return isset($matches[1]) ? (int) $matches[1] : 0;
+                    })
+                    ->values();
+    
+                /**
+                 * PERBAIKAN #2:
+                 * Bug: pluck('roman_name ') sebelumnya ada spasi di belakang
+                 * nama kolom sehingga Eloquent mencari kolom yang salah.
+                 * Sudah diperbaiki menjadi 'roman_name'.
+                 */
+                $majelis = $sortedPanels
+                    ->pluck('roman_name')
+                    ->filter()
+                    ->unique()
+                    ->values();
+    
+                $cabang = $sortedPanels
+                    ->flatMap(fn ($panel) => $panel->eventGroups)
+                    ->map(fn ($group) => $group->full_name)
+                    ->filter()
+                    ->unique()
+                    ->values();
+    
+                return [
+                    'location_name' => $location->name,
+                    'majelis'       => $majelis,
+                    'cabang'        => $cabang,
+                ];
+            });
+    
+        /* ===============================
+        * VIEW LANGSUNG DI ROUTE
+        * =============================== */
+    
+        return response()->view('event.jadwal', [
+            'eventId'   => $eventId,
+            'event'     => $event,
+            'locations' => $locations,
+        ]);
+    }
+
+    public function venuesJson() { 
+
+        $eventId = request()->query('event_id', 1);
+
+        $locations = EventLocation::query()
+            ->active()
+            ->forEvent($eventId)
+            ->with([
+                'judgePanels' => function ($panel) {
+                    $panel->where('is_active', true)
+                        ->with([
+                            'eventGroups' => function ($group) {
+                                $group->where('status', 'active');
+                            }
+                        ]);
+                }
+            ])
+            ->orderBy('name')
+            ->get()
+            ->map(function ($location) {
+
+                // ===== KUMPULKAN MAJELIS =====
+                $majelis = $location->judgePanels
+                    ->pluck('name')
+                    ->unique()
+                    ->values();
+
+                // ===== KUMPULKAN CABANG / GOLONGAN =====
+                $cabang = $location->judgePanels
+                    ->flatMap(fn ($panel) => $panel->eventGroups)
+                    ->map(fn ($group) => $group->full_name)
+                    ->unique()
+                    ->values();
+
+                return [
+                    'location_id'   => $location->id,
+                    'location_name' => $location->name,
+
+                    // dipakai untuk judul seperti gambar
+                    'majelis_count' => $majelis->count(),
+                    'majelis'       => $majelis,
+
+                    // isi teks kecil di bawah
+                    'cabang'        => $cabang,
+                ];
+            });
+
+        return response()->json([
+            'event_id' => $eventId,
+            'total_locations' => $locations->count(),
+            'data' => $locations,
+        ]);
+    }
+
+    public function venuesDetails() {  
+        $eventId = request()->query('event_id', 1);
+
+        $locations = EventLocation::query()
+            ->active()
+            ->forEvent($eventId)
+            ->with([
+                'judgePanels' => function ($panel) {
+                    $panel->where('is_active', true)
+                        ->with([
+                            'eventGroups' => function ($group) {
+                                $group->where('status', 'active')
+                                        ->orderBy('order_number');
+                            }
+                        ])
+                        ->orderBy('name');
+                }
+            ])
+            ->orderBy('name')
+            ->get()
+            ->map(function ($location) {
+                return [
+                    'id'   => $location->id,
+                    'code' => $location->code,
+                    'name' => $location->name,
+                    'address' => $location->address,
+                    'coordinate' => $location->coordinate,
+
+                    'event_judge_panels' => $location->judgePanels->map(function ($panel) {
+                        return [
+                            'id'   => $panel->id,
+                            'code' => $panel->code,
+                            'name' => $panel->name,
+                            'notes'=> $panel->notes,
+
+                            'event_groups' => $panel->eventGroups->map(function ($group) {
+                                return [
+                                    'id'          => $group->id,
+                                    'branch_id'   => $group->branch_id,
+                                    'branch_name' => $group->branch_name,
+                                    'group_id'    => $group->group_id,
+                                    'group_name'  => $group->group_name,
+                                    'full_name'   => $group->full_name,
+                                    'is_team'     => $group->is_team,
+                                ];
+                            }),
+                        ];
+                    }),
+                ];
+            });
+
+        return response()->json([
+            'event_id' => $eventId,
+            'total_locations' => $locations->count(),
+            'data' => $locations,
         ]);
     }
 }
