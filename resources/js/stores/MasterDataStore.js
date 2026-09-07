@@ -15,6 +15,7 @@ export const useMasterDataStore = defineStore('MasterDataStore', () => {
   const eventBranches   = useStorage('md:eventBranches', [])
   const eventGroups     = useStorage('md:eventGroups', [])
   const eventCategories = useStorage('md:eventCategories', [])
+  const eventRegions    = useStorage('md:eventRegions', [])
 
   const loading = ref(false)
 
@@ -30,6 +31,7 @@ export const useMasterDataStore = defineStore('MasterDataStore', () => {
       event_branches: eventBranches,
       event_groups: eventGroups,
       event_categories: eventCategories,
+      event_regions: eventRegions,
     }
 
     const target = storageMap[type]
@@ -96,6 +98,11 @@ export const useMasterDataStore = defineStore('MasterDataStore', () => {
     )
   }
 
+  /* ---------- REGIONS ---------- */
+  const loadEventRegions = async (force = false) => {
+    eventRegions.value = await fetchMaster('event_regions', {}, force)
+  }
+
   /* ---------- PRELOAD ---------- */
   const preloadMasterMTQ = async () => {
     if (!authUserStore.eventData?.id) return
@@ -105,6 +112,7 @@ export const useMasterDataStore = defineStore('MasterDataStore', () => {
       loadEventBranches(),
       loadAllEventGroups(),
       loadAllEventCategories(),
+      loadEventRegions(),
     ])
   }
 
@@ -114,6 +122,7 @@ export const useMasterDataStore = defineStore('MasterDataStore', () => {
     eventBranches.value   = []
     eventGroups.value     = []
     eventCategories.value = []
+    eventRegions.value    = [] // Tambahkan ini
   }
 
   return {
@@ -122,6 +131,7 @@ export const useMasterDataStore = defineStore('MasterDataStore', () => {
     eventBranches,
     eventGroups,
     eventCategories,
+    eventRegions, // Tambahkan ini
     loading,
 
     // actions
@@ -133,6 +143,8 @@ export const useMasterDataStore = defineStore('MasterDataStore', () => {
 
     loadAllEventCategories,
     loadEventCategories,
+
+    loadEventRegions, // Tambahkan ini
 
     preloadMasterMTQ,
     clearMaster,

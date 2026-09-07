@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
+use Carbon\Carbon;
 
 class Participant extends Model
 {
@@ -167,15 +168,63 @@ class Participant extends Model
      * berdasarkan: id_card_url, family_card_url,
      * bank_book_url, certificate_url, other_url.
      */
+    // public function getLampiranCompletionPercentAttribute(): int
+    // {
+    //     $fields = [
+    //         'photo_url',
+    //         'id_card_url',
+    //         'other_url', // Akta Kelahiran
+    //         'family_card_url',
+    //         'bank_book_url',
+    //         'certificate_url',
+    //     ];
+
+    //     $total  = count($fields);
+    //     $filled = 0;
+
+    //     foreach ($fields as $field) {
+    //         // pakai nilai asli di DB, bukan accessor /secure/*
+    //         $raw = $this->getRawOriginal($field);
+    //         if (!empty($raw)) {
+    //             $filled++;
+    //         }
+    //     }
+
+    //     if ($total === 0) {
+    //         return 0;
+    //     }
+
+    //     return (int) round(($filled / $total) * 100);
+    // }
+
+    /**
+     * Persentase kelengkapan lampiran (0–100)
+     * Kategori umur >= 17 tahun (4 wajib: Foto, KTP, Akta, KK)
+     * Kategori umur < 17 tahun (3 wajib: Foto, Akta, KK)
+     */
     public function getLampiranCompletionPercentAttribute(): int
     {
-        $fields = [
-            'id_card_url',
-            'family_card_url',
-            'bank_book_url',
-            'certificate_url',
-            'other_url',
-        ];
+        // Hitung umur (default 0 jika tanggal lahir kosong)
+        $age = 0;
+        if (!empty($this->date_of_birth)) {
+            $age = \Carbon\Carbon::parse($this->date_of_birth)->age;
+        }
+
+        // Tentukan field wajib berdasarkan umur
+        if ($age >= 17) {
+            $fields = [
+                'photo_url',
+                'id_card_url', // KTP
+                'other_url', // Akta Kelahiran
+                'family_card_url', // KK
+            ];
+        } else {
+            $fields = [
+                'photo_url',
+                'other_url', // Akta Kelahiran
+                'family_card_url', // KK
+            ];
+        }
 
         $total  = count($fields);
         $filled = 0;

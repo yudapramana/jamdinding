@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\API\V1;
 
 use App\Http\Controllers\Controller;
+use App\Models\Event;
 use App\Models\EventParticipant;
 use App\Models\Participant;
 use App\Models\ParticipantVerification;
@@ -37,6 +38,14 @@ class ParticipantVerificationController extends Controller
      */
     public function store(Request $request, Participant $participant)
     {
+        $event = Event::findOrFail($request['event_id']);
+
+        if (!$event->isStageActive('Verifikasi I') || !$event->isStageActive('Verifikasi II')) {
+            return response()->json([
+                'message' => 'Tahap Verifikasi belum dimulai atau sudah berakhir.'
+            ], 403);
+        }
+
         // $this->authorize('verify', $participant); // opsional, kalau pakai policy khusus
         $data = $request->validate([
             'event_id' => ['nullable', 'exists:events,id'],

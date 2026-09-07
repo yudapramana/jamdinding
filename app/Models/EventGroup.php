@@ -37,9 +37,16 @@ class EventGroup extends Model
         return $this->belongsTo(Group::class);
     }
 
+    // public function categories()
+    // {
+    //     return $this->hasMany(EventCategory::class);
+    // }
+
     public function categories()
     {
-        return $this->hasMany(EventCategory::class);
+        return $this->hasMany(EventCategory::class, 'group_id', 'group_id')
+            ->whereColumn('event_categories.event_id', 'event_groups.event_id')
+            ->whereColumn('event_categories.branch_id', 'event_groups.branch_id');
     }
 
     public function fieldComponents()

@@ -41,6 +41,80 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Symfony\Component\HttpKernel\Event\RequestEvent;
 use App\Models\EventLocation;
+use App\Models\EventBranch;
+use App\Models\EventCategory;
+use App\Models\EventGroup;
+
+Route::get('/hierarki-mtq', function () {
+    // 1. Ambil semua data (jika untuk 1 event spesifik, tambahkan ->where('event_id', 1))
+    $eventBranches = EventBranch::with('branch', 'event')->get();
+    $eventGroups = EventGroup::with('group')->get();
+    $eventCategories = EventCategory::with('category')->get();
+
+    // 2. Kelompokkan Group berdasarkan event_id & branch_id
+    $groupedGroups = $eventGroups->groupBy(function ($item) {
+        return $item->event_id . '-' . $item->branch_id;
+    });
+
+    // 3. Kelompokkan Category berdasarkan event_id, branch_id, & group_id
+    $groupedCategories = $eventCategories->groupBy(function ($item) {
+        return $item->event_id . '-' . $item->branch_id . '-' . $item->group_id;
+    });
+
+    // 4. Render HTML
+    $html = '<div style="font-family: sans-serif; line-height: 1.6;">';
+    $html .= '<h2>Hierarki Event MTQ</h2>';
+    $html .= '<ul>';
+    
+    foreach ($eventBranches as $branch) {
+        $branchName = $branch->full_name ?? $branch->branch_name;
+        $html .= '<li>';
+        // Menambahkan prefix event_branch_id
+        $html .= '<strong>Cabang:</strong> ' . $branchName . ' <span style="color: gray;">(event_branch_id: ' . $branch->id . ' | Event ID: ' . $branch->event_id . ')</span>';
+        
+        // Cari child groups dari collections yang sudah dikelompokkan
+        $groupKey = $branch->event_id . '-' . $branch->branch_id;
+        $groups = $groupedGroups->get($groupKey, collect());
+
+        if ($groups->isNotEmpty()) {
+            $html .= '<ul>';
+            foreach ($groups as $group) {
+                $groupName = $group->full_name ?? $group->group_name;
+                $html .= '<li>';
+                // Menambahkan prefix event_group_id
+                $html .= '<strong>Golongan:</strong> ' . $groupName . ' <span style="color: gray;">(event_group_id: ' . $group->id . ')</span>';
+                
+                // Cari child categories dari collections yang sudah dikelompokkan
+                $categoryKey = $group->event_id . '-' . $group->branch_id . '-' . $group->group_id;
+                $categories = $groupedCategories->get($categoryKey, collect());
+
+                if ($categories->isNotEmpty()) {
+                    $html .= '<ul>';
+                    foreach ($categories as $category) {
+                        $categoryName = $category->full_name ?? $category->category_name;
+                        // Menambahkan prefix event_category_id
+                        $html .= '<li><strong>Kategori:</strong> ' . $categoryName . ' <span style="color: gray;">(event_category_id: ' . $category->id . ')</span></li>';
+                    }
+                    $html .= '</ul>';
+                } else {
+                    $html .= '<ul><li><em style="color: gray;">Tidak ada kategori</em></li></ul>';
+                }
+                
+                $html .= '</li>';
+            }
+            $html .= '</ul>';
+        } else {
+            $html .= '<ul><li><em style="color: gray;">Tidak ada golongan</em></li></ul>';
+        }
+
+        $html .= '</li>';
+    }
+    
+    $html .= '</ul>';
+    $html .= '</div>';
+
+    return $html;
+});
 
 
 Route::get('/event-venues', [EventVenueController::class, 'index'])
@@ -1101,7 +1175,7 @@ Route::get('/login/google/callback', [SocialiteController::class, 'callback'])
 Route::middleware('auth')->group(function () {
     Route::get('/secure/documents/{participant:uuid}/{filename}', [PublicDocController::class, 'stream'])
         ->where([
-            'participant' => '[0-9a-fA-F\-]{36}',
+            'participant' => '[0-9a-fA-F]{8}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{12}', // Format UUID standar yang ketat
             'filename'    => '[^/]+',
         ])
         ->name('secure.docs.stream');

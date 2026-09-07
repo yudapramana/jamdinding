@@ -103,6 +103,23 @@
                 </option>
               </select>
 
+              <!-- ➕ FILTER WILAYAH (Hanya untuk SUPERADMIN & ADMIN_EVENT) -->
+              <select
+                v-if="canShowRegionFilter"
+                v-model="filters.event_region_id"
+                class="form-control form-control-sm w-auto"
+                title="Wilayah / Region"
+              >
+                <option value="">Semua Wilayah</option>
+                <option
+                  v-for="reg in masterDataStore.eventRegions"
+                  :key="reg.id"
+                  :value="String(reg.id)"
+                >
+                  {{ reg.name || reg.region_name || ('Wilayah #' + reg.id) }}
+                </option>
+              </select>
+
               <!-- ➕ TOMBOL REFRESH -->
               <button
                 type="button"
@@ -421,669 +438,573 @@
               <!-- TAB BIODATA -->
               <div v-if="activeTab === 'biodata'">
                   <div class="row">
-                  <!-- ===================== IDENTITAS PESERTA ===================== -->
-                  <div class="col-12">
-                      <h6 class="mb-1 font-weight-bold">Identitas Peserta</h6>
-                      <hr class="mt-1 mb-3" />
-                  </div>
+                    <!-- ===================== IDENTITAS PESERTA ===================== -->
+                    <div class="col-12">
+                        <h6 class="mb-1 font-weight-bold">Identitas Peserta</h6>
+                        <hr class="mt-1 mb-3" />
+                    </div>
 
-                  <!-- NIK, Kategori/Cabang, Nama, Telepon -->
-                  <div class="col-md-4">
-                      <div class="form-group">
-                      <label class="mb-1">NIK Peserta <span class="text-danger">*</span></label>
-                      <div class="input-group input-group-sm">
-                          <input
-                          v-model="form.participant.nik"
-                          @blur="onNikBlur(); validateField('participant.nik')"
-                          :disabled="isEdit"
-                          type="text"
-                          maxlength="16"
-                          class="form-control form-control-sm"
-                          :class="{
-                              'is-invalid': fieldErrors['participant.nik'] || nikError,
-                              'is-valid': !fieldErrors['participant.nik'] && !nikError && form.participant.nik
-                              
-                          }"
-                          placeholder="Masukkan NIK"
-                          />
-                          <div class="input-group-append">
-                          <button
-                              type="button"
-                              class="btn btn-outline-secondary btn-sm"
-                              @click="onSearchNik"
-                              :disabled="isNikChecking || !form.participant.nik || isEdit"
-                              title="Cari data peserta berdasarkan NIK"
-                          >
-                              <i v-if="isNikChecking" class="fas fa-spinner fa-spin"></i>
-                              <span v-else>
-                              <i class="fas fa-search mr-1"></i> Cari
-                              </span>
-                          </button>
-                          </div>
+                    <!-- NIK, Kategori/Cabang, Nama, Telepon -->
+                    <div class="col-md-4">
+                        <div class="form-group">
+                        <label class="mb-1">NIK Peserta <span class="text-danger">*</span></label>
+                        <div class="input-group input-group-sm">
+                            <input
+                            v-model="form.participant.nik"
+                            @blur="onNikBlur(); validateField('participant.nik')"
+                            :disabled="isEdit"
+                            type="text"
+                            maxlength="16"
+                            class="form-control form-control-sm"
+                            :class="{
+                                'is-invalid': fieldErrors['participant.nik'] || nikError,
+                                'is-valid': !fieldErrors['participant.nik'] && !nikError && form.participant.nik
+                                
+                            }"
+                            placeholder="Masukkan NIK"
+                            />
+                            <div class="input-group-append">
+                            <button
+                                type="button"
+                                class="btn btn-outline-secondary btn-sm"
+                                @click="onSearchNik"
+                                :disabled="isNikChecking || !form.participant.nik || isEdit"
+                                title="Cari data peserta berdasarkan NIK"
+                            >
+                                <i v-if="isNikChecking" class="fas fa-spinner fa-spin"></i>
+                                <span v-else>
+                                <i class="fas fa-search mr-1"></i> Cari
+                                </span>
+                            </button>
+                            </div>
 
-                          <div class="invalid-feedback" v-if="fieldErrors['participant.nik'] || nikError">
-                          {{ fieldErrors['participant.nik'] || nikError }}
-                          </div>
-                          <div
-                          class="valid-feedback"
-                          v-else-if="form.participant.nik && !nikError"
-                          >
-                          NIK dapat digunakan
-                          </div>
-                      </div>
-                      </div>
-                  </div>
+                            <div class="invalid-feedback" v-if="fieldErrors['participant.nik'] || nikError">
+                            {{ fieldErrors['participant.nik'] || nikError }}
+                            </div>
+                            <div
+                            class="valid-feedback"
+                            v-else-if="form.participant.nik && !nikError"
+                            >
+                            NIK dapat digunakan
+                            </div>
+                        </div>
+                        </div>
+                    </div>
 
-                  <div class="col-md-4" >
-                      <div class="form-group" v-if="showTanggalTerbit">
-                      <label class="mb-1">Tanggal Terbit KTP <span class="text-danger">*</span></label>
-                      <input
-                          v-model="form.participant.tanggal_terbit_ktp"
-                          type="date"
-                          class="form-control form-control-sm"
-                          @blur="validateField('participant.tanggal_terbit_ktp')"
-                          :class="{
-                          'is-invalid': fieldErrors['participant.tanggal_terbit_ktp'],
-                          'is-valid': !fieldErrors['participant.tanggal_terbit_ktp'] && form.participant.tanggal_terbit_ktp
-                          }"
-                      />
-                      <div
-                          class="invalid-feedback"
-                          v-if="fieldErrors['participant.tanggal_terbit_ktp']"
-                      >
-                          {{ fieldErrors['participant.tanggal_terbit_ktp'] }}
-                      </div>
-                      </div>
-                  </div>
+                    <div class="col-md-4" >
+                        <div class="form-group" v-if="showTanggalTerbit">
+                        <label class="mb-1">Tanggal Terbit KTP <span class="text-danger">*</span></label>
+                        <input
+                            v-model="form.participant.tanggal_terbit_ktp"
+                            type="date"
+                            class="form-control form-control-sm"
+                            @blur="validateField('participant.tanggal_terbit_ktp')"
+                            :class="{
+                            'is-invalid': fieldErrors['participant.tanggal_terbit_ktp'],
+                            'is-valid': !fieldErrors['participant.tanggal_terbit_ktp'] && form.participant.tanggal_terbit_ktp
+                            }"
+                        />
+                        <div
+                            class="invalid-feedback"
+                            v-if="fieldErrors['participant.tanggal_terbit_ktp']"
+                        >
+                            {{ fieldErrors['participant.tanggal_terbit_ktp'] }}
+                        </div>
+                        </div>
+                    </div>
 
-                  <div class="col-md-4" >
-                      <div class="form-group" v-if="showTanggalTerbit">
-                      <label class="mb-1">Tanggal Terbit KK <span class="text-danger">*</span></label>
-                      <input
-                          v-model="form.participant.tanggal_terbit_kk"
-                          type="date"
-                          class="form-control form-control-sm"
-                          @blur="validateField('participant.tanggal_terbit_kk')"
-                          :class="{
-                          'is-invalid': fieldErrors['participant.tanggal_terbit_kk'],
-                          'is-valid': !fieldErrors['participant.tanggal_terbit_kk'] && form.participant.tanggal_terbit_kk
-                          }"
-                      />
-                      <div
-                          class="invalid-feedback"
-                          v-if="fieldErrors['participant.tanggal_terbit_kk']"
-                      >
-                          {{ fieldErrors['participant.tanggal_terbit_kk'] }}
-                      </div>
-                      </div>
-                  </div>
+                    <div class="col-md-4" >
+                        <div class="form-group" v-if="showTanggalTerbit">
+                        <label class="mb-1">Tanggal Terbit KK <span class="text-danger">*</span></label>
+                        <input
+                            v-model="form.participant.tanggal_terbit_kk"
+                            type="date"
+                            class="form-control form-control-sm"
+                            @blur="validateField('participant.tanggal_terbit_kk')"
+                            :class="{
+                            'is-invalid': fieldErrors['participant.tanggal_terbit_kk'],
+                            'is-valid': !fieldErrors['participant.tanggal_terbit_kk'] && form.participant.tanggal_terbit_kk
+                            }"
+                        />
+                        <div
+                            class="invalid-feedback"
+                            v-if="fieldErrors['participant.tanggal_terbit_kk']"
+                        >
+                            {{ fieldErrors['participant.tanggal_terbit_kk'] }}
+                        </div>
+                        </div>
+                    </div>
 
-                  <div class="col-md-4">
-                      <div class="form-group">
-                      <label class="mb-1">
-                          Kategori / Cabang Peserta <span class="text-danger">*</span>
-                      </label>
-                      <select
-                          v-model="form.event_participant.event_category_id"
-                          class="form-control form-control-sm"
-                          @change="validateField('event_participant.event_category_id')"
-                          :class="{
-                          'is-invalid': fieldErrors['event_participant.event_category_id'],
-                          'is-valid': !fieldErrors['event_participant.event_category_id'] && form.event_participant.event_category_id
-                          }"
-                      >
-                          <option value="" disabled>-- Pilih Cabang/Golongan --</option>
-                          <option
-                          v-for="b in eventCategories"
-                          :key="b.id"
-                          :value="b.id"
-                          >
-                          {{ b.full_name }}
-                          </option>
-                      </select>
-                      <div
-                          class="invalid-feedback"
-                          v-if="fieldErrors['event_participant.event_category_id']"
-                      >
-                          {{ fieldErrors['event_participant.event_category_id'] }}
-                      </div>
-                      </div>
-                  </div>
+                    <div class="col-md-4">
+                        <div class="form-group">
+                        <label class="mb-1">
+                            Kategori / Cabang Peserta <span class="text-danger">*</span>
+                        </label>
+                        <select
+                            v-model="form.event_participant.event_category_id"
+                            class="form-control form-control-sm"
+                            @change="validateField('event_participant.event_category_id')"
+                            :class="{
+                            'is-invalid': fieldErrors['event_participant.event_category_id'],
+                            'is-valid': !fieldErrors['event_participant.event_category_id'] && form.event_participant.event_category_id
+                            }"
+                        >
+                            <option value="" disabled>-- Pilih Cabang/Golongan --</option>
+                            <option
+                            v-for="b in eventCategories"
+                            :key="b.id"
+                            :value="b.id"
+                            >
+                            {{ b.full_name }}
+                            </option>
+                        </select>
+                        <div
+                            class="invalid-feedback"
+                            v-if="fieldErrors['event_participant.event_category_id']"
+                        >
+                            {{ fieldErrors['event_participant.event_category_id'] }}
+                        </div>
+                        </div>
+                    </div>
 
-                  <div class="col-md-4">
-                      <div class="form-group">
-                      <label class="mb-1">Nama Lengkap <span class="text-danger">*</span></label>
-                      <input
-                          type="text"
-                          class="form-control form-control-sm"
-                          v-model="form.participant.full_name"
-                          @blur="validateField('participant.full_name')"
-                          :class="{
-                          'is-invalid': fieldErrors['participant.full_name'],
-                          'is-valid': !fieldErrors['participant.full_name'] && form.participant.full_name
-                          }"
-                      />
-                      <div
-                          class="invalid-feedback"
-                          v-if="fieldErrors['participant.full_name']"
-                      >
-                          {{ fieldErrors['participant.full_name'] }}
-                      </div>
-                      </div>
-                  </div>
-
-                  
+                    <div class="col-md-4">
+                        <div class="form-group">
+                        <label class="mb-1">Nama Lengkap <span class="text-danger">*</span></label>
+                        <input
+                            type="text"
+                            class="form-control form-control-sm"
+                            v-model="form.participant.full_name"
+                            @blur="validateField('participant.full_name')"
+                            :class="{
+                            'is-invalid': fieldErrors['participant.full_name'],
+                            'is-valid': !fieldErrors['participant.full_name'] && form.participant.full_name
+                            }"
+                        />
+                        <div
+                            class="invalid-feedback"
+                            v-if="fieldErrors['participant.full_name']"
+                        >
+                            {{ fieldErrors['participant.full_name'] }}
+                        </div>
+                        </div>
+                    </div>
 
                     
 
+                      
 
 
-                  <div class="col-md-4">
+
+                    <div class="col-md-4">
+                        <div class="form-group">
+                        <label class="mb-1">Nomor HP <span class="text-danger">*</span></label>
+                        <input
+                            type="text"
+                            class="form-control form-control-sm"
+                            v-model="form.participant.phone_number"
+                            @blur="validateField('participant.phone_number')"
+                            :class="{
+                            'is-invalid': fieldErrors['participant.phone_number'],
+                            'is-valid': !fieldErrors['participant.phone_number'] && form.participant.phone_number
+                            }"
+                        />
+                        <div
+                            class="invalid-feedback"
+                            v-if="fieldErrors['participant.phone_number']"
+                        >
+                            {{ fieldErrors['participant.phone_number'] }}
+                        </div>
+                        </div>
+                    </div>
+
+                    
+
+                    <!-- TEMPAT LAHIR, TANGGAL LAHIR, JENIS KELAMIN -->
+                    <div class="col-md-4">
+                        <div class="form-group">
+                        <label class="mb-1">Tempat Lahir <span class="text-danger">*</span></label>
+                        <input
+                            v-model="form.participant.place_of_birth"
+                            type="text"
+                            class="form-control form-control-sm"
+                            @blur="validateField('participant.place_of_birth')"
+                            :class="{
+                            'is-invalid': fieldErrors['participant.place_of_birth'],
+                            'is-valid': !fieldErrors['participant.place_of_birth'] && form.participant.place_of_birth
+                            }"
+                        />
+                        <div
+                            class="invalid-feedback"
+                            v-if="fieldErrors['participant.place_of_birth']"
+                        >
+                            {{ fieldErrors['participant.place_of_birth'] }}
+                        </div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-4">
+                        <div class="form-group mb-0">
+                            <label class="mb-1">Tanggal Lahir <span class="text-danger">*</span></label>
+                            <div class="input-group input-group-sm">
+                            <input
+                                v-model="form.participant.date_of_birth"
+                                type="date"
+                                class="form-control form-control-sm"
+                                @blur="validateField('participant.date_of_birth')"
+                                :class="{
+                                'is-invalid': fieldErrors['participant.date_of_birth'],
+                                'is-valid': !fieldErrors['participant.date_of_birth'] && form.participant.date_of_birth
+                                }"
+                                disabled
+                            />
+                            <div class="input-group-append">
+                                <span class="input-group-text">
+                                <i class="far fa-calendar-alt"></i>
+                                </span>
+                            </div>
+                            </div>
+
+                            <!-- pesan error utama DOB (required/format/umur) -->
+                            <div
+                            class="invalid-feedback d-block"
+                            v-if="fieldErrors['participant.date_of_birth']"
+                            >
+                            {{ fieldErrors['participant.date_of_birth'] }}
+                            </div>
+
+                            <div
+                            class="valid-feedback d-block"
+                            v-if="fieldValids['participant.date_of_birth']"
+                            >
+                            {{ fieldValids['participant.date_of_birth'] }}
+                            </div>
+
+                            <!-- hint dari NIK -->
+                            <small v-if="nikDobHint" class="text-muted d-block">
+                            Diambil dari NIK: {{ nikDobHint }}
+                            </small>
+
+                            <!-- pesan khusus validasi umur vs max_age -->
+                            <!-- <small
+                            v-if="ageMessage"
+                            class="d-block mt-1"
+                            :class="ageStatus === 'invalid' ? 'text-danger' : 'text-success'"
+                            >
+                            {{ ageMessage }}
+                            </small> -->
+                        </div>
+                    </div>
+
+
+                    <div class="col-md-4">
+                        <div class="form-group">
+                        <label class="mb-1">Jenis Kelamin <span class="text-danger">*</span></label>
+                        <select
+                            v-model="form.participant.gender"
+                            class="form-control form-control-sm"
+                            @change="validateField('participant.gender')"
+                            :class="{
+                            'is-invalid': fieldErrors['participant.gender'],
+                            'is-valid': !fieldErrors['participant.gender'] && form.participant.gender
+                            }"
+                            disabled
+                        >
+                            <option value="">-- Pilih --</option>
+                            <option value="MALE">LAKI-LAKI</option>
+                            <option value="FEMALE">PEREMPUAN</option>
+                        </select>
+                        <div
+                            class="invalid-feedback"
+                            v-if="fieldErrors['participant.gender']"
+                        >
+                            {{ fieldErrors['participant.gender'] }}
+                        </div>
+                        <small v-if="nikGenderHint" class="text-muted">
+                            Diambil dari NIK: {{ nikGenderHint }}
+                        </small>
+                        </div>
+                    </div>
+
+                    <!-- PENDIDIKAN -->
+                    <div class="col-md-4">
+                        <div class="form-group">
+                        <label class="mb-1">Pendidikan <span class="text-danger">*</span></label>
+                        <select
+                            v-model="form.participant.education"
+                            class="form-control form-control-sm"
+                            @change="validateField('participant.education')"
+                            :class="{
+                            'is-invalid': fieldErrors['participant.education'],
+                            'is-valid': !fieldErrors['participant.education'] && form.participant.education
+                            }"
+                        >
+                            <option value="TK">TK</option>
+                            <option value="SD">SD</option>
+                            <option value="SMP">SMP</option>
+                            <option value="SMA">SMA</option>
+                            <option value="D1">DIPLOMA I</option>
+                            <option value="D2">DIPLOMA II</option>
+                            <option value="D3">DIPLOMA III</option>
+                            <option value="D4">DIPLOMA IV</option>
+                            <option value="S1">S1</option>
+                            <option value="S2">S2</option>
+                            <option value="S3">S3</option>
+                        </select>
+                        <div
+                            class="invalid-feedback"
+                            v-if="fieldErrors['participant.education']"
+                        >
+                            {{ fieldErrors['participant.education'] }}
+                        </div>
+                        </div>
+                    </div>
+
+                    <!-- ===================== ALAMAT DOMISILI ===================== -->
+                    <div class="col-12 mt-3">
+                        <h6 class="mb-1 font-weight-bold">Alamat Domisili</h6>
+                        <hr class="mt-1 mb-3" />
+                    </div>
+
+                    <!-- PROVINSI, KAB/KOTA, KECAMATAN -->
+                    <div class="col-md-4">
+                        <div class="form-group">
+                        <label class="mb-1">
+                            Provinsi (Sesuai KTP) <span class="text-danger">*</span>
+                        </label>
+                        <select
+                            v-model="form.participant.province_id"
+                            class="form-control form-control-sm"
+                            :disabled="disabledProvince"
+                            @change="validateField('participant.province_id')"
+                            :class="{
+                            'is-invalid': fieldErrors['participant.province_id'],
+                            'is-valid': !fieldErrors['participant.province_id'] && form.participant.province_id
+                            }"
+                        >
+                            <option value="" disabled>-- Pilih Provinsi --</option>
+                            <option
+                            v-for="p in provinceOptions"
+                            :key="p.id"
+                            :value="p.id"
+                            >
+                            {{ p.name }}
+                            </option>
+                        </select>
+                        <div
+                            class="invalid-feedback"
+                            v-if="fieldErrors['participant.province_id']"
+                        >
+                            {{ fieldErrors['participant.province_id'] }}
+                        </div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-4">
+                        <div class="form-group">
+                        <label class="mb-1">
+                            Kab / Kota (Sesuai KTP) <span class="text-danger">*</span>
+                        </label>
+                        <select
+                            v-model="form.participant.regency_id"
+                            class="form-control form-control-sm"
+                            :disabled="disabledRegency"
+                            @change="validateField('participant.regency_id')"
+                            :class="{
+                            'is-invalid': fieldErrors['participant.regency_id'],
+                            'is-valid': !fieldErrors['participant.regency_id'] && form.participant.regency_id
+                            }"
+                        >
+                            <option value="" disabled>
+                            {{ isLoadingRegencies ? 'Memuat Kabupaten/Kota...' : '-- Pilih Kabupaten/Kota --' }}
+                            </option>
+                            <option
+                            v-for="r in regencyOptions"
+                            :key="r.id"
+                            :value="r.id"
+                            >
+                            {{ r.name }}
+                            </option>
+                        </select>
+                        <small v-if="isLoadingRegencies" class="text-muted">
+                            <i class="fas fa-spinner fa-spin mr-1"></i> Sedang memuat kabupaten/kota...
+                        </small>
+                        <div
+                            class="invalid-feedback"
+                            v-if="fieldErrors['participant.regency_id']"
+                        >
+                            {{ fieldErrors['participant.regency_id'] }}
+                        </div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-4">
+                        <div class="form-group">
+                        <label class="mb-1">
+                            Kecamatan (Sesuai KTP) <span class="text-danger">*</span>
+                        </label>
+                        <select
+                            v-model="form.participant.district_id"
+                            class="form-control form-control-sm"
+                            :disabled="disabledDistrict"
+                            @change="validateField('participant.district_id')"
+                            :class="{
+                            'is-invalid': fieldErrors['participant.district_id'],
+                            'is-valid': !fieldErrors['participant.district_id'] && form.participant.district_id
+                            }"
+                        >
+                            <option value="" disabled>
+                            {{ isLoadingDistricts ? 'Memuat Kecamatan...' : '-- Pilih Kecamatan --' }}
+                            </option>
+                            <option
+                            v-for="d in districtOptions"
+                            :key="d.id"
+                            :value="d.id"
+                            >
+                            {{ d.name }}
+                            </option>
+                        </select>
+                        <small v-if="isLoadingDistricts" class="text-muted">
+                            <i class="fas fa-spinner fa-spin mr-1"></i> Sedang memuat kecamatan...
+                        </small>
+                        <div
+                            class="invalid-feedback"
+                            v-if="fieldErrors['participant.district_id']"
+                        >
+                            {{ fieldErrors['participant.district_id'] }}
+                        </div>
+                        </div>
+                    </div>
+
+                    <!-- DESA & ALAMAT -->
+                    <div class="col-md-4">
+                        <div class="form-group">
+                        <label class="mb-1">Kelurahan / Desa <span class="text-danger">*</span></label>
+                        <select
+                            v-model="form.participant.village_id"
+                            class="form-control form-control-sm"
+                            :disabled="!form.participant.district_id || isLoadingVillages"
+                            @change="validateField('participant.village_id')"
+                            :class="{
+                            'is-invalid': fieldErrors['participant.village_id'],
+                            'is-valid': !fieldErrors['participant.village_id'] && form.participant.village_id
+                            }"
+                        >
+                            <option :value="null">
+                            {{ isLoadingVillages ? 'Memuat Kelurahan/Desa...' : '-- Pilih Kel/Desa --' }}
+                            </option>
+                            <option
+                            v-for="v in villageOptions"
+                            :key="v.id"
+                            :value="v.id"
+                            >
+                            {{ v.name }}
+                            </option>
+                        </select>
+                        <small v-if="isLoadingVillages" class="text-muted">
+                            <i class="fas fa-spinner fa-spin mr-1"></i> Sedang memuat kelurahan/desa...
+                        </small>
+                        <div
+                            class="invalid-feedback"
+                            v-if="fieldErrors['participant.village_id']"
+                        >
+                            {{ fieldErrors['participant.village_id'] }}
+                        </div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-8">
+                        <div class="form-group">
+                        <label class="mb-1">Alamat Lengkap Peserta <span class="text-danger">*</span></label>
+                        <textarea
+                            v-model="form.participant.address"
+                            rows="2"
+                            class="form-control form-control-sm"
+                            @blur="validateField('participant.address')"
+                            :class="{
+                            'is-invalid': fieldErrors['participant.address'],
+                            'is-valid': !fieldErrors['participant.address'] && form.participant.address
+                            }"
+                        ></textarea>
+                        <div
+                            class="invalid-feedback"
+                            v-if="fieldErrors['participant.address']"
+                        >
+                            {{ fieldErrors['participant.address'] }}
+                        </div>
+                        </div>
+                    </div>
+
+                    <!-- ===================== INFORMASI REKENING ===================== -->
+                    <div class="col-12 mt-3">
+                        <h6 class="mb-1 font-weight-bold">Informasi Rekening <small class="text-muted font-weight-normal">(Opsional)</small></h6>
+                        <hr class="mt-1 mb-3" />
+                    </div>
+
+                    <div class="col-md-4">
+                        <div class="form-group">
+                        <label class="mb-1">Nomor Rekening</label>
+                        <input
+                            v-model="form.participant.bank_account_number"
+                            type="text"
+                            class="form-control form-control-sm"
+                            @blur="validateField('participant.bank_account_number')"
+                            placeholder="Masukkan nomor rekening"
+                        />
+                        </div>
+                    </div>
+
+                    <div class="col-md-4">
                       <div class="form-group">
-                      <label class="mb-1">Nomor HP <span class="text-danger">*</span></label>
-                      <input
-                          type="text"
-                          class="form-control form-control-sm"
-                          v-model="form.participant.phone_number"
-                          @blur="validateField('participant.phone_number')"
-                          :class="{
-                          'is-invalid': fieldErrors['participant.phone_number'],
-                          'is-valid': !fieldErrors['participant.phone_number'] && form.participant.phone_number
-                          }"
-                      />
-                      <div
-                          class="invalid-feedback"
-                          v-if="fieldErrors['participant.phone_number']"
-                      >
-                          {{ fieldErrors['participant.phone_number'] }}
+                        <label class="mb-1">Bank</label>
+                        <select
+                            v-model="form.participant.bank_name"
+                            class="form-control form-control-sm"
+                        >
+                            <option value="">-- Pilih Bank --</option>
+                            <option
+                            v-for="bank in bankOptions"
+                            :key="bank"
+                            :value="bank"
+                            >
+                            {{ bank }}
+                            </option>
+                        </select>
                       </div>
-                      </div>
-                  </div>
+                    </div>
+
+                    <div class="col-md-4">
+                        <div class="form-group">
+                        <label class="mb-1">Atas Nama Rekening</label>
+                        <input
+                            v-model="form.participant.bank_account_name"
+                            type="text"
+                            class="form-control form-control-sm"
+                            placeholder="Nama pemilik rekening"
+                        />
+                        </div>
+                    </div>
 
                   
-
-                  <!-- TEMPAT LAHIR, TANGGAL LAHIR, JENIS KELAMIN -->
-                  <div class="col-md-4">
-                      <div class="form-group">
-                      <label class="mb-1">Tempat Lahir <span class="text-danger">*</span></label>
-                      <input
-                          v-model="form.participant.place_of_birth"
-                          type="text"
-                          class="form-control form-control-sm"
-                          @blur="validateField('participant.place_of_birth')"
-                          :class="{
-                          'is-invalid': fieldErrors['participant.place_of_birth'],
-                          'is-valid': !fieldErrors['participant.place_of_birth'] && form.participant.place_of_birth
-                          }"
-                      />
-                      <div
-                          class="invalid-feedback"
-                          v-if="fieldErrors['participant.place_of_birth']"
-                      >
-                          {{ fieldErrors['participant.place_of_birth'] }}
-                      </div>
-                      </div>
-                  </div>
-
-                  <div class="col-md-4">
-                      <div class="form-group mb-0">
-                          <label class="mb-1">Tanggal Lahir <span class="text-danger">*</span></label>
-                          <div class="input-group input-group-sm">
-                          <input
-                              v-model="form.participant.date_of_birth"
-                              type="date"
-                              class="form-control form-control-sm"
-                              @blur="validateField('participant.date_of_birth')"
-                              :class="{
-                              'is-invalid': fieldErrors['participant.date_of_birth'],
-                              'is-valid': !fieldErrors['participant.date_of_birth'] && form.participant.date_of_birth
-                              }"
-                              disabled
-                          />
-                          <div class="input-group-append">
-                              <span class="input-group-text">
-                              <i class="far fa-calendar-alt"></i>
-                              </span>
-                          </div>
-                          </div>
-
-                          <!-- pesan error utama DOB (required/format/umur) -->
-                          <div
-                          class="invalid-feedback d-block"
-                          v-if="fieldErrors['participant.date_of_birth']"
-                          >
-                          {{ fieldErrors['participant.date_of_birth'] }}
-                          </div>
-
-                          <div
-                          class="valid-feedback d-block"
-                          v-if="fieldValids['participant.date_of_birth']"
-                          >
-                          {{ fieldValids['participant.date_of_birth'] }}
-                          </div>
-
-                          <!-- hint dari NIK -->
-                          <small v-if="nikDobHint" class="text-muted d-block">
-                          Diambil dari NIK: {{ nikDobHint }}
-                          </small>
-
-                          <!-- pesan khusus validasi umur vs max_age -->
-                          <!-- <small
-                          v-if="ageMessage"
-                          class="d-block mt-1"
-                          :class="ageStatus === 'invalid' ? 'text-danger' : 'text-success'"
-                          >
-                          {{ ageMessage }}
-                          </small> -->
-                      </div>
-                  </div>
-
-
-                  <div class="col-md-4">
-                      <div class="form-group">
-                      <label class="mb-1">Jenis Kelamin <span class="text-danger">*</span></label>
-                      <select
-                          v-model="form.participant.gender"
-                          class="form-control form-control-sm"
-                          @change="validateField('participant.gender')"
-                          :class="{
-                          'is-invalid': fieldErrors['participant.gender'],
-                          'is-valid': !fieldErrors['participant.gender'] && form.participant.gender
-                          }"
-                          disabled
-                      >
-                          <option value="">-- Pilih --</option>
-                          <option value="MALE">LAKI-LAKI</option>
-                          <option value="FEMALE">PEREMPUAN</option>
-                      </select>
-                      <div
-                          class="invalid-feedback"
-                          v-if="fieldErrors['participant.gender']"
-                      >
-                          {{ fieldErrors['participant.gender'] }}
-                      </div>
-                      <small v-if="nikGenderHint" class="text-muted">
-                          Diambil dari NIK: {{ nikGenderHint }}
-                      </small>
-                      </div>
-                  </div>
-
-                  <!-- PENDIDIKAN -->
-                  <div class="col-md-4">
-                      <div class="form-group">
-                      <label class="mb-1">Pendidikan <span class="text-danger">*</span></label>
-                      <select
-                          v-model="form.participant.education"
-                          class="form-control form-control-sm"
-                          @change="validateField('participant.education')"
-                          :class="{
-                          'is-invalid': fieldErrors['participant.education'],
-                          'is-valid': !fieldErrors['participant.education'] && form.participant.education
-                          }"
-                      >
-                          <option value="SD">SD</option>
-                          <option value="SMP">SMP</option>
-                          <option value="SMA">SMA</option>
-                          <option value="D1">DIPLOMA I</option>
-                          <option value="D2">DIPLOMA II</option>
-                          <option value="D3">DIPLOMA III</option>
-                          <option value="D4">DIPLOMA IV</option>
-                          <option value="S1">S1</option>
-                          <option value="S2">S2</option>
-                          <option value="S3">S3</option>
-                      </select>
-                      <div
-                          class="invalid-feedback"
-                          v-if="fieldErrors['participant.education']"
-                      >
-                          {{ fieldErrors['participant.education'] }}
-                      </div>
-                      </div>
-                  </div>
-
-                  <!-- ===================== ALAMAT DOMISILI ===================== -->
-                  <div class="col-12 mt-3">
-                      <h6 class="mb-1 font-weight-bold">Alamat Domisili</h6>
-                      <hr class="mt-1 mb-3" />
-                  </div>
-
-                  <!-- PROVINSI, KAB/KOTA, KECAMATAN -->
-                  <div class="col-md-4">
-                      <div class="form-group">
-                      <label class="mb-1">
-                          Provinsi (Sesuai KTP) <span class="text-danger">*</span>
-                      </label>
-                      <select
-                          v-model="form.participant.province_id"
-                          class="form-control form-control-sm"
-                          :disabled="disabledProvince"
-                          @change="validateField('participant.province_id')"
-                          :class="{
-                          'is-invalid': fieldErrors['participant.province_id'],
-                          'is-valid': !fieldErrors['participant.province_id'] && form.participant.province_id
-                          }"
-                      >
-                          <option value="" disabled>-- Pilih Provinsi --</option>
-                          <option
-                          v-for="p in provinceOptions"
-                          :key="p.id"
-                          :value="p.id"
-                          >
-                          {{ p.name }}
-                          </option>
-                      </select>
-                      <div
-                          class="invalid-feedback"
-                          v-if="fieldErrors['participant.province_id']"
-                      >
-                          {{ fieldErrors['participant.province_id'] }}
-                      </div>
-                      </div>
-                  </div>
-
-                  <div class="col-md-4">
-                      <div class="form-group">
-                      <label class="mb-1">
-                          Kab / Kota (Sesuai KTP) <span class="text-danger">*</span>
-                      </label>
-                      <select
-                          v-model="form.participant.regency_id"
-                          class="form-control form-control-sm"
-                          :disabled="disabledRegency"
-                          @change="validateField('participant.regency_id')"
-                          :class="{
-                          'is-invalid': fieldErrors['participant.regency_id'],
-                          'is-valid': !fieldErrors['participant.regency_id'] && form.participant.regency_id
-                          }"
-                      >
-                          <option value="" disabled>
-                          {{ isLoadingRegencies ? 'Memuat Kabupaten/Kota...' : '-- Pilih Kabupaten/Kota --' }}
-                          </option>
-                          <option
-                          v-for="r in regencyOptions"
-                          :key="r.id"
-                          :value="r.id"
-                          >
-                          {{ r.name }}
-                          </option>
-                      </select>
-                      <small v-if="isLoadingRegencies" class="text-muted">
-                          <i class="fas fa-spinner fa-spin mr-1"></i> Sedang memuat kabupaten/kota...
-                      </small>
-                      <div
-                          class="invalid-feedback"
-                          v-if="fieldErrors['participant.regency_id']"
-                      >
-                          {{ fieldErrors['participant.regency_id'] }}
-                      </div>
-                      </div>
-                  </div>
-
-                  <div class="col-md-4">
-                      <div class="form-group">
-                      <label class="mb-1">
-                          Kecamatan (Sesuai KTP) <span class="text-danger">*</span>
-                      </label>
-                      <select
-                          v-model="form.participant.district_id"
-                          class="form-control form-control-sm"
-                          :disabled="disabledDistrict"
-                          @change="validateField('participant.district_id')"
-                          :class="{
-                          'is-invalid': fieldErrors['participant.district_id'],
-                          'is-valid': !fieldErrors['participant.district_id'] && form.participant.district_id
-                          }"
-                      >
-                          <option value="" disabled>
-                          {{ isLoadingDistricts ? 'Memuat Kecamatan...' : '-- Pilih Kecamatan --' }}
-                          </option>
-                          <option
-                          v-for="d in districtOptions"
-                          :key="d.id"
-                          :value="d.id"
-                          >
-                          {{ d.name }}
-                          </option>
-                      </select>
-                      <small v-if="isLoadingDistricts" class="text-muted">
-                          <i class="fas fa-spinner fa-spin mr-1"></i> Sedang memuat kecamatan...
-                      </small>
-                      <div
-                          class="invalid-feedback"
-                          v-if="fieldErrors['participant.district_id']"
-                      >
-                          {{ fieldErrors['participant.district_id'] }}
-                      </div>
-                      </div>
-                  </div>
-
-                  <!-- DESA & ALAMAT -->
-                  <div class="col-md-4">
-                      <div class="form-group">
-                      <label class="mb-1">Kelurahan / Desa <span class="text-danger">*</span></label>
-                      <select
-                          v-model="form.participant.village_id"
-                          class="form-control form-control-sm"
-                          :disabled="!form.participant.district_id || isLoadingVillages"
-                          @change="validateField('participant.village_id')"
-                          :class="{
-                          'is-invalid': fieldErrors['participant.village_id'],
-                          'is-valid': !fieldErrors['participant.village_id'] && form.participant.village_id
-                          }"
-                      >
-                          <option :value="null">
-                          {{ isLoadingVillages ? 'Memuat Kelurahan/Desa...' : '-- Pilih Kel/Desa --' }}
-                          </option>
-                          <option
-                          v-for="v in villageOptions"
-                          :key="v.id"
-                          :value="v.id"
-                          >
-                          {{ v.name }}
-                          </option>
-                      </select>
-                      <small v-if="isLoadingVillages" class="text-muted">
-                          <i class="fas fa-spinner fa-spin mr-1"></i> Sedang memuat kelurahan/desa...
-                      </small>
-                      <div
-                          class="invalid-feedback"
-                          v-if="fieldErrors['participant.village_id']"
-                      >
-                          {{ fieldErrors['participant.village_id'] }}
-                      </div>
-                      </div>
-                  </div>
-
-                  <div class="col-md-8">
-                      <div class="form-group">
-                      <label class="mb-1">Alamat Lengkap Peserta <span class="text-danger">*</span></label>
-                      <textarea
-                          v-model="form.participant.address"
-                          rows="2"
-                          class="form-control form-control-sm"
-                          @blur="validateField('participant.address')"
-                          :class="{
-                          'is-invalid': fieldErrors['participant.address'],
-                          'is-valid': !fieldErrors['participant.address'] && form.participant.address
-                          }"
-                      ></textarea>
-                      <div
-                          class="invalid-feedback"
-                          v-if="fieldErrors['participant.address']"
-                      >
-                          {{ fieldErrors['participant.address'] }}
-                      </div>
-                      </div>
-                  </div>
-
-                  <!-- ===================== INFORMASI REKENING ===================== -->
-                  <div class="col-12 mt-3">
-                      <h6 class="mb-1 font-weight-bold">Informasi Rekening</h6>
-                      <hr class="mt-1 mb-3" />
-                  </div>
-
-                  <div class="col-md-4">
-                      <div class="form-group">
-                      <label class="mb-1">Nomor Rekening <span class="text-danger">*</span></label>
-                      <input
-                          v-model="form.participant.bank_account_number"
-                          type="text"
-                          class="form-control form-control-sm"
-                          @blur="validateField('participant.bank_account_number')"
-                          :class="{
-                          'is-invalid': fieldErrors['participant.bank_account_number'],
-                          'is-valid': !fieldErrors['participant.bank_account_number'] && form.participant.bank_account_number
-                          }"
-                      />
-                      <div
-                          class="invalid-feedback"
-                          v-if="fieldErrors['participant.bank_account_number']"
-                      >
-                          {{ fieldErrors['participant.bank_account_number'] }}
-                      </div>
-                      </div>
-                  </div>
-
-                  <div class="col-md-4">
-                      <div class="form-group">
-                      <label class="mb-1">Bank <span class="text-danger">*</span></label>
-                      <select
-                          v-model="form.participant.bank_name"
-                          class="form-control form-control-sm"
-                          @change="validateField('participant.bank_name')"
-                          :class="{
-                          'is-invalid': fieldErrors['participant.bank_name'],
-                          'is-valid': !fieldErrors['participant.bank_name'] && form.participant.bank_name
-                          }"
-                      >
-                          <option value="" disabled>-- Pilih Bank --</option>
-                          <option
-                          v-for="bank in bankOptions"
-                          :key="bank"
-                          :value="bank"
-                          >
-                          {{ bank }}
-                          </option>
-                      </select>
-                      <div
-                          class="invalid-feedback"
-                          v-if="fieldErrors['participant.bank_name']"
-                      >
-                          {{ fieldErrors['participant.bank_name'] }}
-                      </div>
-                      </div>
-                  </div>
-
-                  <div class="col-md-4">
-                      <div class="form-group">
-                      <label class="mb-1">Atas Nama Rekening <span class="text-danger">*</span></label>
-                      <input
-                          v-model="form.participant.bank_account_name"
-                          type="text"
-                          class="form-control form-control-sm"
-                          @blur="validateField('participant.bank_account_name')"
-                          :class="{
-                          'is-invalid': fieldErrors['participant.bank_account_name'],
-                          'is-valid': !fieldErrors['participant.bank_account_name'] && form.participant.bank_account_name
-                          }"
-                      />
-                      <div
-                          class="invalid-feedback"
-                          v-if="fieldErrors['participant.bank_account_name']"
-                      >
-                          {{ fieldErrors['participant.bank_account_name'] }}
-                      </div>
-                      </div>
-                  </div>
-
-                  
-
-                      <!-- ===================== DATA LOMBA ===================== -->
-                      <!-- <div class="col-12 mt-3">
-                          <h6 class="mb-1 font-weight-bold">Data Lomba</h6>
-                          <hr class="mt-1 mb-3" />
-                      </div>
-
-                      <div class="col-md-4">
-                          <div class="form-group">
-                          <label class="mb-1">Kontingen</label>
-                          <input
-                              v-model="form.event_participant.contingent"
-                              type="text"
-                              class="form-control form-control-sm"
-                              placeholder="Kab/Kota/Instansi"
-                          />
-                          </div>
-                      </div>
-
-                      <div class="col-md-4">
-                          <div class="form-group">
-                          <label class="mb-1">Status Pendaftaran <span class="text-danger">*</span></label>
-                          <select
-                              v-model="form.event_participant.registration_status"
-                              class="form-control form-control-sm"
-                              @change="validateField('event_participant.registration_status')"
-                              :class="{
-                              'is-invalid': fieldErrors['event_participant.registration_status'],
-                              'is-valid': !fieldErrors['event_participant.registration_status'] && form.event_participant.registration_status
-                              }"
-                          >
-                              <option value="bank_data">Bank Data</option>
-                              <option value="process">Diproses</option>
-                              <option value="verified">Terverifikasi</option>
-                              <option value="need_revision">Perlu Perbaikan</option>
-                              <option value="rejected">Ditolak</option>
-                              <option value="disqualified">Diskualifikasi</option>
-                          </select>
-                          <div
-                              class="invalid-feedback"
-                              v-if="fieldErrors['event_participant.registration_status']"
-                          >
-                              {{ fieldErrors['event_participant.registration_status'] }}
-                          </div>
-                          </div>
-                      </div>
-
-                      <div class="col-md-4">
-                          <div class="form-group">
-                          <label class="mb-1">Catatan Pendaftaran</label>
-                          <textarea
-                              v-model="form.event_participant.registration_notes"
-                              class="form-control form-control-sm"
-                              rows="2"
-                          ></textarea>
-                          </div>
-                      </div>
-
-                      <div v-if="isEdit" class="col-md-4">
-                          <div class="form-group">
-                          <label class="mb-1">Status Daftar Ulang</label>
-                          <select
-                              v-model="form.event_participant.reregistration_status"
-                              class="form-control form-control-sm"
-                          >
-                              <option value="not_yet">Belum Hadir</option>
-                              <option value="verified">Lolos Daftar Ulang</option>
-                              <option value="rejected">Tidak Lolos Daftar Ulang</option>
-                          </select>
-                          </div>
-                      </div>
-
-                      <div v-if="isEdit" class="col-md-8">
-                          <div class="form-group">
-                          <label class="mb-1">Catatan Daftar Ulang</label>
-                          <textarea
-                              v-model="form.event_participant.reregistration_notes"
-                              class="form-control form-control-sm"
-                              rows="2"
-                          ></textarea>
-                          </div>
-                      </div> -->
                   </div>
               </div>
 
               <!-- TAB LAMPIRAN -->
               <div v-else>
+
+                  <!-- ⚠️ TAMBAHAN: Warning Message Ketentuan Kelengkapan Lampiran -->
+                  <div class="alert alert-warning text-sm mb-3" role="alert">
+                      <i class="fas fa-info-circle mr-1"></i>
+                      <strong>Ketentuan Kelengkapan Lampiran (100%):</strong>
+                      <ul class="mb-0 pl-3 mt-1">
+                          <li>
+                              <strong>Umur &ge; 17 Tahun:</strong> Wajib melampirkan <strong>Foto, KTP, Akta Kelahiran, dan Kartu Keluarga (KK)</strong> (Total 4 dokumen).
+                          </li>
+                          <li>
+                              <strong>Umur &lt; 17 Tahun:</strong> Wajib melampirkan <strong>Foto, Akta Kelahiran, dan Kartu Keluarga (KK)</strong> (Total 3 dokumen; KTP bersifat opsional/tidak wajib).
+                          </li>
+                      </ul>
+                  </div>
+
                   <div class="row">
                   <!-- KOLOM FOTO -->
                   <div class="col-md-4">
@@ -1102,17 +1023,23 @@
                           </div>
 
                           <div class="custom-file mt-2 lampiran-photo-input">
-                          <input
-                              type="file"
-                              class="custom-file-input"
-                              id="photoInput"
-                              accept="image/jpeg,image/png,image/jpg"
-                              @change="onFileChange($event, 'photo_url')"
-                          />
-                          <label class="custom-file-label" for="photoInput">
-                              Pilih foto...
-                          </label>
+                            <input
+                                type="file"
+                                class="custom-file-input"
+                                :class="{ 'is-invalid': fileErrors['photo_url'] }"
+                                id="photoInput"
+                                accept="image/jpeg,image/png,image/jpg"
+                                @change="onFileChange($event, 'photo_url')"
+                            />
+                            <label class="custom-file-label" for="photoInput">
+                                Pilih foto...
+                            </label>
                           </div>
+
+                          <!-- TAMPILKAN ERROR JIKA ADA -->
+                          <small v-if="fileErrors['photo_url']" class="text-danger d-block mt-1 text-center text-xs">
+                            <strong>{{ fileErrors['photo_url'] }}</strong>
+                          </small>
 
                           <small class="text-muted d-block mt-2 text-center text-xs">
                           Format <strong>JPG/JPEG/PNG</strong>, maksimal
@@ -1136,6 +1063,7 @@
                           <input
                               type="file"
                               class="custom-file-input"
+                              :class="{ 'is-invalid': fileErrors['id_card_url'] }"
                               id="ktpInput"
                               accept="image/jpeg,image/png,image/jpg,application/pdf"
                               @change="onFileChange($event, 'id_card_url')"
@@ -1144,6 +1072,10 @@
                               Pilih file...
                           </label>
                           </div>
+                          <!-- TAMPILKAN ERROR JIKA ADA -->
+                          <small v-if="fileErrors['id_card_url']" class="text-danger d-block mt-1 text-xs">
+                            <strong>{{ fileErrors['id_card_url'] }}</strong>
+                          </small>
                           <small class="text-muted d-block mt-1 text-xs">
                           Format <strong>PDF</strong>, maksimal
                           <strong>1 MB</strong>.
@@ -1168,6 +1100,53 @@
                       </div>
                       </div>
 
+                      <!-- LAINNYA -->
+                      <div class="form-group row align-items-center lampiran-row">
+                        <label class="col-sm-3 col-form-label col-form-label-sm mb-0">
+                            Akta Kelahiran
+                        </label>
+                        <div class="col-sm-7">
+                            <div class="custom-file">
+                            <input
+                                type="file"
+                                class="custom-file-input"
+                                :class="{ 'is-invalid': fileErrors['other_url'] }"
+                                id="otherInput"
+                                accept="application/pdf"
+                                @change="onFileChange($event, 'other_url')"
+                            />
+                            <label class="custom-file-label" for="otherInput">
+                                Pilih file...
+                            </label>
+                            </div>
+                            <!-- TAMPILKAN ERROR JIKA ADA -->
+                            <small v-if="fileErrors['other_url']" class="text-danger d-block mt-1 text-xs">
+                              <strong>{{ fileErrors['other_url'] }}</strong>
+                            </small>
+                            <small class="text-muted d-block mt-1 text-xs">
+                            Format <strong>PDF</strong>, maksimal
+                            <strong>1 MB</strong>.
+                            </small>
+                        </div>
+                        <div class="col-sm-2 text-right">
+                            <span
+                            v-if="hasFile('other_url')"
+                            class="badge badge-pill badge-success badge-file"
+                            @click="openFile('other_url')"
+                            style="cursor: pointer;"
+                            title="Klik untuk melihat file"
+                            >
+                            <i class="fas fa-check"></i>
+                            </span>
+                            <span
+                            v-else
+                            class="badge badge-pill badge-secondary"
+                            >
+                            <i class="fas fa-minus"></i>
+                            </span>
+                        </div>
+                        </div>
+
                       <!-- KK -->
                       <div class="form-group row align-items-center lampiran-row">
                       <label class="col-sm-3 col-form-label col-form-label-sm mb-0">
@@ -1178,6 +1157,7 @@
                           <input
                               type="file"
                               class="custom-file-input"
+                              :class="{ 'is-invalid': fileErrors['family_card_url'] }"
                               id="kkInput"
                               accept="application/pdf"
                               @change="onFileChange($event, 'family_card_url')"
@@ -1186,6 +1166,10 @@
                               Pilih file...
                           </label>
                           </div>
+                          <!-- TAMPILKAN ERROR JIKA ADA -->
+                            <small v-if="fileErrors['family_card_url']" class="text-danger d-block mt-1 text-xs">
+                              <strong>{{ fileErrors['family_card_url'] }}</strong>
+                            </small>
                           <small class="text-muted d-block mt-1 text-xs">
                           Format <strong>PDF</strong>, maksimal
                           <strong>1 MB</strong>.
@@ -1220,6 +1204,7 @@
                           <input
                               type="file"
                               class="custom-file-input"
+                              :class="{ 'is-invalid': fileErrors['bank_book_url'] }"
                               id="tabunganInput"
                               accept="application/pdf"
                               @change="onFileChange($event, 'bank_book_url')"
@@ -1228,6 +1213,10 @@
                               Pilih file...
                           </label>
                           </div>
+                          <!-- TAMPILKAN ERROR JIKA ADA -->
+                            <small v-if="fileErrors['bank_book_url']" class="text-danger d-block mt-1 text-xs">
+                              <strong>{{ fileErrors['bank_book_url'] }}</strong>
+                            </small>
                           <small class="text-muted d-block mt-1 text-xs">
                           Format <strong>PDF</strong>, maksimal
                           <strong>1 MB</strong>.
@@ -1262,6 +1251,7 @@
                           <input
                               type="file"
                               class="custom-file-input"
+                              :class="{ 'is-invalid': fileErrors['certificate_url'] }"
                               id="sertifikatInput"
                               accept="application/pdf"
                               @change="onFileChange($event, 'certificate_url')"
@@ -1270,6 +1260,10 @@
                               Pilih file...
                           </label>
                           </div>
+                          <!-- TAMPILKAN ERROR JIKA ADA -->
+                            <small v-if="fileErrors['certificate_url']" class="text-danger d-block mt-1 text-xs">
+                              <strong>{{ fileErrors['certificate_url'] }}</strong>
+                            </small>
                           <small class="text-muted d-block mt-1 text-xs">
                           Format <strong>PDF</strong>, maksimal
                           <strong>1 MB</strong>.
@@ -1294,47 +1288,7 @@
                       </div>
                       </div>
 
-                      <!-- LAINNYA -->
-                      <div class="form-group row align-items-center lampiran-row">
-                      <label class="col-sm-3 col-form-label col-form-label-sm mb-0">
-                          Akta Kelahiran
-                      </label>
-                      <div class="col-sm-7">
-                          <div class="custom-file">
-                          <input
-                              type="file"
-                              class="custom-file-input"
-                              id="otherInput"
-                              accept="application/pdf"
-                              @change="onFileChange($event, 'other_url')"
-                          />
-                          <label class="custom-file-label" for="otherInput">
-                              Pilih file...
-                          </label>
-                          </div>
-                          <small class="text-muted d-block mt-1 text-xs">
-                          Format <strong>PDF</strong>, maksimal
-                          <strong>1 MB</strong>.
-                          </small>
-                      </div>
-                      <div class="col-sm-2 text-right">
-                          <span
-                          v-if="hasFile('other_url')"
-                          class="badge badge-pill badge-success badge-file"
-                          @click="openFile('other_url')"
-                          style="cursor: pointer;"
-                          title="Klik untuk melihat file"
-                          >
-                          <i class="fas fa-check"></i>
-                          </span>
-                          <span
-                          v-else
-                          class="badge badge-pill badge-secondary"
-                          >
-                          <i class="fas fa-minus"></i>
-                          </span>
-                      </div>
-                      </div>
+                      
                   </div>
                   </div>
               </div>
@@ -1531,7 +1485,7 @@ const isCheckboxDisabled = (p) => {
     !['bank_data', 'need_revision'].includes(
       (p.registration_status || '').toLowerCase()
     ) ||
-    (p.participant?.lampiran_completion_percent || 0) < 80
+    (p.participant?.lampiran_completion_percent || 0) < 100
   )
 }
 
@@ -1570,10 +1524,17 @@ const isInitLocation = ref(false)
 const emptyForm = () => createEmptyEventParticipantForm(eventId.value)
 const form = ref(emptyForm())
 
+// Tambahkan computed property untuk membatasi akses filter region
+const canShowRegionFilter = computed(() => {
+  const roleName = currentUser.value?.role?.name || ''
+  return ['SUPERADMIN', 'ADMIN_EVENT'].includes(roleName)
+})
+
 const filters = ref({
   registration_status: '',
   event_group_id: '',      // ✅ filter cabang/golongan
   reregistration_status: '',
+  event_region_id: '',     // ➕ Tambahkan ini untuk menampung filter region
 })
 
 
@@ -1831,6 +1792,7 @@ const fetchItems = async (page = 1) => {
         search: search.value,
         registration_status: filters.value.registration_status || '',
         event_group_id: filters.value.event_group_id || '',   // ✅ tambah ini
+        event_region_id: filters.value.event_region_id || '', // ➕ Kirim parameter region ke backend
         reregistration_status: filters.value.reregistration_status || '',
       },
     })
@@ -2971,7 +2933,8 @@ const validateAgeForGroup = () => {
 // MUTASI WILAYAH
 // ==================================================
 const mutasiModalRef = ref(null)
-const mutasiParticipantId = ref(null)
+// 1. Ubah inisialisasi awal dari null menjadi 0
+const mutasiParticipantId = ref(0) 
 const mutasiInitialRegion = ref({
   province_id: '',
   regency_id: '',
@@ -2979,7 +2942,8 @@ const mutasiInitialRegion = ref({
 })
 
 const openMutasiModal = (item) => {
-  mutasiParticipantId.value = item.participant?.id
+  // 2. Berikan fallback ke 0 jika id tidak ditemukan
+  mutasiParticipantId.value = item.participant?.id || 0 
   mutasiInitialRegion.value = {
     province_id: item.participant?.province_id || '',
     regency_id: item.participant?.regency_id || '',

@@ -1,13 +1,14 @@
 <script setup>
 import { reactive, ref } from 'vue';
-import { useToastr } from '@/toastr';
 import { useAuthUserStore } from '../../stores/AuthUserStore';
 import { useScreenDisplayStore } from '../../stores/ScreenDisplayStore.js';
 import axios from 'axios';
+import Swal from 'sweetalert2'; 
+import { useRouter } from 'vue-router'; 
 
 const screenDisplayStore = useScreenDisplayStore();
 const authUserStore = useAuthUserStore();
-const toastr = useToastr();
+const router = useRouter(); 
 
 const errors = ref([]);
 const isLoading = ref(false);
@@ -22,14 +23,35 @@ const updateProfile = () => {
         email: authUserStore.user.email,
     })
         .then((response) => {
-            toastr.success(response.data.message || 'Profile updated successfully!');
             if (response.data.user) {
                 authUserStore.user = response.data.user;
             }
+            
+            Swal.fire({
+                icon: 'success',
+                title: 'Berhasil!',
+                text: response.data.message || 'Profile updated successfully!',
+                confirmButtonText: 'OK'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    router.push('/admin/dashboard');
+                }
+            });
         })
         .catch((error) => {
             if (error.response && error.response.status === 422) {
                 errors.value = error.response.data.errors;
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Validasi Gagal',
+                    text: 'Silakan periksa kembali data profil Anda.',
+                });
+            } else {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Oops...',
+                    text: 'Terjadi kesalahan pada server!',
+                });
             }
         })
         .finally(() => {
@@ -52,15 +74,40 @@ const handleChangePassword = () => {
     isChangingPassword.value = true;
     axios.post('/api/change-user-password', changePasswordForm)
         .then((response) => {
-            toastr.success(response.data.message);
+            if (response.data.user) {
+                console.log(response.data);
+                authUserStore.user = response.data.user;
+            }
 
             for (const field in changePasswordForm) {
                 changePasswordForm[field] = '';
             }
+
+            Swal.fire({
+                icon: 'success',
+                title: 'Berhasil!',
+                text: response.data.message || 'Password berhasil diubah!',
+                confirmButtonText: 'OK'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    router.push('/admin/dashboard');
+                }
+            });
         })
         .catch((error) => {
             if (error.response && error.response.status === 422) {
                 errors.value = error.response.data.errors;
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Validasi Gagal',
+                    text: 'Silakan periksa kembali isian kata sandi Anda.',
+                });
+            } else {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Oops...',
+                    text: 'Terjadi kesalahan pada server!',
+                });
             }
         })
         .finally(() => {
@@ -91,16 +138,28 @@ const handleChangePassword = () => {
             <div class="row" style="margin-bottom: 100px;">
 
                 <div class="col-md-12">
+                    
+                    <!-- 👇 TAMBAHAN: Warning Alert -->
+                    <div class="alert alert-warning alert-dismissible fade show" role="alert">
+                        <h5><i class="icon fas fa-exclamation-triangle"></i> Peringatan Keamanan!</h5>
+                        Demi keamanan sistem, harap <strong>segera mengubah password default</strong> Anda. 
+                        <strong>Jangan pernah menyebarkan atau membagikan akun Anda</strong> (username & password) kepada orang lain.
+                        <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                    <!-- 👆 AKHIR TAMBAHAN -->
+
                     <div class="card">
                         <div class="card-header p-2">
                             <ul class="nav nav-pills">
                                 <li class="nav-item">
-                                    <a class="nav-link active" href="#profile" data-toggle="tab">
+                                    <a class="nav-link" href="#profile" data-toggle="tab">
                                         <i class="fa fa-user mr-1"></i> Edit Profile
                                     </a>
                                 </li>
                                 <li class="nav-item">
-                                    <a class="nav-link" href="#changePassword" data-toggle="tab">
+                                    <a class="nav-link active" href="#changePassword" data-toggle="tab">
                                         <i class="fa fa-key mr-1"></i> Ubah Password
                                     </a>
                                 </li>
@@ -108,7 +167,7 @@ const handleChangePassword = () => {
                         </div>
                         <div class="card-body">
                             <div class="tab-content">
-                                <div class="tab-pane active" id="profile">
+                                <div class="tab-pane" id="profile">
                                     <form @submit.prevent="updateProfile()" class="form-horizontal">
                                         <div class="form-group row">
                                             <label for="inputName" class="col-sm-2 col-form-label">Name</label>
@@ -155,7 +214,7 @@ const handleChangePassword = () => {
                                     </form>
                                 </div>
 
-                                <div class="tab-pane" id="changePassword">
+                                <div class="tab-pane active" id="changePassword">
                                     <form @submit.prevent="handleChangePassword" class="form-horizontal">
                                         <div class="form-group row">
                                             <label for="currentPassword" class="col-sm-3 col-form-label">Kata Sandi Saat Ini</label>

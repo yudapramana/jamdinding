@@ -8,6 +8,8 @@ import { ref } from 'vue'
 
 
 export const bankOptions = [
+  'NAGARI', 
+  'NAGARI SYARIAH', 
   'BRI',
   'BNI',
   'MANDIRI',
@@ -546,9 +548,9 @@ export const eventParticipantRequiredFields = [
   'participant.regency_id',
   'participant.district_id',
   'participant.village_id',
-  'participant.bank_account_number',
-  'participant.bank_account_name',
-  'participant.bank_name',
+  // 'participant.bank_account_number',
+  // 'participant.bank_account_name',
+  // 'participant.bank_name',
   'event_participant.event_category_id',
 ]
 

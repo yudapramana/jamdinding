@@ -34,8 +34,8 @@ class ProfileController extends Controller
 
     public function changePassword(Request $request, UpdateUserPassword $updater)
     {
-        $userID = auth()->user()->id;
-        $user = User::find($userID);
+        // 1. Ambil user dari request (Sanctum/Auth)
+        $user = $request->user();
         
         $updater->update(
             $user,
@@ -46,8 +46,19 @@ class ProfileController extends Controller
             ]
         );
 
+        // 👇 SOLUSI TERBARU: Update hash password di session langsung
+        // Ini mencegah fitur AuthenticateSession melogout user, 
+        // TANPA meregenerate CSRF Token yang bikin Vue error.
+        $request->session()->put([
+            'password_hash_web' => $user->fresh()->getAuthPassword(),
+            'password_hash_sanctum' => $user->fresh()->getAuthPassword(),
+        ]);
+
+        // Load ulang relasi agar data di frontend tetap lengkap
+        $user->load('role', 'province', 'regency', 'district', 'village');
+
         return response()->json([
-            'message' => 'Password changed successfully!',
+            'message' => 'Password berhasil diubah!',
             'user' => $user // Kirim balik data user terbaru
         ]);
     }

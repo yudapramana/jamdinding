@@ -358,7 +358,6 @@ class EventParticipantController extends Controller
     {
         $user     = $request->user();
         $roleSlug = optional($user->role)->slug ?? null;
-        // Ini yang Baru
         
         // if ($roleSlug !== 'superadmin' && $roleSlug !== 'admin_event') {
         //     $regionType = $event->getContingentRegionType(); // otomatis 'district' untuk MTQ Kabupaten
@@ -375,13 +374,12 @@ class EventParticipantController extends Controller
         //     }
         // }
 
-        // End yang Baru
-
-        $search                = $request->get('search');
-        $perPage               = (int) $request->get('per_page', 10);
+        $search               = $request->get('search');
+        $perPage              = (int) $request->get('per_page', 10);
         $registrationStatus    = $request->get('registration_status');
         $reregistrationStatus  = $request->get('reregistration_status');
         $eventGroupId          = $request->get('event_group_id');
+        $eventRegionId         = $request->get('event_region_id'); // ➕ Ambil parameter filter region dari request
         $withVerifications = filter_var($request->get('withVerifications', false), FILTER_VALIDATE_BOOLEAN);
 
         $eventId = $event->id;
@@ -417,7 +415,25 @@ class EventParticipantController extends Controller
             $query->where('event_group_id', $eventGroupId);
         }
 
-        if ($roleSlug !== 'superadmin' && $roleSlug !== 'admin_event') {
+        // ➕ IMPLEMENTASI FILTER REGION BERDASARKAN ROLE
+        if (in_array($roleSlug, ['superadmin', 'admin_event'], true)) {
+            // Jika user adalah Superadmin atau Admin Event dan memilih filter region tertentu
+            if (!empty($eventRegionId)) {
+                $level = $event->event_level;
+
+                // Sesuaikan kolom relasi region berdasarkan level event yang aktif
+                if ($level === 'province') {
+                    $query->where('p.regency_id', $eventRegionId);
+                } elseif ($level === 'regency') {
+                    $query->where('p.district_id', $eventRegionId);
+                } elseif ($level === 'district') {
+                    $query->where('p.village_id', $eventRegionId);
+                } elseif ($level === 'national') {
+                    $query->where('p.province_id', $eventRegionId);
+                }
+            }
+        } else {
+            // Logika pembatasan wilayah bawaan untuk role non-admin/superadmin
             if ($event->event_level === 'province') {
                 $query->where('p.province_id', $event->province_id)
                     ->where('p.regency_id', $user->regency_id);
@@ -834,15 +850,15 @@ class EventParticipantController extends Controller
             'participant.village_id.required' => 'Nagari/Desa wajib dipilih.',
             'participant.village_id.exists'   => 'Nagari/Desa tidak valid.',
 
-            'participant.bank_account_number.required' => 'Nomor rekening wajib diisi.',
+            // 'participant.bank_account_number.required' => 'Nomor rekening wajib diisi.',
             'participant.bank_account_number.string'   => 'Nomor rekening harus berupa teks.',
             'participant.bank_account_number.max'      => 'Nomor rekening maksimal 100 karakter.',
 
-            'participant.bank_account_name.required' => 'Nama pemilik rekening wajib diisi.',
+            // 'participant.bank_account_name.required' => 'Nama pemilik rekening wajib diisi.',
             'participant.bank_account_name.string'   => 'Nama pemilik rekening harus berupa teks.',
             'participant.bank_account_name.max'      => 'Nama pemilik rekening maksimal 255 karakter.',
 
-            'participant.bank_name.required' => 'Nama bank wajib diisi.',
+            // 'participant.bank_name.required' => 'Nama bank wajib diisi.',
             'participant.bank_name.string'   => 'Nama bank harus berupa teks.',
             'participant.bank_name.max'      => 'Nama bank maksimal 100 karakter.',
 
@@ -902,9 +918,9 @@ class EventParticipantController extends Controller
             'participant.district_id'       => ['required', 'exists:districts,id'],
             'participant.village_id'        => ['required', 'exists:villages,id'],
 
-            'participant.bank_account_number' => ['required', 'string', 'max:100'],
-            'participant.bank_account_name'   => ['required', 'string', 'max:255'],
-            'participant.bank_name'           => ['required', 'string', 'max:100'],
+            'participant.bank_account_number' => ['nullable', 'string', 'max:100'],
+            'participant.bank_account_name'   => ['nullable', 'string', 'max:255'],
+            'participant.bank_name'           => ['nullable', 'string', 'max:100'],
 
             'participant.tanggal_terbit_ktp'  => ['sometimes', 'nullable', 'date'],
             'participant.tanggal_terbit_kk'   => ['sometimes', 'nullable', 'date'],
@@ -944,6 +960,9 @@ class EventParticipantController extends Controller
                 $participant = Participant::findOrFail($participantId);
             } else {
                 $participant = new Participant();
+                // ✅ FIX: Generate UUID secara eksplisit sejak awal 
+                // agar bisa digunakan sebagai nama folder upload
+                $participant->uuid = (string) Str::uuid();
             }
 
             $participant->nik                 = $pData['nik'];
@@ -1017,18 +1036,31 @@ class EventParticipantController extends Controller
             $fCategory = EventCategory::find($epData['event_category_id']);
             $fGroup = null;
             $fBranch = null;
-            if($fCategory) {
-                $fGroup = EventGroup::where([
-                    'group_id' => $fCategory->group_id,
-                    'event_id' => $event->id
-                    ])->first();
 
-                if($fGroup) {
+            if ($fCategory) {
+                // ✅ PERBAIKAN 1: Tambahkan 'branch_id' agar tidak nyasar ke cabang lain
+                $fGroup = EventGroup::where([
+                    'event_id'  => $event->id,
+                    'branch_id' => $fCategory->branch_id, 
+                    'group_id'  => $fCategory->group_id
+                ])->first();
+
+                // ✅ PERBAIKAN 2: Gunakan 'branch_id' dari fCategory langsung (lebih aman)
+                if ($fGroup) {
                     $fBranch = EventBranch::where([
-                    'branch_id' => $fGroup->branch_id,
-                    'event_id' => $event->id
+                        'event_id'  => $event->id,
+                        'branch_id' => $fCategory->branch_id 
                     ])->first();
                 }
+            }
+
+            // ✅ PERBAIKAN 3: Null Safety (Mencegah error 500 "Trying to get property 'id' of non-object")
+            if (!$fGroup || !$fBranch) {
+                throw ValidationException::withMessages([
+                    'event_participant.event_category_id' => [
+                        'Data relasi Cabang atau Golongan tidak ditemukan untuk Kategori ini. Pastikan settingan event sudah benar.'
+                    ],
+                ]);
             }
 
             $eventParticipant->event_group_id    = $fGroup->id;
@@ -1146,6 +1178,15 @@ class EventParticipantController extends Controller
         $disk  = Storage::disk('privatedisk');
         $paths = [];
 
+        // ✅ Pastikan UUID benar-benar ada sebelum upload
+        $uuidFolder = $participant->uuid ?? (string) Str::uuid();
+
+        // Jika terpaksa bikin UUID darurat, pastikan disematkan ke participant 
+        // agar nanti tersimpan konsisten ke DB saat $participant->save()
+        if (empty($participant->uuid)) {
+            $participant->uuid = $uuidFolder; 
+        }
+
         foreach ($fileFields as $field => $allowedExtensions) {
 
             /* ==========================================
@@ -1225,7 +1266,7 @@ class EventParticipantController extends Controller
                 $fileName = Str::uuid()->toString() . '.' . $extension;
 
                 $storedPath = $file->storeAs(
-                    "documents/{$participant->uuid}",
+                    "documents/{$uuidFolder}",
                     $fileName,
                     'privatedisk'
                 );
@@ -1240,7 +1281,7 @@ class EventParticipantController extends Controller
 
                 $existingPath = ltrim($participant->{$field}, '/');
 
-                if (str_starts_with($existingPath, "documents/{$participant->uuid}/")) {
+                if (str_starts_with($existingPath, "documents/{$uuidFolder}/")) {
                     $paths[$field] = $existingPath;
                 }
             }
@@ -1252,7 +1293,7 @@ class EventParticipantController extends Controller
             'user_id'           => $user?->id,
             'user_name'         => $user?->name,
             'participant_id'    => $participant->id,
-            'participant_uuid'  => $participant->uuid,
+            'participant_uuid'  => $uuidFolder,
             'fields'            => array_keys($paths),
             'ip'                => request()->ip(),
             'ua'                => substr(request()->userAgent(), 0, 255),
@@ -1474,16 +1515,9 @@ class EventParticipantController extends Controller
         $status = $data['registration_status'] ?? 'process';
         $user   = auth()->user();
 
-        // field lampiran yang dihitung untuk persentase kelengkapan
-        // HARUS sinkron dengan attachmentFields di frontend (EventParticipantHelpers.js)
-        $attachmentFields = [
-            'id_card_url',
-            'family_card_url',
-            'bank_book_url',
-            'certificate_url',
-            'other_url',
-        ];
-        $minCompletionPercent = 80;
+        // Diubah menjadi 100 karena menurut model Participant,
+        // lampiran (KTP, KK, Akta, Foto) bersifat WAJIB sesuai umurnya.
+        $minCompletionPercent = 100;
 
         DB::beginTransaction();
 
@@ -1525,28 +1559,19 @@ class EventParticipantController extends Controller
                 }
 
                 // ==========================================
-                // CEK KELENGKAPAN LAMPIRAN (SELALU DICEK,
-                // BAIK DI DEVELOPMENT MAUPUN PRODUCTION)
+                // CEK KELENGKAPAN LAMPIRAN (SELALU DICEK)
                 // ==========================================
                 $p = $ep->participant;
 
-                $completedCount = 0;
-                foreach ($attachmentFields as $field) {
-                    if (!empty($p?->{$field})) {
-                        $completedCount++;
-                    }
-                }
-
-                $totalFields = count($attachmentFields);
-                $completionPercent = $totalFields > 0
-                    ? (int) round(($completedCount / $totalFields) * 100)
-                    : 0;
+                // Cukup gunakan attribute (accessor) dari Model Participant
+                // yang sudah menangani pengecekan kondisi umur >= 17 atau < 17
+                $completionPercent = $p ? $p->lampiran_completion_percent : 0;
 
                 if ($completionPercent < $minCompletionPercent) {
                     $failed[] = [
                         'id'     => $ep->id,
                         'name'   => $name,
-                        'reason' => "Lampiran belum lengkap ({$completionPercent}% dari {$minCompletionPercent}% yang disyaratkan).",
+                        'reason' => "Lampiran belum lengkap ({$completionPercent}% dari {$minCompletionPercent}% yang disyaratkan). Pastikan dokumen wajib ter-upload.",
                     ];
                     continue;
                 }

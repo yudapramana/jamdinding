@@ -227,11 +227,11 @@ return new class extends Migration
             $table->enum('gender', ['MALE', 'FEMALE']);
             $table->string('specialization')->nullable();        // Tilawah, Tahfizh, dst
             $table->string('certification_level')->nullable();  // Kab / Prov / Nas
-            $table->enum('education', ['SD','SMP','SMA','D1','D2','D3','D4','S1','S2','S3'])->default('SMA'); // Pendidikan
+            $table->enum('education', ['TK', 'SD','SMP','SMA','D1','D2','D3','D4','S1','S2','S3'])->default('SMA'); // Pendidikan
             $table->string('bank_account_number', 50)->nullable();
             $table->string('bank_account_name', 150)->nullable();
             $table->enum('bank_name', [
-                'BRI','BNI','MANDIRI','BTN','BSI','BRI SYARIAH','BNI SYARIAH','MANDIRI SYARIAH',
+                'NAGARI', 'NAGARI SYARIAH', 'BRI','BNI','MANDIRI','BTN','BSI','BRI SYARIAH','BNI SYARIAH','MANDIRI SYARIAH',
                 'BCA','CIMB NIAGA','PERMATA','PANIN','OCBC NISP',
                 'DANAMON','MEGA','SINARMAS','BUKOPIN','MAYBANK','BTPN','J TRUST BANK',
                 'BANK DKI','BANK BJB','BANK BJB SYARIAH','BANK JATENG','BANK JATIM',
@@ -478,7 +478,7 @@ return new class extends Migration
 
             // Pendidikan
             $table->enum('education', [
-                'SD','SMP','SMA','D1','D2','D3','D4','S1','S2','S3'
+                'TK', 'SD','SMP','SMA','D1','D2','D3','D4','S1','S2','S3'
             ])->default('SMA');
 
             // Alamat Lengkap
@@ -500,7 +500,7 @@ return new class extends Migration
             $table->string('bank_account_number', 50)->nullable();
             $table->string('bank_account_name', 150)->nullable();
             $table->enum('bank_name', [
-                'BRI','BNI','MANDIRI','BTN','BSI','BRI SYARIAH','BNI SYARIAH','MANDIRI SYARIAH',
+                'NAGARI', 'NAGARI SYARIAH', 'BRI','BNI','MANDIRI','BTN','BSI','BRI SYARIAH','BNI SYARIAH','MANDIRI SYARIAH',
                 'BCA','CIMB NIAGA','PERMATA','PANIN','OCBC NISP',
                 'DANAMON','MEGA','SINARMAS','BUKOPIN','MAYBANK','BTPN','J TRUST BANK',
                 'BANK DKI','BANK BJB','BANK BJB SYARIAH','BANK JATENG','BANK JATIM',

@@ -720,7 +720,7 @@ watch(
 
           <li class="nav-item" >
               <router-link to="/admin/profile" active-class="active" class="nav-link">
-                  <i class="nav-icon fas fa-cog"></i>
+                  <i class="nav-icon fas fa-user"></i>
                   <p>
                       Profil
                   </p>

@@ -21,12 +21,49 @@ class EventParticipantReRegistrationController extends Controller
         $perPage      = $request->integer('per_page', 10);
         $search       = trim($request->string('search')->toString());
         $status       = $request->string('reregistration_status')->toString();
+        $eventRegionId = $request->input('event_region_id'); // ➕ Ambil filter region
 
         if (!$eventId) {
             return response()->json([
                 'message' => 'event_id wajib diisi'
             ], 422);
         }
+
+        $event = Event::find($eventId);
+        if (!$event) {
+            return response()->json(['message' => 'Event tidak ditemukan'], 404);
+        }
+
+        // ➕ Identifikasi User & Role untuk Filter Wilayah
+        $user     = $request->user();
+        $roleSlug = optional($user->role)->slug ?? null;
+
+        // ➕ Closure Reusable untuk Filter Wilayah ke relasi Participant
+        $regionFilter = function ($q) use ($roleSlug, $eventRegionId, $event, $user) {
+            if (in_array($roleSlug, ['superadmin', 'admin_event'], true)) {
+                if (!empty($eventRegionId)) {
+                    $level = $event->event_level;
+                    if ($level === 'province') {
+                        $q->where('regency_id', $eventRegionId);
+                    } elseif ($level === 'regency') {
+                        $q->where('district_id', $eventRegionId);
+                    } elseif ($level === 'district') {
+                        $q->where('village_id', $eventRegionId);
+                    } elseif ($level === 'national') {
+                        $q->where('province_id', $eventRegionId);
+                    }
+                }
+            } else {
+                if ($event->event_level === 'province') {
+                    $q->where('province_id', $event->province_id)
+                      ->where('regency_id', $user->regency_id);
+                } elseif ($event->event_level === 'regency') {
+                    $q->where('province_id', $event->province_id)
+                      ->where('regency_id', $event->regency_id)
+                      ->where('district_id', $user->district_id);
+                }
+            }
+        };
 
         /**
          * 🔒 event_group_id wajib
@@ -66,12 +103,14 @@ class EventParticipantReRegistrationController extends Controller
                 ->where('event_group_id', $eventGroupId)
                 /**
                  * 🔒 WAJIB ADA PESERTA VERIFIED
-                 * → jika tidak ada, TIM TIDAK DITAMPILKAN
                  */
                 ->whereHas('participants', fn ($q) =>
                     $q->where('registration_status', 'verified')
                 )
-                // 🔎 FILTER DAFTAR ULANG (BERDASARKAN PESERTA YG SUDAH REG VERIFIED)
+                // ➕ FILTER WILAYAH
+                ->whereHas('participants.participant', $regionFilter)
+                
+                // 🔎 FILTER DAFTAR ULANG
                 ->when($status, fn ($q) =>
                     $q->whereHas('participants', fn ($p) =>
                         $p->where('reregistration_status', $status)
@@ -94,7 +133,7 @@ class EventParticipantReRegistrationController extends Controller
                     })
                 )
 
-                // 🔑 LOAD RELASI (HANYA PESERTA VERIFIED)
+                // 🔑 LOAD RELASI
                 ->with([
                     'eventGroup',
                     'eventCategory',
@@ -102,36 +141,25 @@ class EventParticipantReRegistrationController extends Controller
                         $q->where('registration_status', 'verified'),
                     'participants.participant',
                 ])
-
                 ->withCount([
                     'participants as participants_count' => fn ($q) =>
                         $q->where('registration_status', 'verified'),
                 ])
-
                 ->get()
-
                 ->map(function ($team) {
-
                     return array_merge(
                         $team->toArray(),
                         [
                             'unit_type' => 'team',
-
                             'display_name' =>
                                 $team->team_name
                                 ?? 'Tim ' . ($team->branch_sequence ?? $team->id),
-
                             'members_count' => $team->participants_count,
-
-                            // ✅ sudah difilter VERIFIED
                             'participants' => $team->participants,
-
-                            // 🔥 pending daftar ulang (hanya dari verified)
                             'has_pending_reregistration' => $team->participants
                                 ->contains(fn ($ep) =>
                                     in_array($ep->reregistration_status, ['not_yet', null, ''])
                                 ),
-
                             'raw_id' => $team->id,
                         ]
                     );
@@ -146,18 +174,18 @@ class EventParticipantReRegistrationController extends Controller
                 ->where('event_id', $eventId)
                 ->where('event_group_id', $eventGroupId)
                 ->where('registration_status', 'verified')
+                // ➕ FILTER WILAYAH
+                ->whereHas('participant', $regionFilter)
 
                 ->when($status, fn ($q) =>
                     $q->where('reregistration_status', $status)
                 )
-
                 ->when($search, fn ($q) =>
                     $q->whereHas('participant', fn ($p) =>
                         $p->where('full_name', 'like', "%{$search}%")
                         ->orWhere('nik', 'like', "%{$search}%")
                     )
                 )
-
                 ->with(['participant', 'eventGroup', 'eventCategory'])
                 ->get()
                 ->map(fn ($ep) => array_merge(
@@ -261,6 +289,7 @@ class EventParticipantReRegistrationController extends Controller
             ->where('event_branch_id', $eventParticipant->event_branch_id)
             ->where('event_group_id', $eventParticipant->event_group_id)
             ->where('event_category_id', $eventParticipant->event_category_id)
+            ->where('registration_status', 'verified')
             ->count();
 
         if ($totalCategoryParticipants === 0) {
@@ -274,6 +303,7 @@ class EventParticipantReRegistrationController extends Controller
             ->where('event_branch_id', $eventParticipant->event_branch_id)
             ->where('event_group_id', $eventParticipant->event_group_id)
             ->where('event_category_id', $eventParticipant->event_category_id)
+            ->where('registration_status', 'verified')
             ->whereNotNull('branch_sequence')
             ->pluck('branch_sequence')
             ->map(fn ($n) => (int) $n)
@@ -331,6 +361,14 @@ class EventParticipantReRegistrationController extends Controller
 
     public function store(Request $request, EventParticipant $eventParticipant)
     {
+        $event = Event::findOrFail($eventParticipant->event_id);
+
+        // if (!$event->isStageActive('Pendaftaran Ulang')) {
+        //     return response()->json([
+        //         'message' => 'Tahap Pendaftaran Ulang belum dimulai atau sudah berakhir.'
+        //     ], 403);
+        // }
+
         // Optional: policy
         // $this->authorize('reRegister', $eventParticipant);
 

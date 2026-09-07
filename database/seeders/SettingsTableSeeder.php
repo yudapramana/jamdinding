@@ -17,7 +17,7 @@ class SettingsTableSeeder extends Seeder
         DB::table('settings')->insert([
             [
                 'key' => 'app_name',
-                'value' => 'E-MTQ PLATFORM',
+                'value' => 'MTQNXLII PESSEL',
             ],
             [
                 'key' => 'date_format',

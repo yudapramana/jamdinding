@@ -5,7 +5,7 @@
         <div>
           <h1 class="mb-1">Pendaftaran Peserta Event</h1>
           <p class="mb-0 text-muted text-sm">
-            Mengelola peserta yang terdaftar pada event aktif, termasuk status pendaftaran dan daftar ulang.
+            Mengelola Bagian Pendaftaran peserta yang terdaftar pada event aktif
           </p>
         </div>
       </div>
@@ -23,10 +23,24 @@
         <!-- SIDEBAR STATUS -->
         <div class="col-md-2">
           <div class="card card-outline card-primary">
+            <!-- Tambahkan d-flex, justify-content-between, align-items-center -->
             <div class="card-header py-2">
-              <h3 class="card-title text-sm mb-0">
+              <h3 class="card-title text-sm mb-0 mt-1">
                 <i class="fas fa-filter mr-1"></i> Status
               </h3>
+              
+              <!-- Menggunakan fitur bawaan AdminLTE untuk penempatan di kanan -->
+              <div class="card-tools">
+                <button 
+                  type="button"
+                  class="btn btn-tool" 
+                  title="Refresh data dan status"
+                  :disabled="isLoading"
+                  @click="refreshData"
+                >
+                  <i class="fas fa-sync-alt text-secondary" :class="{ 'fa-spin': isLoading }"></i>
+                </button>
+              </div>
             </div>
 
             <div class="list-group list-group-flush text-sm">
@@ -62,6 +76,23 @@
                     <option value="">Semua Cabang</option>
                     <option v-for="g in masterDataStore.eventGroups" :key="g.id" :value="String(g.id)">
                       {{ g.full_name || g.name || g.group_name || ('Gol #' + g.id) }}
+                    </option>
+                  </select>
+
+                  <!-- ➕ FILTER WILAYAH (Hanya untuk SUPERADMIN & ADMIN_EVENT) -->
+                  <select
+                    v-if="canShowRegionFilter"
+                    v-model="filters.event_region_id"
+                    class="form-control form-control-sm w-auto"
+                    title="Wilayah / Region"
+                  >
+                    <option value="">Semua Wilayah</option>
+                    <option
+                      v-for="reg in masterDataStore.eventRegions"
+                      :key="reg.id"
+                      :value="String(reg.id)"
+                    >
+                      {{ reg.name || reg.region_name || ('Wilayah #' + reg.id) }}
                     </option>
                   </select>
                 </div>
@@ -795,20 +826,16 @@
                           class="fas fa-times-circle mr-1"></i> Ditolak</label>
                     </div>
 
-                    <label class="d-block mt-3 mb-2 text-primary"><strong>Keputusan Terhadap
-                        Pendaftaran</strong></label>
+                    <label class="d-block mt-3 mb-2 text-primary"><strong>Keputusan Terhadap Pendaftaran</strong></label>
+                    <!-- Dropdown diperbarui menjadi dinamis dan opsi "Kembali ke proses" dihilangkan -->
                     <select class="form-control border-primary" v-model="verificationForm.registration_status">
-                      <option value="process">Kembalikan ke Proses</option>
-                      <option value="verified">Lulus / Diterima (Verified)</option>
-                      <option value="need_revision">Butuh Perbaikan (Revision)</option>
-                      <option value="rejected">Tolak (Rejected)</option>
-                      <option value="disqualified">Diskualifikasi</option>
+                      <option v-for="opt in filteredRegistrationStatusOptions" :key="opt.value" :value="opt.value">
+                        {{ opt.label }}
+                      </option>
                     </select>
                   </div>
                   <div class="col-md-6">
-                    <label for="verificationNotes" class="text-primary"><strong>Catatan Verifikator (Wajib diisi jika
-                        ada
-                        penolakan/revisi)</strong></label>
+                    <label for="verificationNotes" class="text-primary"><strong>Catatan Verifikator (Wajib diisi jika ada penolakan/revisi)</strong></label>
                     <textarea id="verificationNotes" rows="4" class="form-control" v-model="verificationForm.notes"
                       placeholder="Tulis alasan jika butuh revisi (misal: 'Foto KTP buram, silakan upload ulang')..."></textarea>
                   </div>
@@ -861,8 +888,25 @@ const props = defineProps({
   status: { type: String, default: '' },
 })
 
+// Fungsi untuk memuat ulang data tabel dan hitungan status secara bersamaan
+const refreshData = async () => {
+  if (!eventId.value) return
+  
+  await Promise.all([
+    fetchItems(meta.value.current_page || 1),
+    fetchStatusCounts()
+  ])
+}
+
+// Tambahkan computed property untuk membatasi akses filter region
+const canShowRegionFilter = computed(() => {
+  const roleName = currentUser.value?.role?.name || ''
+  return ['SUPERADMIN', 'ADMIN_EVENT'].includes(roleName)
+})
+
 const filters = ref({
   event_group_id: '',
+  event_region_id: '',     // ➕ Tambahkan ini untuk menampung filter region
 })
 
 const fetchEventMasterData = async () => {
@@ -960,6 +1004,7 @@ const fetchItems = async (page = 1) => {
         registration_status: activeStatus.value,
         withVerifications: 1,
         event_group_id: filters.value.event_group_id || '',
+        event_region_id: filters.value.event_region_id || '', // ➕ Kirim parameter region ke backend
       },
     })
 
@@ -1276,6 +1321,35 @@ const submitVerification = async () => {
     savingVerification.value = false
   }
 }
+
+// Tambahkan di dalam <script setup>
+const filteredRegistrationStatusOptions = computed(() => {
+  const currentStatus = verificationForm.status
+  
+  // Jika status verifikasi sesi adalah 'verified', hanya tampilkan opsi Lulus/Diterima
+  if (currentStatus === 'verified') {
+    return [
+      { value: 'verified', label: 'Lulus / Diterima (Verified)' }
+    ]
+  }
+  
+  // Jika status verifikasi sesi adalah 'rejected', tampilkan opsi selain verified (tanpa 'process')
+  return [
+    { value: 'need_revision', label: 'Butuh Perbaikan (Revision)' },
+    { value: 'rejected', label: 'Tolak (Rejected)' },
+    { value: 'disqualified', label: 'Diskualifikasi' }
+  ]
+})
+
+// Watcher untuk otomatis menyesuaikan nilai dropdown jika status verifikasi sesi berubah
+watch(() => verificationForm.status, (newStatus) => {
+  if (newStatus === 'verified') {
+    verificationForm.registration_status = 'verified'
+  } else if (newStatus === 'rejected') {
+    // Set default ke 'rejected' atau 'need_revision' saat ditolak
+    verificationForm.registration_status = 'rejected'
+  }
+})
 
 watch(() => ({ ...filters.value }), () => fetchItems(1))
 watch(() => props.status, (val) => { activeStatus.value = val || ''; fetchItems(1) }, { immediate: true })

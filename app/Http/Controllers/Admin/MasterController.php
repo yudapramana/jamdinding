@@ -146,7 +146,7 @@ class MasterController extends Controller
                     * ========================= */
                     case 'province':
                         $data = Regency::where('province_id', $event->province_id)
-                            ->orderBy('name')
+                            ->orderBy('id')
                             ->get()
                             ->map(fn ($r) => [
                                 'id'   => $r->id,
@@ -159,7 +159,7 @@ class MasterController extends Controller
                     * ========================= */
                     case 'regency':
                         $data = District::where('regency_id', $event->regency_id)
-                            ->orderBy('name')
+                            ->orderBy('id')
                             ->get()
                             ->map(fn ($d) => [
                                 'id'   => $d->id,
@@ -172,7 +172,7 @@ class MasterController extends Controller
                     * ========================= */
                     case 'district':
                         $data = Village::where('district_id', $event->district_id)
-                            ->orderBy('name')
+                            ->orderBy('id')
                             ->get()
                             ->map(fn ($v) => [
                                 'id'   => $v->id,

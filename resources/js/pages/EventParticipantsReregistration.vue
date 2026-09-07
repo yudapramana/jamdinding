@@ -58,13 +58,30 @@
                 class="form-control form-control-sm w-auto"
                 title="Cabang / Golongan"
               >
-                <option value="">Cabang</option>
+                <option value="">-- Pilih Cabang --</option>
                 <option
                   v-for="g in masterDataStore.eventGroups"
                   :key="g.id"
                   :value="String(g.id)"
                 >
                   {{ g.full_name || g.name || g.group_name || ('Gol #' + g.id) }}
+                </option>
+              </select>
+
+              <!-- ➕ FILTER WILAYAH -->
+              <select
+                v-if="canShowRegionFilter"
+                v-model="filters.event_region_id"
+                class="form-control form-control-sm w-auto"
+                title="Wilayah / Region"
+              >
+                <option value="">Semua Wilayah</option>
+                <option
+                  v-for="reg in masterDataStore.eventRegions"
+                  :key="reg.id"
+                  :value="String(reg.id)"
+                >
+                  {{ reg.name || reg.region_name || ('Wilayah #' + reg.id) }}
                 </option>
               </select>
 
@@ -421,10 +438,16 @@ const eventBranches = ref([])   // event_branches (cabang/golongan)
 const eventGroups = ref([])
 const eventCategories = ref([])
 
+const currentUser = computed(() => authUserStore.user || null)
+const canShowRegionFilter = computed(() => {
+  const roleName = currentUser.value?.role?.name || ''
+  return ['SUPERADMIN', 'ADMIN_EVENT'].includes(roleName)
+})
 
 const filters = ref({
   reregistration_status: '',
-  event_group_id: '',      // ✅ filter cabang/golongan
+  event_group_id: '',
+  event_region_id: '', // ➕ Filter wilayah baru
 })
 
 const meta = ref({
@@ -575,6 +598,7 @@ const fetchItems = async (page = 1) => {
           search: search.value,
           reregistration_status: filters.value.reregistration_status || '',
           event_group_id: filters.value.event_group_id || '',   // ✅ tambah ini
+          event_region_id: filters.value.event_region_id || '', // ➕ Kirim payload ke backend
         }
       }
     )
@@ -591,8 +615,14 @@ const fetchItems = async (page = 1) => {
       to: paginated.to,
       last_page: paginated.last_page,
     }
-  } catch (e) {
-    Swal.fire('Gagal', 'Gagal memuat data daftar ulang.', 'error')
+  } catch (error) {
+    console.error('Gagal memuat data daftar ulang:', error)
+    if (error.response && error.response.status === 401) {
+      // ✅ Gunakan handler bawaan store untuk penanganan error 401 yang bersih
+      authUserStore.handleAuthError(error)
+    } else {
+      Swal.fire('Gagal', 'Gagal memuat data peserta event.', 'error')
+    }
   } finally {
     isLoading.value = false
   }
