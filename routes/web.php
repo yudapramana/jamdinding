@@ -134,15 +134,16 @@ Route::middleware('auth')->group(function () {
         Route::get('/show-pending-documents', 'showPendingDocuments');
     });
 
-    // Secure Documents (Dokumen Peserta) dengan filename opsional
+    // Secure Documents (Dokumen Peserta)
     Route::get('/secure/documents/{uuid}/{filename?}', [PublicDocController::class, 'stream'])
         ->where([
-            'uuid'     => '[0-9a-fA-F]{8}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{12}',
-            'filename' => '[^/]+',
+            // Izinkan UUID yang mungkin tidak sengaja tertempel ekstensi file di belakangnya
+            'uuid'     => '[0-9a-fA-F]{8}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{12}(\.[a-zA-Z0-9]+)?',
+            'filename' => '.*', // Menangkap nama file apa saja secara aman
         ])
         ->name('secure.docs.stream');
 
-    // Catch-all untuk format URL salah di bawah /secure/documents/
+    // Catch-all untuk format URL salah
     Route::get('/secure/documents/{any?}', [PublicDocController::class, 'invalidFormat'])
         ->where('any', '.*');
 

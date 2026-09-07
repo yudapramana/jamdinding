@@ -1,5 +1,4 @@
 <?php
-
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
@@ -10,16 +9,19 @@ class PublicDocController extends Controller
 {
     public function stream(Request $request, string $uuid, ?string $filename = null)
     { 
-        // Validasi format UUID untuk mencegah string kosong atau ngasal
-        if (!preg_match('/^[0-9a-fA-F]{8}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{12}$/', $uuid)) {
+        // 1. Bersihkan UUID jika tidak sengaja tertempel ekstensi (misal: .pdf)
+        $cleanUuid = preg_replace('/\.[^.\s]+$/', '', $uuid);
+
+        // 2. Validasi format UUID yang bersih
+        if (!preg_match('/^[0-9a-fA-F]{8}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{12}$/', $cleanUuid)) {
             return response()->json([
                 'status'  => 'error',
                 'message' => 'Format UUID peserta tidak valid.'
             ], 422);
         }
 
-        // Cari participant secara manual
-        $participant = Participant::where('uuid', $uuid)->first();
+        // 3. Cari participant berdasarkan UUID yang sudah dibersihkan
+        $participant = Participant::where('uuid', $cleanUuid)->first();
 
         if (! $participant) {
             return response()->json([
@@ -28,7 +30,7 @@ class PublicDocController extends Controller
             ], 404);
         }
 
-        // Cek jika filename kosong atau tidak ada
+        // 4. Cek jika filename kosong
         if (empty($filename)) {
             return response()->json([
                 'status'  => 'error',
