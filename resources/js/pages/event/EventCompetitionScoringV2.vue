@@ -487,6 +487,7 @@ const fetchParticipants = async () => {
     params: {
       event_group_id: competitionInfo.value.event_group_id,
       is_team: isTeam.value ? 1 : 0,
+      only_verified: 1,
     },
   })
   participants.value = data.data || []

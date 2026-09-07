@@ -1829,6 +1829,7 @@ const fetchEventMasterData = async () => {
   } catch (error) {
     console.error('Gagal memuat master event (branches/groups/categories):', error)
     Swal.fire('Gagal', 'Gagal memuat daftar cabang event & golongan.', 'error')
+    authUserStore.handleAuthError(error)
   }
 }
 

@@ -91,6 +91,7 @@
                 <th style="width: 40px;">#</th>
                 <!-- <th>Cabang</th>
                 <th>Golongan</th> -->
+                <th class="text-center">Code</th>
                 <th>Nama Lengkap</th>
                 <th>Majelis Hakim</th>
                 <th style="width: 120px;" class="text-center">Maks. Umur</th>
@@ -121,6 +122,11 @@
                 <!-- <td><strong>{{ item.branch_name }}</strong></td>
                 <td><strong>{{ item.group_name }}</strong></td> -->
                 <!-- <td>{{ item.full_name }}</td> -->
+                 <td class="text-center">
+                  <div>
+                    <strong>{{ item.code }}</strong>
+                  </div>
+                </td>
                  <td>
                   <div class="font-weight-bold">
                     {{ item.full_name }}

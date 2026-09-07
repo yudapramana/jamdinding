@@ -58,6 +58,7 @@
                 <th width="40">#</th>
                 <th>Cabang</th>
                 <th>Golongan</th>
+                <th class="text-center">Code</th>
                 <th>Full Name</th>
                 <th width="80" class="text-center">Max Usia</th>
                 <th width="70" class="text-center">Tim?</th>
@@ -82,6 +83,11 @@
                 <td>{{ index + 1 + (meta.current_page - 1) * meta.per_page }}</td>
                 <td>{{ item.branch_name }}</td>
                 <td>{{ item.group_name }}</td>
+                <td class="text-center">
+                  <div>
+                    <strong>{{ item.code }}</strong>
+                  </div>
+                </td>
                 <td><strong>{{ item.full_name }}</strong></td>
                 <td class="text-center">{{ item.max_age }}</td>
                 <td class="text-center">

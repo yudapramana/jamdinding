@@ -164,6 +164,7 @@ class _EventGroupSeeder extends Seeder
                     'branch_name' => $mg->branch_name,
                     'group_name'  => $mg->group_name,
                     'full_name'   => $mg->full_name,
+                    'code'   => $mg->code,
 
                     // aturan: max_age master - 1
                     'max_age'     => $mg->max_age ? ($mg->max_age - 1) : 0,

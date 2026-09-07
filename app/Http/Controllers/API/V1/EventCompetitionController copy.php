@@ -31,6 +31,7 @@ class EventCompetitionController extends Controller
         ]);
     }
 
+
     public function tree(Request $request, Event $event)
     {
         $search = trim((string) $request->get('search', ''));
@@ -42,7 +43,7 @@ class EventCompetitionController extends Controller
             ->map(function ($r) use ($event, $search) {
 
                 $q = EventCompetition::query()
-                    ->from('event_competitions')
+                    ->from('event_competitions') // biar jelas base table
                     ->where('event_competitions.event_id', $event->id)
                     ->where('event_competitions.round_id', $r->id)
                     ->leftJoin('event_groups as eg', 'eg.id', '=', 'event_competitions.event_group_id')
@@ -98,17 +99,27 @@ class EventCompetitionController extends Controller
         return response()->json(['rounds' => $rounds]);
     }
 
+
     public function store(Request $request, Event $event)
     {
         $data = $request->validate([
             'event_group_id' => ['required', 'integer', 'exists:event_groups,id'],
             'round_id'       => ['required', 'integer', 'exists:rounds,id'],
+
+            // ✅ dari ajax sekarang tetap dikirim, tapi kita buat fleksibel
             'full_name'      => ['nullable', 'string', 'max:255'],
+
+            // ✅ ajax sudah tidak mengirim status -> default draft
             'status'         => ['nullable', Rule::in(['draft','ongoing','finished','cancelled'])],
+
+            // ✅ ajax masih mengirim scheduled_at (nullable)
             'scheduled_at'   => ['nullable', 'date'],
+
+            // ✅ ajax sudah tidak mengirim venue -> tetap nullable
             'venue'          => ['nullable', 'string', 'max:255'],
         ]);
 
+        // ✅ pastikan group ini milik event yang sedang aktif
         $group = \App\Models\EventGroup::query()
             ->where('id', $data['event_group_id'])
             ->where('event_id', $event->id)
@@ -120,7 +131,7 @@ class EventCompetitionController extends Controller
             ], 422);
         }
 
-        // enforce unique (event_id,event_group_id,round_id)
+        // ✅ enforce unique (event_id,event_group_id,round_id)
         $exists = \App\Models\EventCompetition::query()
             ->where('event_id', $event->id)
             ->where('event_group_id', $data['event_group_id'])
@@ -133,14 +144,16 @@ class EventCompetitionController extends Controller
             ], 422);
         }
 
+        // ✅ ambil is_team dari event group
         $isTeam = (bool) ($group->is_team ?? false);
 
+        // ✅ full_name fallback ke group->full_name kalau tidak dikirim
         $fullName = trim((string)($data['full_name'] ?? ''));
         if ($fullName === '') {
             $fullName = (string) ($group->full_name ?? '');
         }
 
-        // default ke draft
+        // ✅ status fallback ke draft
         $status = $data['status'] ?? 'draft';
 
         $comp = \App\Models\EventCompetition::create([
@@ -151,11 +164,13 @@ class EventCompetitionController extends Controller
             'status'         => $status,
             'is_team'        => $isTeam,
             'scheduled_at'   => $data['scheduled_at'] ?? null,
-            'venue'          => $data['venue'] ?? null,
+            'venue'          => $data['venue'] ?? null, // akan null kalau tidak dikirim
         ]);
 
         return response()->json($comp->fresh(), 201);
     }
+
+
 
     public function show(EventCompetition $eventCompetition)
     {
@@ -168,12 +183,20 @@ class EventCompetitionController extends Controller
         $data = $request->validate([
             'event_group_id' => ['required','integer','exists:event_groups,id'],
             'round_id'       => ['required','integer','exists:rounds,id'],
+
+            // ✅ dibuat fleksibel: kalau tidak dikirim, fallback ke eventGroup->full_name atau existing
             'full_name'      => ['nullable','string','max:255'],
+
+            // ✅ modal sudah tidak mengirim status -> default pakai existing (atau draft)
             'status'         => ['nullable', Rule::in(['draft','ongoing','finished','cancelled'])],
+
             'scheduled_at'   => ['nullable','date'],
+
+            // ✅ modal sudah tidak mengirim venue -> tetap nullable (kalau tidak ada, biarkan existing)
             'venue'          => ['nullable','string','max:255'],
         ]);
 
+        // ✅ pastikan event_group_id yang dipilih masih 1 event dengan competition ini
         $group = \App\Models\EventGroup::query()
             ->where('id', $data['event_group_id'])
             ->where('event_id', $eventCompetition->event_id)
@@ -185,7 +208,7 @@ class EventCompetitionController extends Controller
             ], 422);
         }
 
-        // unique check (exclude self)
+        // ✅ unique check (exclude self)
         $exists = \App\Models\EventCompetition::query()
             ->where('event_id', $eventCompetition->event_id)
             ->where('event_group_id', $data['event_group_id'])
@@ -199,17 +222,31 @@ class EventCompetitionController extends Controller
             ], 422);
         }
 
+        // ✅ is_team selalu dari group (bukan dari request)
         $isTeam = (bool) ($group->is_team ?? false);
 
+        // ✅ full_name: pakai input kalau ada, kalau kosong fallback ke group->full_name, terakhir existing
         $fullName = trim((string)($data['full_name'] ?? ''));
         if ($fullName === '') {
             $fullName = (string)($group->full_name ?? $eventCompetition->full_name);
         }
 
-        // Ambil status / venue terbaru
-        $status = $request->has('status') ? ($data['status'] ?? 'draft') : ($eventCompetition->status ?? 'draft');
-        $venue = $request->has('venue') ? ($data['venue'] ?? null) : $eventCompetition->venue;
-        $scheduledAt = $request->has('scheduled_at') ? ($data['scheduled_at'] ?? null) : $eventCompetition->scheduled_at;
+        // ✅ status: kalau tidak dikirim, pertahankan existing
+        $status = $data['status'] ?? $eventCompetition->status ?? 'draft';
+
+        // ✅ venue: kalau field tidak dikirim sama sekali -> pertahankan existing
+        // Catatan: validate() tidak membedakan "tidak dikirim" vs "dikirim null" kalau key tidak ada.
+        // Tapi kita bisa cek pakai $request->has('venue')
+        $venue = $eventCompetition->venue;
+        if ($request->has('venue')) {
+            $venue = $data['venue'] ?? null; // boleh null untuk mengosongkan
+        }
+
+        // ✅ scheduled_at: sama; kalau tidak dikirim -> pertahankan existing
+        $scheduledAt = $eventCompetition->scheduled_at;
+        if ($request->has('scheduled_at')) {
+            $scheduledAt = $data['scheduled_at'] ?? null;
+        }
 
         $eventCompetition->update([
             'event_group_id' => $data['event_group_id'],
@@ -223,6 +260,7 @@ class EventCompetitionController extends Controller
 
         return response()->json($eventCompetition->fresh());
     }
+
 
     public function destroy(EventCompetition $eventCompetition)
     {

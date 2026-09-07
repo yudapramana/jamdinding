@@ -9,7 +9,6 @@ class __BranchSeeder extends Seeder
 {
     public function run()
     {
-        // Base array sesuai permintaan (tidak diubah)
         $competitionGroups = [
             'Fahm Al Qur\'an',
             'Hafalan Al Qur\'an',
@@ -34,42 +33,64 @@ class __BranchSeeder extends Seeder
             'syarhil qur\'an',
         ];
 
-        // Mapping kode manual agar 100% akurat dengan gambar image_5ac725.jpg (tanpa penomoran/titik)
-        $codeMap = [
-            'Fahm Al Qur\'an'                          => 'FQ',
-            'Hafalan Al Qur\'an'                      => 'HQ',  // Sesuai Hifzil di gambar
-            'Karya Tulis Ilmiah Al Qur\'an (KTIQ)'    => 'KIQ', // Sesuai gambar
-            'Karya Tulis Ilmiah Hadits (KTIH)'        => 'KIH', // Sesuai gambar
-            'Khutbah Jum\'at & Adzan'                 => 'KJ',  // Sesuai gambar
-            'Kitab Standar'                           => 'KS',  // Sesuai gambar (KS 1 -> KS)
-            'Musabaqah Hafalan Hadits Nabi'           => 'MH',  // Ekstra: Format disamakan (karena tidak ada di gambar)
-            'Qiraat Al Qur\'an'                       => 'QR',  // Ekstra: Format disamakan (karena tidak ada di gambar)
-            'Seni Baca Al Qur\'an (Tilawah)'          => 'TL',  // Sesuai Tilawah di gambar
-            'Seni Kaligrafi Al Qur\'an'               => 'KQ',  // Sesuai Khatil di gambar
-            'Syarhil Qur\'an'                         => 'SQ',  // Sesuai gambar
-            'Tafsir Al Qur\'an'                       => 'TF',  // Sesuai gambar
-            'Tartil Al Qur\'an'                       => 'TT',  // Sesuai gambar
-            'Tartil Al Qur\'an Eksekutif (Eselon II)' => 'TE',  // Sesuai kelompok Tartil
-        ];
+        $removeTerms = ["Al Qur'an"];
 
         $order = 1;
 
         foreach ($competitionGroups as $originalName) {
 
+            /** Nama disimpan tanpa diubah */
             $nameToSave = $originalName;
 
-            // Ambil kode dari array mapping, gunakan 'XX' sebagai default jaga-jaga
-            $code = $codeMap[$originalName] ?? 'XX';
+            /* ============================
+               GENERATE CODE
+            ============================ */
+
+            $cleanForCode = $originalName;
+
+            // Hilangkan "Al Qur'an" hanya untuk keperluan kode
+            foreach ($removeTerms as $term) {
+                $cleanForCode = str_replace($term, '', $cleanForCode);
+            }
+
+            // Hilangkan isi kurung
+            $cleanForCode = preg_replace('/\s*\(.*?\)\s*/', '', $cleanForCode);
+
+            // Rapikan spasi
+            $cleanForCode = trim(preg_replace('/\s+/', ' ', $cleanForCode));
+
+            $words = explode(' ', $cleanForCode);
+
+            if (count($words) >= 3) {
+                $code = strtoupper(
+                    substr($words[0], 0, 1) . substr(end($words), 0, 1)
+                );
+            } elseif (count($words) == 2) {
+                $code = strtoupper(
+                    substr($words[0], 0, 1) . substr($words[1], 0, 1)
+                );
+            } else {
+                // 1 kata → ambil huruf pertama + tengah
+                $w = $words[0];
+                $mid = floor(strlen($w) / 2);
+                $code = strtoupper(substr($w, 0, 1) . substr($w, $mid, 1));
+            }
+
+            // Nomor urut
+            $code = $code . '.' . str_pad($order, 2, '0', STR_PAD_LEFT);
 
             /* ============================
                Tentukan is_team
             ============================ */
+
             $normalizedName = strtolower(trim($originalName));
+
             $isTeam = in_array($normalizedName, $teamBranches);
 
             /* ============================
                SIMPAN KE DATABASE
             ============================ */
+
             DB::table('branches')->insert([
                 'code'         => $code,
                 'name'         => $nameToSave,

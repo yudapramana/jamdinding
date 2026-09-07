@@ -157,6 +157,7 @@ return new class extends Migration
             $table->foreignId('branch_id')->constrained()->cascadeOnDelete();
             $table->string('branch_name');
             $table->string('full_name');
+            $table->string('code', 50)->nullable();
             $table->unsignedInteger('order_number')->nullable();
             $table->boolean('is_active')->default(true);
             $table->timestamps();
@@ -170,6 +171,7 @@ return new class extends Migration
             $table->string('branch_name');
             $table->string('group_name');
             $table->string('full_name');
+            $table->string('code', 50)->nullable();
             $table->integer('max_age')->default(0);
             $table->boolean('is_team')->default(false);
             $table->unsignedInteger('order_number')->nullable();
@@ -330,6 +332,7 @@ return new class extends Migration
 
             $table->string('branch_name');
             $table->string('full_name');
+            $table->string('code', 50)->nullable();
 
             $table->enum('status', ['inactive', 'active'])->default('active');
             $table->unsignedInteger('order_number')->nullable();
@@ -346,6 +349,7 @@ return new class extends Migration
             $table->foreignId('event_id')->constrained('events')->cascadeOnDelete();
             $table->foreignId('branch_id')->constrained('branches')->cascadeOnDelete();
             $table->foreignId('group_id')->constrained('groups')->cascadeOnDelete();
+            $table->string('code', 50)->nullable();
 
             $table->foreignId('event_judge_panel_id')
                 ->nullable()

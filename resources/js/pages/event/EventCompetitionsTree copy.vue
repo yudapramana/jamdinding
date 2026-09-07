@@ -42,7 +42,7 @@
                 type="text"
                 class="form-control form-control-sm w-auto"
                 style="min-width: 260px"
-                placeholder="Cari nama kompetisi..."
+                placeholder="Cari nama kompetisi / venue..."
               />
             </div>
 
@@ -114,20 +114,7 @@
                 <input v-model="form.scheduled_at" type="datetime-local" class="form-control form-control-sm" />
               </div>
 
-              <div class="form-group col-md-6">
-                <label class="mb-1">Status</label>
-                <select v-model="form.status" class="form-control form-control-sm">
-                  <option value="draft">Draft</option>
-                  <option value="ongoing">Ongoing</option>
-                  <option value="finished">Finished</option>
-                  <option value="cancelled">Cancelled</option>
-                </select>
-              </div>
-
-              <div class="form-group col-md-12">
-                <label class="mb-1">Venue (Lokasi Event)</label>
-                <input v-model="form.venue" type="text" class="form-control form-control-sm" placeholder="Contoh: Panggung Utama" />
-              </div>
+              <!-- ✅ STATUS / TEAM / VENUE DIHAPUS -->
             </div>
 
             <small class="text-muted">
@@ -184,8 +171,6 @@ function emptyForm () {
     round_id: '',
     full_name: '',
     scheduled_at: '',
-    status: 'draft',
-    venue: '',
   }
 }
 
@@ -258,6 +243,7 @@ const buildJsTree = async () => {
   $tree.off('activate_node.jstree')
   $tree.off('select_node.jstree')
   $tree.off('click', '.js-edit-competition')
+  $tree.off('click', '.js-del-competition')
 
   $tree.jstree({
     core: {
@@ -301,6 +287,7 @@ const buildJsTree = async () => {
             const teamBadge = c.is_team ? `<span class="badge badge-dark ml-2">TEAM</span>` : ''
             const statusCls = statusBadge(c.status)
             const dt = escapeHtml(formatDateTime(c.scheduled_at))
+            const venue = escapeHtml(c.venue || '-')
             const eg = escapeHtml(c.event_group?.full_name || '-')
 
             return {
@@ -316,9 +303,18 @@ const buildJsTree = async () => {
                     <span class="badge ${statusCls} ml-2">${escapeHtml(c.status)}</span>
                   </span>
 
-                  <span class="tree-actions">
+                  <span class="tree-comp-sub text-muted">
+                    <span class="mr-2"><i class="far fa-clock mr-1"></i>${dt}</span>
+                    <span class="mr-2"><i class="fas fa-map-marker-alt mr-1"></i>${venue}</span>
+                    <span class="mr-2"><i class="fas fa-layer-group mr-1"></i>${eg}</span>
+                  </span>
+
+                  <span class="tree-actions ml-2">
                     <a href="#" class="badge badge-info js-edit-competition" data-id="${c.id}">
                       <i class="fas fa-edit mr-1"></i>Edit
+                    </a>
+                    <a href="#" class="badge badge-danger js-del-competition ml-1" data-id="${c.id}">
+                      <i class="fas fa-trash mr-1"></i>Hapus
                     </a>
                   </span>
                 </span>
@@ -373,6 +369,15 @@ const buildJsTree = async () => {
     await openEditModalById(id)
     return false
   })
+
+  $tree.on('click', '.js-del-competition', async (e) => {
+    e.preventDefault()
+    e.stopPropagation()
+    const id = e.currentTarget.getAttribute('data-id')
+    if (!id) return false
+    await confirmDelete(id)
+    return false
+  })
 }
 
 const reloadTree = async () => {
@@ -392,15 +397,16 @@ const resetTreeView = async () => {
   } catch (_) {}
 }
 
-// jsTree search debounce: Mencegah hit API berkali-kali saat user mengetik
-const doSearchDebounced = useDebounceFn(async (q) => {
-  await reloadTree()
+// jsTree search
+const doTreeSearch = useDebounceFn((q) => {
   const inst = $('#tree-container').jstree(true)
-  if (inst) inst.search(q)
-}, 500) // Delay 500ms setelah selesai ketik
+  if (!inst) return
+  inst.search(q)
+}, 300)
 
 watch(() => search.value, (q) => {
-  doSearchDebounced(q)
+  reloadTree()
+  doTreeSearch(q)
 })
 
 // ===================== MODAL =====================
@@ -424,8 +430,6 @@ const openEditModalById = async (id) => {
       round_id: data.round_id,
       full_name: '',
       scheduled_at: data.scheduled_at ? String(data.scheduled_at).slice(0, 16) : '',
-      status: data.status || 'draft',
-      venue: data.venue || '',
     }
 
     const g = (eventGroups.value || []).find(x => String(x.id) === String(form.value.event_group_id))
@@ -457,8 +461,7 @@ const submitForm = async () => {
       event_group_id: form.value.event_group_id,
       full_name: form.value.full_name,
       scheduled_at: form.value.scheduled_at ? form.value.scheduled_at.replace('T', ' ') : null,
-      status: form.value.status,
-      venue: form.value.venue,
+      // ✅ status / is_team / venue tidak dikirim
     }
 
     if (isEdit.value && form.value.id) {
@@ -476,6 +479,28 @@ const submitForm = async () => {
     Swal.fire('Gagal', e?.response?.data?.message || 'Terjadi kesalahan saat menyimpan.', 'error')
   } finally {
     isSubmitting.value = false
+  }
+}
+
+const confirmDelete = async (id) => {
+  const res = await Swal.fire({
+    title: 'Hapus kompetisi?',
+    text: 'Data yang dihapus tidak dapat dikembalikan.',
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonText: 'Ya, hapus',
+    cancelButtonText: 'Batal',
+    confirmButtonColor: '#d33',
+  })
+  if (!res.isConfirmed) return
+
+  try {
+    await axios.delete(`/api/v1/event-competitions/${id}`)
+    Swal.fire('Terhapus', 'Kompetisi berhasil dihapus.', 'success')
+    await reloadTree()
+  } catch (e) {
+    console.error(e)
+    Swal.fire('Gagal', 'Gagal menghapus kompetisi.', 'error')
   }
 }
 
@@ -504,62 +529,36 @@ watch(() => eventId.value, async (val) => {
 </script>
 
 <style scoped>
-#tree-container {
-  border: 1px solid #ccc;
-  border-radius: 6px;
-  padding: 12px;
-  background-color: #fafafa;
-  min-height: 260px;
+#tree-container{
+  border:1px solid #ccc;
+  border-radius:6px;
+  padding:12px;
+  background-color:#fafafa;
+  min-height:260px;
 }
 
-.text-xs { font-size: .75rem; }
+.text-xs{ font-size:.75rem; }
 
-/* Styling mobile friendly dengan flex column di mobile */
-.tree-comp {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 4px;
-  width: 100%;
-  padding: 4px 0;
+.tree-comp{
+  display:inline-flex;
+  flex-wrap:wrap;
+  align-items:center;
+  gap:6px;
+  width:100%;
 }
 
-/* Jika layar besar/tablet, layout berjejer secara baris */
-@media(min-width: 768px) {
-  .tree-comp {
-    flex-direction: row;
-    align-items: center;
-    gap: 12px;
-  }
+.tree-comp-title{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
 }
 
-.tree-comp-title {
-  display: inline-flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 6px;
+.tree-comp-sub{ font-size:.75rem; }
+
+.tree-actions a.badge{
+  cursor:pointer;
+  text-decoration:none;
 }
 
-.tree-comp-sub { 
-  font-size: .75rem; 
-}
-
-.tree-actions a.badge {
-  cursor: pointer;
-  text-decoration: none;
-}
-
-/* Memastikan JS Tree wrap/menurunkan line kalau panjang & tidak memotong kotak */
-:deep(.jstree-anchor) {
-  white-space: normal !important;
-  height: auto !important;
-  line-height: 1.4 !important;
-  padding-right: 15px !important; 
-}
-
-:deep(.jstree-node) {
-  white-space: normal !important;
-}
-
-#tree-container .jstree-anchor { cursor: pointer; }
+#tree-container .jstree-anchor{ cursor:pointer; }
 </style>

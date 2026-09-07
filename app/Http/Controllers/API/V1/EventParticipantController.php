@@ -86,7 +86,8 @@ class EventParticipantController extends Controller
 
             // kalau mau hanya peserta verified:
             if ($onlyVerified) {
-                $teamQuery->where('event_participants.registration_status', 'verified')->where('event_participants.reregistration_status', 'verified');
+                $teamQuery->where('event_participants.registration_status', 'verified')
+                ->where('event_participants.reregistration_status', 'verified');
             }
 
             // search team: cari di contingent dulu (cepat)

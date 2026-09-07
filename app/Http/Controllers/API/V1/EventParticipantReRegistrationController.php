@@ -248,7 +248,7 @@ class EventParticipantReRegistrationController extends Controller
             return response()->json(['message' => 'Nomor sudah digunakan.'], 422);
         }
 
-        $branchCode = $eventParticipant->eventBranch->branch->code;
+        $branchCode = $eventParticipant->eventGroup->code;
 
         $eventParticipant->update([
             'branch_code' => $branchCode,

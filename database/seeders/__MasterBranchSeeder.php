@@ -26,6 +26,7 @@ class __MasterBranchSeeder extends Seeder
                 [
                     'branch_name'  => $branch->name,
                     'full_name'    => $branch->name, // kolom full_name sama dgn nama cabang
+                    'code'         => $branch->code,
                     'order_number' => $branch->order_number,
                     'is_active'    => $branch->is_active,
                 ]

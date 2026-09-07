@@ -37,13 +37,6 @@ class __MasterGroupSeeder extends Seeder
 
         $rowNumber = 0;
         $created = 0;
-        
-        // Array untuk melacak nomor urut terakhir dari setiap kode branch (contoh: 'HQ' => 7)
-        $branchCounters = [];
-        
-        // Array untuk menyimpan kode yang sudah digenerate untuk kombinasi branch_id & group_id
-        // Agar Putra & Putri di cabang & grup yang sama mendapatkan kode yang sama
-        $assignedCodes = [];
 
         while (($data = fgetcsv($handle, 1000, ';')) !== false) {
 
@@ -86,33 +79,8 @@ class __MasterGroupSeeder extends Seeder
                 continue;
             }
 
+            // FULL NAME: dari kolom ke-3 CSV
             $fullName = $branch->name . ' ' . $group->name;
-
-            /* ============================
-               GENERATE SEQUENCE CODE UNIK
-            ============================ */
-            // Buat key unik untuk kombinasi branch dan group ini
-            $comboKey = $branch->id . '_' . $group->id;
-
-            // Jika kombinasi ini belum pernah diberi kode (misal baru ketemu yang Putra)
-            if (!isset($assignedCodes[$comboKey])) {
-                
-                // Tambahkan counter untuk branch code ini (misal HQ)
-                if (!isset($branchCounters[$branch->code])) {
-                    $branchCounters[$branch->code] = 1;
-                } else {
-                    $branchCounters[$branch->code]++;
-                }
-
-                // Format nomor menjadi 2 digit (01, 02, dst)
-                $sequenceNumber = str_pad($branchCounters[$branch->code], 2, '0', STR_PAD_LEFT);
-                
-                // Simpan kode finalnya ke array assignedCodes (contoh: HQ.01)
-                $assignedCodes[$comboKey] = $branch->code . '.' . $sequenceNumber;
-            }
-
-            // Ambil kode dari array yang sudah dipastikan sama antara Putra dan Putri
-            $masterGroupCode = $assignedCodes[$comboKey];
 
             // Insert or update master_groups
             MasterGroup::updateOrCreate(
@@ -124,11 +92,10 @@ class __MasterGroupSeeder extends Seeder
                     'branch_name' => $branch->name,
                     'group_name'  => $group->name,
                     'full_name'   => $fullName,
-                    'code'        => $masterGroupCode, 
                     'max_age'     => $maxAge,
 
-                    'is_team'     => $branch->is_team,       
-                    'order_number'=> $group->order_number,   
+                    'is_team'     => $branch->is_team,       // mengikuti group
+                    'order_number'=> $group->order_number, // mengikuti group
                     'is_active'   => true,
                 ]
             );
@@ -138,6 +105,6 @@ class __MasterGroupSeeder extends Seeder
 
         fclose($handle);
 
-        $this->command->info("✔ MasterGroupSeeder selesai. Total baris diproses: {$created}");
+        $this->command->info("✔ MasterGroupSeeder selesai. Total data dibuat/diupdate: {$created}");
     }
 }

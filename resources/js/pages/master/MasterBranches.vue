@@ -48,6 +48,7 @@
             <thead class="thead-light">
               <tr>
                 <th style="width: 40px;">#</th>
+                <th class="text-center">Code</th>
                 <th style="width: 160px;">Cabang</th>
                 <th>Branch Name</th>
                 <th>Full Name</th>
@@ -74,6 +75,11 @@
                 :key="item.id"
               >
                 <td>{{ index + 1 + (meta.current_page - 1) * meta.per_page }}</td>
+                <td class="text-center">
+                  <div>
+                    <strong>{{ item.code }}</strong>
+                  </div>
+                </td>
                 <td>
                   <div>
                     <strong>{{ item.branch_name }}</strong>

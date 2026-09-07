@@ -87,6 +87,7 @@
             <thead class="thead-light">
               <tr>
                 <th style="width: 40px;">#</th>
+                <th class="text-center">Code</th>
                 <th>Nama Cabang</th>
                 <th>Nama Lengkap</th>
                 <th style="width: 90px;" class="text-center">Status</th>
@@ -112,6 +113,11 @@
                 :key="item.id"
               >
                 <td>{{ index + 1 + (meta.current_page - 1) * meta.per_page }}</td>
+                <td class="text-center">
+                  <div>
+                    <strong>{{ item.code }}</strong>
+                  </div>
+                </td>
                 <td><strong>{{ item.branch_name }}</strong></td>
                 <td>{{ item.full_name }}</td>
                 <td class="text-center">
@@ -368,6 +374,7 @@ const fetchBranches = async () => {
   } catch (error) {
     console.error('Gagal memuat branches:', error)
     Swal.fire('Gagal', 'Gagal memuat daftar cabang (branches).', 'error')
+    authUserStore.handleAuthError(error)
   }
 }
 

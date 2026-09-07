@@ -69,6 +69,7 @@ class _EventBranchSeeder extends Seeder
                 [
                     'branch_name'  => $master->branch_name,
                     'full_name'    => $master->full_name,
+                    'code'    => $master->code,
                     'status'       => $status,
                     'order_number' => $index + 1,
                 ]
