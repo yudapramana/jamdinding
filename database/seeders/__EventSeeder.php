@@ -11,7 +11,7 @@ class __EventSeeder extends Seeder
     {
         DB::table('events')->insert([
             [
-                'event_key'         => 'MTQXLIPSL',
+                'event_key'         => 'MTQXLIIPSL',
                 'app_name'          => 'e-MTQ Kabupaten Pesisir Selatan',
                 'event_name'        => 'MTQ XLII KABUPATEN PESISIR SELATAN',
                 'event_year'        => '2026',
