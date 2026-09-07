@@ -24,6 +24,9 @@ class RouteServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // 1. Panggil configureRateLimiting agar limiter kustom Anda aktif
+        $this->configureRateLimiting();
+
         RateLimiter::for('api', function (Request $request) {
             return Limit::perMinute(60)->by($request->user()?->id ?: $request->ip());
         });
@@ -45,8 +48,6 @@ class RouteServiceProvider extends ServiceProvider
         });
     }
 
-    
-
     protected function configureRateLimiting()
     {
         RateLimiter::for('participant-public', function (Request $request) {
@@ -59,5 +60,4 @@ class RouteServiceProvider extends ServiceProvider
                 ->by($request->ip());
         });
     }
-
 }
