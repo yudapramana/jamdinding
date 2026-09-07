@@ -80,18 +80,7 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
     ]);
 });
 
-
-
-Route::get('/wa/send', [WhatsAppController::class, 'sendFastGet']);
-
-Route::post('/auth/wa/request-reset', [PasswordResetWhatsappController::class, 'requestReset'])
-    ->name('api.password.wa.request');
-    // ->middleware('throttle:5,1')
-
-
-
-Route::prefix('v1')->group(function () {
-    // middleware(['throttle:60,1'])->
+Route::middleware(['throttle:20,1'])->prefix('v1')->group(function () {
     Route::get('/public-events', [PublicEventController::class, 'index']);
 });
 
