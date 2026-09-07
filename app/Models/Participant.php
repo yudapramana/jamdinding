@@ -113,23 +113,38 @@ class Participant extends Model
     // ACCESSORS → AUTO /secure/*
     // ============================
 
-    // protected function secureUrl($value)
-    // {
-    //     if (!$value) return null;
-    //     return '/secure/' . ltrim($value, '/');
-    // }
-
     protected function secureUrl($value)
     {
-        if (!$value) return null;
+        if (empty($value)) return null;
 
         // Jika sudah URL absolut (http / https), return langsung
         if (Str::startsWith($value, ['http://', 'https://'])) {
             return $value;
         }
 
-        // Jika path lokal, bungkus dengan /secure/
-        return '/secure/' . ltrim($value, '/');
+        $cleanValue = ltrim($value, '/');
+        
+        // Pecah struktur direktori menjadi array
+        $parts = explode('/', $cleanValue);
+
+        // Jika format database adalah: documents/{uuid}/{filename}
+        if (count($parts) === 3 && $parts[0] === 'documents') {
+            return route('secure.docs.stream', [
+                'uuid'     => $parts[1],
+                'filename' => $parts[2]
+            ]);
+        }
+
+        // Alternatif jika format database tersimpan: {uuid}/{filename}
+        if (count($parts) === 2) {
+            return route('secure.docs.stream', [
+                'uuid'     => $parts[0],
+                'filename' => $parts[1]
+            ]);
+        }
+
+        // Fallback aman jika path tidak beraturan, gunakan url bawaan
+        return url('/secure/' . $cleanValue);
     }
 
 
@@ -165,40 +180,6 @@ class Participant extends Model
 
     /**
      * Persentase kelengkapan lampiran (0–100)
-     * berdasarkan: id_card_url, family_card_url,
-     * bank_book_url, certificate_url, other_url.
-     */
-    // public function getLampiranCompletionPercentAttribute(): int
-    // {
-    //     $fields = [
-    //         'photo_url',
-    //         'id_card_url',
-    //         'other_url', // Akta Kelahiran
-    //         'family_card_url',
-    //         'bank_book_url',
-    //         'certificate_url',
-    //     ];
-
-    //     $total  = count($fields);
-    //     $filled = 0;
-
-    //     foreach ($fields as $field) {
-    //         // pakai nilai asli di DB, bukan accessor /secure/*
-    //         $raw = $this->getRawOriginal($field);
-    //         if (!empty($raw)) {
-    //             $filled++;
-    //         }
-    //     }
-
-    //     if ($total === 0) {
-    //         return 0;
-    //     }
-
-    //     return (int) round(($filled / $total) * 100);
-    // }
-
-    /**
-     * Persentase kelengkapan lampiran (0–100)
      * Kategori umur >= 17 tahun (4 wajib: Foto, KTP, Akta, KK)
      * Kategori umur < 17 tahun (3 wajib: Foto, Akta, KK)
      */
@@ -207,7 +188,7 @@ class Participant extends Model
         // Hitung umur (default 0 jika tanggal lahir kosong)
         $age = 0;
         if (!empty($this->date_of_birth)) {
-            $age = \Carbon\Carbon::parse($this->date_of_birth)->age;
+            $age = Carbon::parse($this->date_of_birth)->age;
         }
 
         // Tentukan field wajib berdasarkan umur
