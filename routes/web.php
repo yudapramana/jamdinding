@@ -1173,12 +1173,36 @@ Route::get('/login/google/callback', [SocialiteController::class, 'callback'])
 // });
 
 Route::middleware('auth')->group(function () {
+    // Route::get('/secure/documents/{participant:uuid}/{filename}', [PublicDocController::class, 'stream'])
+    //     ->where([
+    //         'participant' => '[0-9a-fA-F]{8}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{12}', // Format UUID standar yang ketat
+    //         'filename'    => '[^/]+',
+    //     ])
+    //     ->name('secure.docs.stream');
+
+    // 1. Route Utama (Format Valid)
     Route::get('/secure/documents/{participant:uuid}/{filename}', [PublicDocController::class, 'stream'])
         ->where([
-            'participant' => '[0-9a-fA-F]{8}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{12}', // Format UUID standar yang ketat
+            'participant' => '[0-9a-fA-F]{8}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{12}',
             'filename'    => '[^/]+',
         ])
-        ->name('secure.docs.stream');
+        ->name('secure.docs.stream')
+        ->missing(function (Request $request) {
+            // Menangkap kasus: Format UUID benar, tapi TIDAK ADA di database
+            return response()->json([
+                'status'  => 'error',
+                'message' => 'Data peserta tidak ditemukan di sistem.'
+            ], 404);
+        });
+
+    // 2. Route Fallback Khusus Dokumen (Format Invalid / Kosong)
+    Route::get('/secure/documents/{any}', function () {
+        // Menangkap kasus: UUID kosong atau formatnya ngawur
+        return response()->json([
+            'status'  => 'error',
+            'message' => 'Format URL tidak valid atau UUID kosong.'
+        ], 400); // 400 Bad Request
+    })->where('any', '.*');
 
 
     Route::get('/secure/mandates/{event}/{filename}', [MandateDocController::class, 'stream'])
@@ -1681,5 +1705,5 @@ Route::middleware('auth')->group(function () {
 // Route::get('{view}', ApplicationController::class)->where('view', '(.*)')->middleware('auth');
 
 Route::get('{view}', ApplicationController::class)
-    ->where('view', '^(?!api|storage|build|assets|secure|_debugbar).*$')
+    ->where('view', '^(?!api|storage|build|assets|_debugbar|secure).*$') 
     ->middleware('auth');
