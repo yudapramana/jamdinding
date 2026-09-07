@@ -27,7 +27,12 @@ class MandateDocController extends Controller
         $disk = Storage::disk('privatedisk');
 
         if (! $disk->exists($relativePath)) {
-            return view('errors.404');
+            // Mengembalikan JSON dengan status 404 (Not Found)
+            // Ini jauh lebih aman untuk Vue / SPA dan mencegah reload loop
+            return response()->json([
+                'status'  => 'error',
+                'message' => 'Dokumen tidak ditemukan atau sudah dihapus.'
+            ], 404);
         }
 
         // ==========================================

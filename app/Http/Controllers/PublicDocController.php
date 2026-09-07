@@ -8,8 +8,7 @@ use App\Models\Participant;
 
 class PublicDocController extends Controller
 {
-
-   public function stream(Request $request, Participant $participant, string $filename)
+    public function stream(Request $request, Participant $participant, string $filename)
     {   
         // ==========================================
         // AUTHORIZATION → PARTICIPANT POLICY
@@ -27,7 +26,12 @@ class PublicDocController extends Controller
         $disk = Storage::disk('privatedisk');
 
         if (! $disk->exists($relativePath)) {
-            return view('errors.404');
+            // Mengembalikan JSON dengan status 404 (Not Found)
+            // Ini jauh lebih aman untuk Vue / SPA dan mencegah reload loop
+            return response()->json([
+                'status'  => 'error',
+                'message' => 'Dokumen tidak ditemukan atau sudah dihapus.'
+            ], 404);
         }
 
         // ==========================================
