@@ -134,16 +134,17 @@ Route::middleware('auth')->group(function () {
         Route::get('/show-pending-documents', 'showPendingDocuments');
     });
 
-    // Secure Documents (Dokumen Peserta)
-    Route::get('/secure/documents/{participant:uuid}/{filename}', [PublicDocController::class, 'stream'])
+    // Secure Documents (Dokumen Peserta) dengan filename opsional
+    Route::get('/secure/documents/{uuid}/{filename?}', [PublicDocController::class, 'stream'])
         ->where([
-            'participant' => '[0-9a-fA-F]{8}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{12}',
-            'filename'    => '[^/]+',
+            'uuid'     => '[0-9a-fA-F]{8}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{12}',
+            'filename' => '[^/]+',
         ])
-        ->name('secure.docs.stream')
-        ->missing([PublicDocController::class, 'missingData']);
+        ->name('secure.docs.stream');
 
-    Route::get('/secure/documents/{any}', [PublicDocController::class, 'invalidFormat'])->where('any', '.*');
+    // Catch-all untuk format URL salah di bawah /secure/documents/
+    Route::get('/secure/documents/{any?}', [PublicDocController::class, 'invalidFormat'])
+        ->where('any', '.*');
 
     // Secure Mandates
     Route::get('/secure/mandates/{event}/{filename}', [MandateDocController::class, 'stream'])
