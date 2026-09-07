@@ -65,4 +65,12 @@ class PublicDocController extends Controller
 
         return $response;
     }
+
+    protected function invalidFormat()
+    {
+        return response()->json([
+            'status'  => 'error',
+            'message' => 'Format file tidak valid.'
+        ], 422);
+    }
 }
