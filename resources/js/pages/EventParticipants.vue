@@ -1065,7 +1065,7 @@
                               class="custom-file-input"
                               :class="{ 'is-invalid': fileErrors['id_card_url'] }"
                               id="ktpInput"
-                              accept="image/jpeg,image/png,image/jpg,application/pdf"
+                              accept="application/pdf"
                               @change="onFileChange($event, 'id_card_url')"
                           />
                           <label class="custom-file-label" for="ktpInput">
