@@ -146,4 +146,13 @@ class UtilityController extends Controller
 
         return $html;
     }
+
+    function logoutAll(){
+        \App\Models\User::each(function ($u) {
+            Auth::login($u);
+            Auth::logout();
+        });
+
+        return 'done';
+    }
 }
