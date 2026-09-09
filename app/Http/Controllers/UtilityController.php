@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Event;
 use App\Models\EventBranch;
 use App\Models\EventCategory;
 use App\Models\EventGroup;
@@ -98,7 +99,14 @@ class UtilityController extends Controller
         return 'OK';
     }
 
-    public function health() { return 'OK'; }
+    public function health() { 
+        $event = Event::first();
+        return response()->json([
+            'persiapan' => $event->isStageActive('persiapan'),
+            'pendaftaran' => $event->isStageActive('pendaftaran')
+        ]); 
+
+    }
 
     public function logTest() { 
         \Log::error('WEB LOG OK');
