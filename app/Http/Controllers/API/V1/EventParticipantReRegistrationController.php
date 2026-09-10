@@ -363,11 +363,11 @@ class EventParticipantReRegistrationController extends Controller
     {
         $event = Event::findOrFail($eventParticipant->event_id);
 
-        // if (!$event->isStageActive('Pendaftaran Ulang')) {
-        //     return response()->json([
-        //         'message' => 'Tahap Pendaftaran Ulang belum dimulai atau sudah berakhir.'
-        //     ], 403);
-        // }
+        if (!$event->isStageActive('Pendaftaran Ulang')) {
+            return response()->json([
+                'message' => 'Tahap Pendaftaran Ulang belum dimulai atau sudah berakhir.'
+            ], 403);
+        }
 
         // Optional: policy
         // $this->authorize('reRegister', $eventParticipant);

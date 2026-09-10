@@ -18,12 +18,13 @@
         </div>
 
         <div class="btn-group btn-group-sm">
-          <button class="btn btn-outline-info btn-sm disabled">
+          <button v-if="!isPrivilegedAdminEvent" class="btn btn-outline-info btn-sm disabled">
             Dipilih: <strong>{{ selectedParticipantIds.length }}</strong>
           </button>
 
           <button
             class="btn btn-success btn-sm"
+            v-if="!isPrivilegedAdminEvent"
             :disabled="!selectedParticipantIds.length || !eventId || !canRegisterParticipant"
             @click="openRegisterModal"
           >
@@ -33,6 +34,7 @@
 
           <button
             class="btn btn-primary btn-sm"
+            v-if="!isPrivilegedAdminEvent"
             @click="openCreateModal"
             :disabled="!eventId || !canAddParticipant"
           >
@@ -294,7 +296,7 @@
                       <div class="btn-group btn-group-sm">
                           <!-- EDIT BIODATA -->
                           <button
-                            v-if="['bank_data', 'need_revision'].includes(item.registration_status)"
+                            v-if="['bank_data', 'need_revision'].includes(item.registration_status) && !isPrivilegedAdminEvent"
                             class="btn btn-outline-warning btn-xs"
                             title="Edit Biodata"
                             @click="openEditModal(item)"
@@ -304,7 +306,7 @@
 
                           <!-- EDIT LAMPIRAN -->
                           <button
-                            v-if="['bank_data', 'need_revision'].includes(item.registration_status)"
+                            v-if="['bank_data', 'need_revision'].includes(item.registration_status) && !isPrivilegedAdminEvent"
                             class="btn btn-outline-info btn-xs"
                             title="Edit Lampiran"
                             @click="openLampiranModal(item)"
@@ -323,7 +325,7 @@
 
                           <!-- MUTASI PESERTA -->
                           <button
-                            v-if="['bank_data', 'perbaiki'].includes(item.registration_status)"
+                            v-if="['bank_data', 'perbaiki'].includes(item.registration_status) && isPrivilegedSuperAdminOnly"
                             class="btn btn-outline-success btn-xs"
                             title="Mutasi Peserta"
                             @click="openMutasiModal(item)"
@@ -343,7 +345,7 @@
 
                           <!-- HAPUS PESERTA EVENT -->
                           <button
-                            v-if="['bank_data', 'need_revision'].includes(item.registration_status) && isPrivileged"
+                            v-if="['bank_data', 'need_revision'].includes(item.registration_status) && isPrivilegedSuperAdminOnly"
                             class="btn btn-outline-danger btn-xs"
                             title="Hapus Peserta"
                             @click="deleteItem(item)"
@@ -1471,6 +1473,16 @@ const tingkatEvent = computed(() => eventInfo.value?.event_level || null)
 const isPrivileged = computed(() => {
   const roleName = currentUser.value?.role?.name || ''
   return roleName === 'SUPERADMIN' || roleName === 'ADMIN_EVENT'
+})
+
+const isPrivilegedSuperAdminOnly = computed(() => {
+  const roleName = currentUser.value?.role?.name || ''
+  return roleName === 'SUPERADMIN'
+})
+
+const isPrivilegedAdminEvent = computed(() => {
+  const roleName = currentUser.value?.role?.name || ''
+  return roleName === 'ADMIN_EVENT'
 })
 
 // ➕ TAMBAHAN: status mandat, otomatis allowed=true untuk role selain 'pendaftaran'
@@ -2839,12 +2851,13 @@ const validateAgeForGroup = () => {
 
     if (!selectedCategory) return
     console.log('selectedCategory: ' + selectedCategory);
+    console.log(selectedCategory);
 
 
     const groupId = selectedCategory.group_id
-    if (!groupId) return
-    console.log('groupId: ' + groupId);
-
+    const branchId = selectedCategory.branch_id
+    if (!groupId || !branchId) return
+    console.log('branchId:', branchId, 'groupId:', groupId)
 
     // eventGroups juga bisa ref([]) atau array
     const groups = Array.isArray(eventGroups?.value)
@@ -2854,9 +2867,13 @@ const validateAgeForGroup = () => {
         : []
 
     const group =
-        groups.find(g => Number(g.group_id) === Number(groupId)) || null
-    console.log('group');
-    console.log(group);
+        groups.find(
+            g =>
+                Number(g.branch_id) === Number(branchId) &&
+                Number(g.group_id) === Number(groupId)
+        ) || null
+    console.log('group')
+    console.log(group)
 
     if (!group || group.max_age == null) return
 

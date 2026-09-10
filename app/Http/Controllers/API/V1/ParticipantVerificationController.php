@@ -40,7 +40,7 @@ class ParticipantVerificationController extends Controller
     {
         $event = Event::findOrFail($request['event_id']);
 
-        if (!$event->isStageActive('Verifikasi I') || !$event->isStageActive('Verifikasi II')) {
+        if (!$event->isStageActive('Verifikasi I') && !$event->isStageActive('Verifikasi II')) {
             return response()->json([
                 'message' => 'Tahap Verifikasi belum dimulai atau sudah berakhir.'
             ], 403);

@@ -425,7 +425,7 @@ watch(
             <!-- ================= DEWAN HAKIM ================= -->
             <li
               class="nav-item has-treeview"
-              v-if="authUserStore.can('manage.event.judge')"
+              v-if="authUserStore.can('manage.event.judges')"
               :class="{ 'menu-open': openMenu.judgesEvent }"
             >
               <a

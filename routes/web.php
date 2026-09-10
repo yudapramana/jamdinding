@@ -96,6 +96,7 @@ Route::middleware(['throttle:participant-public'])->get('/participant/{eventPart
 */
 Route::controller(UtilityController::class)->group(function () {
     Route::get('/hierarki-mtq', 'hierarkiMtq');
+    Route::get('/branch-hierarki-mtq', 'branchHierarkiMtq');
     Route::get('/test-run', 'testRun');
     Route::get('/test-log', 'testLog'); // Digabung dari 2 route yang sama
     Route::get('/raw-log', 'rawLog');
