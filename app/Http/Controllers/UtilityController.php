@@ -9,6 +9,7 @@ use App\Models\EventGroup;
 use DateTime;
 Use Log;
 use Illuminate\Http\Request;
+use Auth;
 
 class UtilityController extends Controller
 {
