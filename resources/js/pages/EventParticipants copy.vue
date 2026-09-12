@@ -34,6 +34,7 @@
 
           <button
             class="btn btn-primary btn-sm"
+            v-if="!isPrivilegedAdminEvent"
             @click="openCreateModal"
             :disabled="!eventId || !canAddParticipant"
           >
@@ -295,7 +296,7 @@
                       <div class="btn-group btn-group-sm">
                           <!-- EDIT BIODATA -->
                           <button
-                            v-if="['bank_data', 'need_revision'].includes(item.registration_status)"
+                            v-if="['bank_data', 'need_revision'].includes(item.registration_status) && !isPrivilegedAdminEvent"
                             class="btn btn-outline-warning btn-xs"
                             title="Edit Biodata"
                             @click="openEditModal(item)"
@@ -305,7 +306,7 @@
 
                           <!-- EDIT LAMPIRAN -->
                           <button
-                            v-if="['bank_data', 'need_revision'].includes(item.registration_status)"
+                            v-if="['bank_data', 'need_revision'].includes(item.registration_status) && !isPrivilegedAdminEvent"
                             class="btn btn-outline-info btn-xs"
                             title="Edit Lampiran"
                             @click="openLampiranModal(item)"
@@ -1929,17 +1930,17 @@ const validateNikByEventLevel = () => {
   const nikDistrict = nik.substring(0, 6)
   const nikVillage  = nik.substring(0, 10)
 
-  // ==========================================
-  // HELPER 1: TOLERANSI (Semua Role Boleh Lanjut Asal Isi Tgl Terbit)
-  // ==========================================
-  const handleToleransi = (errorMessage) => {
+  const handleMismatch = (errorMessage) => {
     result.showTanggalTerbit = true
 
+    // ⬇️ INI INTI LOGIKANYA
     if (p.tanggal_terbit_ktp && p.tanggal_terbit_kk) {
+      // tanggal sudah diisi → VALID
       result.valid = true
       result.requireTanggalTerbit = false
       result.error = ''
     } else {
+      // tanggal kosong → INVALID
       result.valid = false
       result.requireTanggalTerbit = true
       result.error = errorMessage
@@ -1948,125 +1949,39 @@ const validateNikByEventLevel = () => {
     return result
   }
 
-  // ==========================================
-  // HELPER 2: BLOKIR MUTLAK (Role Pendaftaran tidak bisa lanjut sama sekali)
-  // ==========================================
-  const handleBlock = (errorMessage) => {
-    result.valid = false
-    result.requireTanggalTerbit = false
-    result.showTanggalTerbit = false
-    result.error = errorMessage
-    return result
-  }
-
-  // ==========================================
-  // WRAPPER CHECKERS
-  // ==========================================
-  // checkStrict: Blokir mutlak untuk role biasa, Toleransi untuk Admin/Superadmin
-  const checkStrict = (isMismatch, errorMsg) => {
-    if (isMismatch) {
-      if (!isPrivileged.value) {
-        return handleBlock(errorMsg)
-      } else {
-        return handleToleransi('Bypass Admin: ' + errorMsg + ' Silahkan isi tanggal terbit KTP dan KK.')
-      }
-    }
-    return null
-  }
-
-  // checkTolerance: Toleransi untuk semua role (hanya beda di sub-level)
-  const checkTolerance = (isMismatch, errorMsg) => {
-    if (isMismatch) {
-      return handleToleransi(errorMsg + ' Silahkan isi tanggal terbit KTP dan KK.')
-    }
-    return null
-  }
-
-
-  // ==========================================
-  // PENGECEKAN WILAYAH BERJENJANG (CASCADING)
-  // ==========================================
-  let res = null;
-
   switch (level) {
     case 'national':
-      // Sub-level Check (Toleransi): Cek Provinsi
-      res = checkTolerance(
-        p.province_id && nikProvince !== String(p.province_id).substring(0, 2),
-        'NIK tidak sesuai dengan Provinsi.'
-      );
-      if (res) return res;
+      if (p.province_id && nikProvince !== String(p.province_id).substring(0, 2)) {
+        return handleMismatch(
+          'NIK tidak sesuai dengan provinsi peserta. Silahkan isi tanggal terbit KTP dan KK'
+        )
+      }
       break
 
     case 'province':
-      // 1. Strict Check: Provinsi
-      res = checkStrict(
-        p.province_id && nikProvince !== String(p.province_id).substring(0, 2),
-        'Event tingkat Provinsi. NIK dari Provinsi lain tidak diizinkan. Hubungi Admin Event.'
-      );
-      if (res) return res;
-
-      // 2. Sub-level Check (Toleransi): Kabupaten/Kota
-      res = checkTolerance(
-        p.regency_id && nikRegency !== String(p.regency_id).substring(0, 4),
-        'NIK tidak sesuai dengan Kabupaten/Kota.'
-      );
-      if (res) return res;
+      if (p.regency_id && nikRegency !== String(p.regency_id).substring(0, 4)) {
+        return handleMismatch(
+          'NIK tidak sesuai dengan kabupaten/kota peserta. Silahkan isi tanggal terbit KTP dan KK'
+        )
+      }
       break
 
     case 'regency':
-      // 1. Strict Check: Provinsi
-      res = checkStrict(
-        p.province_id && nikProvince !== String(p.province_id).substring(0, 2),
-        'Event tingkat Kabupaten/Kota. NIK dari Provinsi lain tidak diizinkan. Hubungi Admin Event untuk info lebih lanjut.'
-      );
-      if (res) return res;
-
-      // 2. Strict Check: Kabupaten/Kota
-      res = checkStrict(
-        p.regency_id && nikRegency !== String(p.regency_id).substring(0, 4),
-        'Event tingkat Kabupaten/Kota. Anda tidak diizinkan input NIK dari Kabupaten/Kota lain. Hubungi Admin Event untuk melakukan Penginputan.'
-      );
-      if (res) return res;
-
-      // 3. Sub-level Check (Toleransi): Kecamatan
-      res = checkTolerance(
-        p.district_id && nikDistrict !== String(p.district_id).substring(0, 6),
-        'NIK tidak sesuai dengan Kecamatan.'
-      );
-      if (res) return res;
+      if (p.district_id && nikDistrict !== String(p.district_id).substring(0, 6)) {
+        return handleMismatch(
+          'NIK tidak sesuai dengan kecamatan peserta. Silahkan isi tanggal terbit KTP dan KK'
+        )
+      }
       break
 
     case 'district':
-      // 1. Strict Check: Provinsi
-      res = checkStrict(
-        p.province_id && nikProvince !== String(p.province_id).substring(0, 2),
-        'Event tingkat Kecamatan. NIK dari Provinsi lain tidak diizinkan. Hubungi Admin Event.'
-      );
-      if (res) return res;
-
-      // 2. Strict Check: Kabupaten/Kota
-      res = checkStrict(
-        p.regency_id && nikRegency !== String(p.regency_id).substring(0, 4),
-        'Event tingkat Kecamatan. NIK dari Kabupaten/Kota lain tidak diizinkan. Hubungi Admin Event.'
-      );
-      if (res) return res;
-
-      // 3. Strict Check: Kecamatan
-      res = checkStrict(
-        p.district_id && nikDistrict !== String(p.district_id).substring(0, 6),
-        'Event tingkat Kecamatan. NIK dari Kecamatan lain tidak diizinkan. Hubungi Admin Event.'
-      );
-      if (res) return res;
-
-      // 4. Sub-level Check (Toleransi): Desa/Kelurahan
       if (p.village_id) {
         const villageCode = String(p.village_id)
-        res = checkTolerance(
-          villageCode.length >= 10 && nikVillage !== villageCode.substring(0, 10),
-          'NIK tidak sesuai dengan Desa/Kelurahan.'
-        );
-        if (res) return res;
+        if (villageCode.length >= 10 && nikVillage !== villageCode.substring(0, 10)) {
+          return handleMismatch(
+            'NIK tidak sesuai dengan desa/kelurahan peserta. Silahkan isi tanggal terbit KTP dan KK'
+          )
+        }
       }
       break
   }
@@ -2084,6 +1999,9 @@ const validateNikByEventLevel = () => {
 const syncNikRegionValidation = () => {
   const result = validateNikByEventLevel()
 
+  // ==========================
+  // ERROR NIK (selalu string, bukan object)
+  // ==========================
   if (!result.valid) {
     nikError.value = result.error
     fieldErrors.value['participant.nik'] = result.error
@@ -2092,8 +2010,14 @@ const syncNikRegionValidation = () => {
     fieldErrors.value['participant.nik'] = ''
   }
 
-  // Tampilkan dan wajibkan form tanggal terbit hanya jika terjadi Toleransi
+  // ==========================
+  // TAMPILKAN FIELD TANGGAL TERBIT
+  // ==========================
   showTanggalTerbit.value = result.showTanggalTerbit
+
+  // ==========================
+  // WAJIB / TIDAK TANGGAL TERBIT
+  // ==========================
   requireTanggalTerbit.value = result.requireTanggalTerbit
 
   if (result.requireTanggalTerbit) {

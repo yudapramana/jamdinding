@@ -749,7 +749,9 @@ class EventParticipantController extends Controller
             ]
         ]);
 
+        $participant = $eventParticipant->participant;
         $eventParticipant->forceDelete();
+        $participant->forceDelete();
 
         return response()->json([
             'message' => 'Event participant deleted.'
