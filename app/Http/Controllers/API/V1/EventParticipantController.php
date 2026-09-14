@@ -687,6 +687,28 @@ class EventParticipantController extends Controller
 
     public function update(Request $request, EventParticipant $eventParticipant)
     {
+        $user = auth()->user();
+        $roleSlug = optional($user->role)->slug ?? null;
+
+        // 🔒 MENCEGAH IDOR: Cek kepemilikan wilayah jika bukan superadmin / admin_event
+        if (!in_array($roleSlug, ['superadmin', 'admin_event'])) {
+            $participant = $eventParticipant->participant;
+            $event = $eventParticipant->event ?? Event::find($eventParticipant->event_id);
+            
+            $validRegion = false;
+            if ($event->event_level === 'province') {
+                $validRegion = ($participant->regency_id === $user->regency_id);
+            } elseif ($event->event_level === 'regency') {
+                $validRegion = ($participant->district_id === $user->district_id);
+            }
+            
+            if (!$validRegion) {
+                return response()->json([
+                    'message' => 'Unauthorized. Anda tidak memiliki akses untuk mengubah peserta dari wilayah lain.'
+                ], 403);
+            }
+        }
+        
         $validated = $request->validate([
             'event_id'             => ['required', 'exists:events,id'],
             'participant_id'       => ['required', 'exists:participants,id'],
@@ -732,6 +754,16 @@ class EventParticipantController extends Controller
 
     public function destroy(EventParticipant $eventParticipant)
     {
+        $user = auth()->user();
+        $roleSlug = optional($user->role)->slug ?? null;
+
+        // 🔒 BLOKIR JIKA BUKAN SUPERADMIN
+        if ($roleSlug !== 'superadmin') {
+            return response()->json([
+                'message' => 'Unauthorized. Hanya Superadmin yang dapat menghapus data peserta event.'
+            ], 403);
+        }
+
         $eventParticipant->load('participant');
         Log::warning('Event participant dihapus secara permanen', [
             'deleted_by' => [
@@ -758,7 +790,7 @@ class EventParticipantController extends Controller
         ]);
     }
 
-        /**
+    /**
      * Simpan / update Participant + EventParticipant sekaligus
      * Endpoint: POST /api/v1/event-participants/eventParticipant
      *
@@ -950,9 +982,87 @@ class EventParticipantController extends Controller
         $validated = $request->validate($rules, $messages);
 
         // ======================================================
+        // PENGECEKAN WILAYAH BERJENJANG (CASCADING) BACKEND
+        // ======================================================
+        $pData = $validated['participant'];
+        $user = auth()->user();
+        $roleSlug = optional($user->role)->slug ?? '';
+        $isPrivileged = in_array($roleSlug, ['superadmin', 'admin_event']);
+
+        // Ekstrak NIK per bagian
+        $nik = preg_replace('/\D/', '', $pData['nik'] ?? '');
+        $nikProvince = substr($nik, 0, 2);
+        $nikRegency  = substr($nik, 0, 4);
+        $nikDistrict = substr($nik, 0, 6);
+        $nikVillage  = substr($nik, 0, 10);
+
+        // Cek apakah tanggal terbit diisi untuk mentoleransi mismatch
+        $hasTanggalTerbit = !empty($pData['tanggal_terbit_ktp']) && !empty($pData['tanggal_terbit_kk']);
+        $eventLevel = $event->event_level;
+
+        // Helper Strict Check (Blokir role biasa, toleransi admin jika input tgl terbit)
+        $checkStrict = function ($isMismatch, $errorMsg) use ($isPrivileged, $hasTanggalTerbit) {
+            if ($isMismatch) {
+                if (!$isPrivileged) {
+                    throw ValidationException::withMessages(['participant.nik' => $errorMsg]);
+                } else {
+                    if (!$hasTanggalTerbit) {
+                        throw ValidationException::withMessages([
+                            'participant.tanggal_terbit_ktp' => 'Bypass Admin: ' . $errorMsg . ' Silahkan isi tanggal terbit KTP dan KK.',
+                            'participant.tanggal_terbit_kk'  => 'Bypass Admin: ' . $errorMsg . ' Silahkan isi tanggal terbit KTP dan KK.',
+                        ]);
+                    }
+                }
+            }
+        };
+
+        // Helper Tolerance Check (Toleransi semua role asalkan input tgl terbit)
+        $checkTolerance = function ($isMismatch, $errorMsg) use ($hasTanggalTerbit) {
+            if ($isMismatch) {
+                if (!$hasTanggalTerbit) {
+                    throw ValidationException::withMessages([
+                        'participant.tanggal_terbit_ktp' => $errorMsg . ' Silahkan isi tanggal terbit KTP dan KK.',
+                        'participant.tanggal_terbit_kk'  => $errorMsg . ' Silahkan isi tanggal terbit KTP dan KK.',
+                    ]);
+                }
+            }
+        };
+
+        switch ($eventLevel) {
+            case 'national':
+                $checkTolerance(!empty($pData['province_id']) && $nikProvince !== substr((string)$pData['province_id'], 0, 2), 'NIK tidak sesuai dengan Provinsi.');
+                break;
+
+            case 'province':
+                $checkStrict(!empty($pData['province_id']) && $nikProvince !== substr((string)$pData['province_id'], 0, 2), 'Event tingkat Provinsi. NIK dari Provinsi lain tidak diizinkan. Hubungi Admin Event.');
+                $checkTolerance(!empty($pData['regency_id']) && $nikRegency !== substr((string)$pData['regency_id'], 0, 4), 'NIK tidak sesuai dengan Kabupaten/Kota.');
+                break;
+
+            case 'regency':
+                $checkStrict(!empty($pData['province_id']) && $nikProvince !== substr((string)$pData['province_id'], 0, 2), 'Event tingkat Kabupaten/Kota. NIK dari Provinsi lain tidak diizinkan. Hubungi Admin Event untuk info lebih lanjut.');
+                $checkStrict(!empty($pData['regency_id']) && $nikRegency !== substr((string)$pData['regency_id'], 0, 4), 'Event tingkat Kabupaten/Kota. Anda tidak diizinkan input NIK dari Kabupaten/Kota lain. Hubungi Admin Event untuk melakukan Penginputan.');
+                $checkTolerance(!empty($pData['district_id']) && $nikDistrict !== substr((string)$pData['district_id'], 0, 6), 'NIK tidak sesuai dengan Kecamatan.');
+                break;
+
+            case 'district':
+                $checkStrict(!empty($pData['province_id']) && $nikProvince !== substr((string)$pData['province_id'], 0, 2), 'Event tingkat Kecamatan. NIK dari Provinsi lain tidak diizinkan. Hubungi Admin Event.');
+                $checkStrict(!empty($pData['regency_id']) && $nikRegency !== substr((string)$pData['regency_id'], 0, 4), 'Event tingkat Kecamatan. NIK dari Kabupaten/Kota lain tidak diizinkan. Hubungi Admin Event.');
+                $checkStrict(!empty($pData['district_id']) && $nikDistrict !== substr((string)$pData['district_id'], 0, 6), 'Event tingkat Kecamatan. NIK dari Kecamatan lain tidak diizinkan. Hubungi Admin Event.');
+                
+                if (!empty($pData['village_id'])) {
+                    $villageCode = (string)$pData['village_id'];
+                    $checkTolerance(strlen($villageCode) >= 10 && $nikVillage !== substr($villageCode, 0, 10), 'NIK tidak sesuai dengan Desa/Kelurahan.');
+                }
+                break;
+        }
+        // ======================================================
+        // END OF PENGECEKAN WILAYAH CASCADING
+        // ======================================================
+
+        // ======================================================
         // SIMPAN DALAM TRANSAKSI
         // ======================================================
-        return DB::transaction(function () use ($validated, $participantId, $eventParticipantId, $request) {
+        return DB::transaction(function () use ($validated, $participantId, $eventParticipantId, $isPrivileged, $user, $eventLevel, $request) {
             $pData  = $validated['participant'];
             $epData = $validated['event_participant'];
 
@@ -961,10 +1071,24 @@ class EventParticipantController extends Controller
             // ===========================
             if ($participantId) {
                 $participant = Participant::findOrFail($participantId);
+
+                // 🔒 CEK IDOR (Cegah timpa data peserta wilayah lain via manipulasi ID)
+                if (!$isPrivileged) {
+                    $isValidRegion = false;
+                    if ($eventLevel === 'province' && $participant->regency_id === $user->regency_id) {
+                        $isValidRegion = true;
+                    } elseif ($eventLevel === 'regency' && $participant->district_id === $user->district_id) {
+                        $isValidRegion = true;
+                    }
+
+                    if (!$isValidRegion) {
+                        throw ValidationException::withMessages([
+                            'participant.id' => 'Akses Ditolak. Anda tidak dapat mengubah data peserta dari wilayah lain.'
+                        ]);
+                    }
+                }
             } else {
                 $participant = new Participant();
-                // ✅ FIX: Generate UUID secara eksplisit sejak awal 
-                // agar bisa digunakan sebagai nama folder upload
                 $participant->uuid = (string) Str::uuid();
             }
 
@@ -1102,6 +1226,30 @@ class EventParticipantController extends Controller
             $tmp2      = $tmp->copy()->addMonths($ageMonths);
             $ageDays   = $tmp2->diffInDays($ref);
 
+            // ======================================================
+            // ➕ PENGECEKAN UMUR BERJENJANG (BACKEND)
+            // ======================================================
+            // Pastikan golongan memiliki batasan umur (> 0)
+            if ($fGroup && $fGroup->max_age > 0) {
+                // Aturan: Umur peserta dalam tahun HARUS DI BAWAH max_age.
+                // Contoh: max_age = 18 -> 18 Tahun 0 Bulan 0 Hari = DITOLAK
+                // 17 Tahun 11 Bulan 29 Hari = DITERIMA
+                if ($ageYears >= $fGroup->max_age) {
+                    $maxAgeYearAllowed = $fGroup->max_age - 1;
+                    
+                    // Susun format umur saat ini untuk pesan error
+                    $currentAgeStr = "{$ageYears} tahun";
+                    if ($ageMonths > 0) $currentAgeStr .= " {$ageMonths} bulan";
+                    if ($ageDays > 0 || $currentAgeStr === "{$ageYears} tahun") $currentAgeStr .= " {$ageDays} hari";
+
+                    throw ValidationException::withMessages([
+                        'participant.date_of_birth' => "Umur tidak memenuhi syarat untuk golongan ini (maksimal {$maxAgeYearAllowed} tahun 11 bulan 29 hari). Umur peserta: {$currentAgeStr}."
+                    ]);
+                }
+            }
+            // ======================================================
+
+            // Jika lolos, simpan ke database
             $eventParticipant->age_year  = $ageYears;
             $eventParticipant->age_month = $ageMonths;
             $eventParticipant->age_day   = $ageDays;
@@ -1347,6 +1495,16 @@ class EventParticipantController extends Controller
 
     public function mutasiWilayah(Request $request, EventParticipant $eventParticipant)
     {
+        $user     = $request->user();
+        $roleSlug = optional($user->role)->slug ?? null;
+
+        // 🔒 BLOKIR MUTLAK JIKA BUKAN SUPERADMIN
+        if ($roleSlug !== 'superadmin') {
+            return response()->json([
+                'message' => 'Unauthorized. Hanya Superadmin yang diizinkan untuk melakukan mutasi peserta.',
+            ], 403);
+        }
+
         $user     = $request->user();
         $roleSlug = optional($user->role)->slug ?? null;
 
