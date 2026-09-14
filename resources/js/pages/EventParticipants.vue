@@ -192,7 +192,7 @@
                 :key="item.id"
               >
                 <!-- BARIS UTAMA PESERTA -->
-                <tr>
+                <tr :class="{ 'bg-gray-dark': isNikMismatch(item) }">
                   <td class="text-center">
                     <input
                       type="checkbox"
@@ -1503,7 +1503,34 @@ const isCheckboxDisabled = (p) => {
 
 
 
+// Fungsi untuk mengecek ketidaksesuaian NIK dengan event_level
+const isNikMismatch = (item) => {
+  const level = eventData.value?.event_level
+  const participant = item.participant
+  
+  if (!level || !participant || !participant.nik) return false
 
+  const nik = participant.nik.replace(/\D/g, '')
+  if (nik.length < 16) return false
+
+  const nikProvince = nik.substring(0, 2)
+  const nikRegency  = nik.substring(0, 4)
+  const nikDistrict = nik.substring(0, 6)
+
+  switch (level) {
+    case 'province':
+      // Membandingkan 2 karakter awal NIK dengan kode province_id
+      return participant.province_id && nikProvince !== String(participant.province_id).substring(0, 2)
+    case 'regency':
+      // Membandingkan 4 karakter awal NIK dengan kode regency_id
+      return participant.regency_id && nikRegency !== String(participant.regency_id).substring(0, 4)
+    case 'district':
+      // Membandingkan 6 karakter awal NIK dengan kode district_id
+      return participant.district_id && nikDistrict !== String(participant.district_id).substring(0, 6)
+    default:
+      return false
+  }
+}
 
 
 // event aktif
