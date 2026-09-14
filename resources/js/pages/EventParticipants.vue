@@ -1449,8 +1449,9 @@ const now = () => new Date()
 
 
 const canAddParticipant = computed(() => {
-  return isDevelopmentMode.value ||
-    ((isStageActive('Persiapan') || isStageActive('Pendaftaran') ) && mandateStatus.value.allowed)
+  return isDevelopmentMode.value || 
+         (isStageActive('Persiapan') && mandateStatus.value.allowed) || 
+         (isStageActive('Pendaftaran') && mandateStatus.value.allowed);
 })
 
 const canRegisterParticipant = computed(() => {
