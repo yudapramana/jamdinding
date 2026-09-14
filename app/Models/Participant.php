@@ -172,15 +172,20 @@ class Participant extends Model
 
     /**
      * Persentase kelengkapan lampiran (0–100)
-     * Kategori umur >= 17 tahun (4 wajib: Foto, KTP, Akta, KK)
-     * Kategori umur < 17 tahun (3 wajib: Foto, Akta, KK)
+     * Kategori umur >= 17 tahun per 1 Juli tahun berjalan (4 wajib: Foto, KTP, Akta, KK)
+     * Kategori umur < 17 tahun per 1 Juli tahun berjalan (3 wajib: Foto, Akta, KK)
      */
     public function getLampiranCompletionPercentAttribute(): int
     {
-        // Hitung umur (default 0 jika tanggal lahir kosong)
+        // Hitung umur berdasarkan batas tanggal 1 Juli tahun berjalan (default 0 jika tanggal lahir kosong)
         $age = 0;
         if (!empty($this->date_of_birth)) {
-            $age = Carbon::parse($this->date_of_birth)->age;
+            // Ambil tahun berjalan secara dinamis
+            $tahunBerjalan = now()->year; 
+            
+            // Set batas tanggal ke 1 Juli pada tahun berjalan
+            $batasTanggal = Carbon::create($tahunBerjalan, 7, 1);
+            $age = Carbon::parse($this->date_of_birth)->diffInYears($batasTanggal);
         }
 
         // Tentukan field wajib berdasarkan umur
