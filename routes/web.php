@@ -114,6 +114,11 @@ Route::controller(UtilityController::class)->group(function () {
     Route::get('/logout_all', 'logoutAll');
     Route::get('/get-password', 'getPassword');
     Route::get('/all-users', 'allUsers');
+    Route::get('/event-participants/count-by-region', 'countParticipantsByRegion');
+    Route::get('/event-participants/count-by-branch', 'countParticipantsByBranchGroup');
+    Route::get('/xup', 'xUp');
+    Route::get('/xdown/{view}', 'xDown');
+    Route::get('/view-error/{view}', 'viewError');
 });
 
 /*
