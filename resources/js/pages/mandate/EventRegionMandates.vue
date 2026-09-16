@@ -364,7 +364,7 @@ const meta = ref({
   last_page: 1,
 })
 
-const perPage = ref(10)
+const perPage = ref(15)
 const isLoading = ref(false)
 const filters = ref({ status: '' })
 
