@@ -357,14 +357,14 @@ const regionLabelPlural = computed(() => regionLabel.value)
 const mandates = ref([])
 const meta = ref({
   current_page: 1,
-  per_page: 10,
+  per_page: 25,
   total: 0,
   from: 0,
   to: 0,
   last_page: 1,
 })
 
-const perPage = ref(15)
+const perPage = ref(25)
 const isLoading = ref(false)
 const filters = ref({ status: '' })
 
