@@ -2,8 +2,8 @@
 
 namespace App\Providers;
 
-// use Illuminate\Support\Facades\Gate;
-
+use App\Models\User;
+use Illuminate\Support\Facades\Gate;
 use App\Models\Participant;
 use App\Policies\ParticipantPolicy;
 use Illuminate\Foundation\Support\Providers\AuthServiceProvider as ServiceProvider;
@@ -24,6 +24,13 @@ class AuthServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        Gate::define('viewLogViewer', function (?User $user) {
+            // Jika tidak ada user yang login, otomatis tolak
+            if (!$user) {
+                return false;
+            }
+
+            return optional($user->role)->slug === 'superadmin';
+        });
     }
 }

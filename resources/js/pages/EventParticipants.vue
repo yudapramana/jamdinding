@@ -121,6 +121,19 @@
                 </option>
               </select>
 
+              <!-- ➕ FILTER URUTAN (ORDER BY) -->
+              <select
+                v-model="filters.order_by"
+                class="form-control form-control-sm w-auto"
+                title="Urutkan Berdasarkan"
+              >
+                <option value="">Default</option>
+                <option value="gender">Jenis Kelamin</option>
+                <option value="cabang">Cabang Golongan</option>
+                <option value="nama">Nama Lengkap</option>
+                <option value="nik">NIK Peserta</option>
+              </select>
+
               <!-- ➕ TOMBOL REFRESH -->
               <button
                 type="button"
@@ -1574,6 +1587,7 @@ const filters = ref({
   event_group_id: '',      // ✅ filter cabang/golongan
   reregistration_status: '',
   event_region_id: '',     // ➕ Tambahkan ini untuk menampung filter region
+  order_by: '',
 })
 
 
@@ -1833,6 +1847,7 @@ const fetchItems = async (page = 1) => {
         event_group_id: filters.value.event_group_id || '',   // ✅ tambah ini
         event_region_id: filters.value.event_region_id || '', // ➕ Kirim parameter region ke backend
         reregistration_status: filters.value.reregistration_status || '',
+        order_by: filters.value.order_by || '',
       },
     })
 

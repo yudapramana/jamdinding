@@ -382,27 +382,41 @@ class EventParticipantController extends Controller
         $eventGroupId          = $request->get('event_group_id');
         $eventRegionId         = $request->get('event_region_id'); // ➕ Ambil parameter filter region dari request
         $withVerifications = filter_var($request->get('withVerifications', false), FILTER_VALIDATE_BOOLEAN);
+        $orderBy               = $request->get('order_by'); // ➕ Ambil parameter order_by
 
         $eventId = $event->id;
-         $with = ['participant', 'eventGroup', 'eventCategory', 'eventBranch'];
+        $with = ['participant', 'eventGroup', 'eventCategory', 'eventBranch'];
 
         // ✅ load verifikasi jika diminta (sarankan latestVerification biar tidak berat)
         if ($withVerifications) {
         $with[] = 'latestVerification.verifier';
         }
+
         $query = EventParticipant::query()
                     ->with($with)
                     ->when($eventId, function ($q) use ($eventId) {
                         $q->where('event_id', $eventId);
                     })
                     ->join('participants as p', 'p.id', '=', 'event_participants.participant_id')
-                    ->select('event_participants.*')
-                    ->orderBy('p.gender')
-                    ->orderBy('event_participants.contingent')
-                    ->orderBy('event_participants.event_category_id')
-                    ->orderBy('event_participants.participant_number')
-                    ->orderBy('p.full_name');
+                    ->select('event_participants.*');
 
+        // ➕ LOGIKA PEMILIHAN ORDER BY
+        if ($orderBy === 'gender') {
+            $query->orderBy('p.gender');
+        } elseif ($orderBy === 'cabang') {
+            $query->orderBy('event_participants.event_category_id');
+        } elseif ($orderBy === 'nama') {
+            $query->orderBy('p.full_name');
+        } elseif ($orderBy === 'nik') {
+            $query->orderBy('p.nik');
+        } else {
+            // Default pengurutan seperti saat ini
+            $query->orderBy('p.gender')
+                  ->orderBy('event_participants.contingent')
+                  ->orderBy('event_participants.event_category_id')
+                  ->orderBy('event_participants.participant_number')
+                  ->orderBy('p.full_name');
+        }
 
         if ($registrationStatus) {
             $query->where('registration_status', $registrationStatus);
