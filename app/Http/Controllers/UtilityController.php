@@ -10,15 +10,21 @@ use DateTime;
 use Log;
 use Illuminate\Http\Request;
 use Auth;
+use Illuminate\Support\Facades\Artisan;
 
 class UtilityController extends Controller
 {
     public function __construct()
     {
-        // 🔒 Middleware untuk membatasi akses SELURUH fungsi di controller ini hanya untuk role superadmin
+        // 1. Pastikan user sudah login (jika belum, akan otomatis diarahkan ke halaman login)
+        $this->middleware('auth');
+
+        // 2. 🔒 Middleware untuk membatasi akses hanya untuk role superadmin
         $this->middleware(function ($request, $next) {
             $user = Auth::user();
-            $roleSlug = optional($user->role)->slug ?? '';
+            
+            // Gunakan Nullsafe operator (?->) agar tidak error jika relasi role kosong
+            $roleSlug = $user?->role?->slug ?? '';
 
             if ($roleSlug !== 'superadmin') {
                 abort(403, 'Unauthorized. Hanya Superadmin yang diizinkan mengakses halaman ini.');
