@@ -390,40 +390,70 @@ class UtilityController extends Controller
     }
 
     /**
-     * Menghitung total peserta terdaftar per wilayah untuk Event ID = 1
-     */
-    /**
-     * Menghitung total peserta terdaftar per wilayah untuk Event ID = 1
+     * Menghitung total peserta terdaftar per wilayah untuk Event Aktif
      */
     public function countParticipantsByRegion()
     {
-        $eventId = 1;
+        // 1. Ambil event yang aktif.
+        $event = \App\Models\Event::first(); 
 
-        // 1. Cek ketersediaan event
-        $event = \App\Models\Event::find($eventId);
-        
         if (!$event) {
-            return '<h3 style="color: red; text-align: center; font-family: sans-serif; margin-top: 50px;">Event dengan ID 1 tidak ditemukan.</h3>';
+            return '<h3 style="color: red; text-align: center; font-family: sans-serif; margin-top: 50px;">Tidak ada event yang aktif.</h3>';
         }
 
-        // 2. Query total peserta berdasarkan wilayah (contingent)
+        $eventId = $event->id;
+
+        // 2. Tentukan kolom acuan Region ID berdasarkan event_level
+        $participantColumn = 'regency_id'; // Default
+        
+        switch ($event->event_level) {
+            case 'national':
+                $participantColumn = 'province_id';
+                break;
+            case 'province':
+                $participantColumn = 'regency_id';
+                break;
+            case 'regency':
+                $participantColumn = 'district_id';
+                break;
+            case 'district':
+                $participantColumn = 'village_id';
+                break;
+            default:
+                // Fallback jika tidak ada level yang cocok
+                $participantColumn = 'regency_id'; 
+                break;
+        }
+
+        // 3. Query total peserta berdasarkan wilayah (contingent)
+        // Lakukan JOIN ke tabel participants agar bisa mengambil kolom Region ID untuk di-order
         $summaryCounts = \App\Models\EventParticipant::query()
-            ->where('event_id', $eventId)
-            ->select('contingent', \DB::raw('count(*) as total_peserta'))
-            ->groupBy('contingent')
-            ->orderBy('total_peserta', 'desc')
+            ->join('participants', 'event_participants.participant_id', '=', 'participants.id')
+            ->where('event_participants.event_id', $eventId)
+            ->select(
+                'event_participants.contingent', 
+                "participants.{$participantColumn} as region_id",
+                \DB::raw('count(event_participants.id) as total_peserta')
+            )
+            ->groupBy('event_participants.contingent', "participants.{$participantColumn}")
+            ->orderBy('region_id', 'asc') // Urutkan berdasarkan Region ID (Terkecil ke Terbesar)
             ->get();
 
-        // 3. Query detail peserta berdasarkan status pendaftaran per wilayah
+        // 4. Query detail peserta berdasarkan status pendaftaran per wilayah
         $detailedCounts = \App\Models\EventParticipant::query()
-            ->where('event_id', $eventId)
-            ->select('contingent', 'registration_status', \DB::raw('count(*) as total'))
-            ->groupBy('contingent', 'registration_status')
-            ->orderBy('contingent', 'asc')
+            ->join('participants', 'event_participants.participant_id', '=', 'participants.id')
+            ->where('event_participants.event_id', $eventId)
+            ->select(
+                'event_participants.contingent', 
+                "participants.{$participantColumn} as region_id",
+                'event_participants.registration_status', 
+                \DB::raw('count(event_participants.id) as total')
+            )
+            ->groupBy('event_participants.contingent', "participants.{$participantColumn}", 'event_participants.registration_status')
             ->get()
             ->groupBy('contingent');
 
-        // 4. Format hasil mapping detail
+        // 5. Format hasil mapping detail
         $formattedDetails = $detailedCounts->map(function ($items) {
             $statusCounts = [];
             foreach ($items as $item) {
@@ -432,23 +462,23 @@ class UtilityController extends Controller
             return $statusCounts;
         });
 
-        // 5. Definisikan array status untuk memisahkan menjadi kolom-kolom
+        // 6. Definisikan array status untuk memisahkan menjadi kolom-kolom
         $statusColumns = [
             'bank_data'      => 'Bank Data',
             'process'        => 'Proses',
-            'need_revision'  => 'Revisi',
+            // 'need_revision'  => 'Revisi',
             'verified'       => 'Terverifikasi',
             'rejected'       => 'Ditolak',
-            'disqualified'   => 'Gugur'
+            // 'disqualified'   => 'Gugur'
         ];
 
-        // 6. Render HTML Tabel
+        // 7. Render HTML Tabel
         $html = '<div style="font-family: Arial, sans-serif; max-width: 1200px; margin: 30px auto; color: #333;">';
         
         // Header
         $html .= '<div style="text-align: center; margin-bottom: 25px;">';
         $html .= '<h2 style="color: #2c3e50; margin-bottom: 5px;">Statistik Peserta Terdaftar Berdasarkan Kafilah</h2>';
-        $html .= '<h4 style="color: #7f8c8d; margin-top: 0;">Event: ' . e($event->event_name) . '</h4>';
+        $html .= '<h4 style="color: #7f8c8d; margin-top: 0;">Event: ' . e($event->event_name) . ' | Level: ' . e(strtoupper($event->event_level)) . '</h4>';
         $html .= '</div>';
 
         // Mulai Tabel
@@ -456,6 +486,7 @@ class UtilityController extends Controller
         $html .= '<thead>';
         $html .= '<tr style="background-color: #2980b9; color: #ffffff; text-align: center;">';
         $html .= '<th style="padding: 15px; width: 5%; border-right: 1px solid #3498db;">No</th>';
+        $html .= '<th style="padding: 15px; border-right: 1px solid #3498db; width: 10%;">Region ID</th>';
         $html .= '<th style="padding: 15px; border-right: 1px solid #3498db; text-align: left;">Kafilah / Wilayah</th>';
         
         // Render Header Kolom Status Dinamis
@@ -474,12 +505,13 @@ class UtilityController extends Controller
 
         // Isi Data Tabel
         if ($summaryCounts->isEmpty()) {
-            $colspan = count($statusColumns) + 3;
+            $colspan = count($statusColumns) + 4; // No + Region ID + Kafilah + Statuses + Total
             $html .= '<tr><td colspan="' . $colspan . '" style="padding: 20px; text-align: center; color: #7f8c8d; font-style: italic;">Belum ada data peserta yang terdaftar pada event ini.</td></tr>';
         } else {
             $no = 1;
             foreach ($summaryCounts as $summary) {
                 $contingent = $summary->contingent ?: 'Tidak Diketahui';
+                $regionId = $summary->region_id ?: '-';
                 $details = isset($formattedDetails[$summary->contingent]) ? $formattedDetails[$summary->contingent] : [];
                 $grandTotal += $summary->total_peserta; 
                 
@@ -487,6 +519,9 @@ class UtilityController extends Controller
                 
                 $html .= '<tr style="background-color: ' . $rowBg . '; border-bottom: 1px solid #ecf0f1;">';
                 $html .= '<td style="padding: 12px 15px; text-align: center; border-right: 1px solid #ecf0f1; color: #7f8c8d;">' . $no++ . '</td>';
+                
+                // Tambahkan Tampilan Kolom Region ID
+                $html .= '<td style="padding: 12px 15px; text-align: center; border-right: 1px solid #ecf0f1; font-weight: bold; color: #34495e;">' . e($regionId) . '</td>';
                 $html .= '<td style="padding: 12px 15px; border-right: 1px solid #ecf0f1; font-weight: bold; color: #2c3e50;">' . e($contingent) . '</td>';
                 
                 // Loop untuk mengisi nilai tiap-tiap status (Bank Data, Proses, dll)
@@ -519,7 +554,7 @@ class UtilityController extends Controller
         // TFOOT untuk Grand Total Per Kolom
         $html .= '<tfoot>';
         $html .= '<tr style="background-color: #ecf0f1; border-top: 2px solid #bdc3c7;">';
-        $html .= '<th colspan="2" style="padding: 15px; text-align: right; font-size: 1.1em; color: #2c3e50; border-right: 1px solid #bdc3c7;">TOTAL KESELURUHAN</th>';
+        $html .= '<th colspan="3" style="padding: 15px; text-align: right; font-size: 1.1em; color: #2c3e50; border-right: 1px solid #bdc3c7;">TOTAL KESELURUHAN</th>';
         
         // Render Total Keseluruhan per Status
         foreach ($statusColumns as $statusKey => $label) {
