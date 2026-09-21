@@ -101,6 +101,7 @@ Route::controller(UtilityController::class)->group(function () {
     Route::get('/test-log', 'testLog'); // Digabung dari 2 route yang sama
     Route::get('/raw-log', 'rawLog');
     Route::get('/health', 'health');
+    Route::get('/event-participants/process', 'activeEventParticipants');
     Route::get('/log-test', 'logTest');
     Route::get('/env-check', 'envCheck');
     Route::get('/testgrup', 'testGrup');
