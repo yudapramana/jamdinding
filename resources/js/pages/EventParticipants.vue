@@ -1435,7 +1435,6 @@ const isDevelopmentMode = computed(() => {
 })
 
 const isStageActive = (stageName) => {
-  // 🔥 ENVIRONMENT OVERRIDE (PALING ATAS)
   if (isDevelopmentMode.value) {
     return true
   }
@@ -1448,7 +1447,11 @@ const isStageActive = (stageName) => {
   if (!stage.is_active) return false
 
   const start = new Date(stage.start_date)
-  const end   = new Date(stage.end_date)
+  start.setHours(0, 0, 0, 0) // Pastikan start di awal hari
+
+  const end = new Date(stage.end_date)
+  end.setHours(23, 59, 59, 999) // Geser end ke penghujung hari
+
   const nowTs = Date.now()
 
   return nowTs >= start.getTime() && nowTs <= end.getTime()
