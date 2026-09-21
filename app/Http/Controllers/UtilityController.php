@@ -195,12 +195,12 @@ class UtilityController extends Controller
     }
 
     public function health() { 
-        $user = auth()->user();
-        $roleSlug = optional($user->role)->slug ?? '';
-        return $roleSlug;
+        // $user = auth()->user();
+        // $roleSlug = optional($user->role)->slug ?? '';
+        // return $roleSlug;
 
         // Note: Baris di bawah ini tidak akan pernah dieksekusi karena ada return $roleSlug di atasnya.
-        /*
+        
         $event = Event::first();
         return response()->json([
             'persiapan' => $event->isStageActive('persiapan'),
@@ -208,7 +208,7 @@ class UtilityController extends Controller
             'verifikasi I' => !$event->isStageActive('Verifikasi I'),
             'verifikasi II' => !$event->isStageActive('Verifikasi II')
         ]); 
-        */
+        
     }
 
     public function logTest() { 
