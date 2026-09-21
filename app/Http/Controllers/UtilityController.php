@@ -73,7 +73,6 @@ class UtilityController extends Controller
         // Tambahkan orderBy('created_at', 'asc') agar data diurutkan berdasarkan waktu pembuatan dari yang terlama ke terbaru.
         $eventParticipants = \App\Models\EventParticipant::with(['participant', 'eventCategory'])
             ->where('event_id', $activeEvent->id)
-            ->where('registration_status', 'process')
             ->orderBy('created_at', 'asc') // <-- PERUBAHAN DI SINI
             ->get();
 
@@ -393,6 +392,9 @@ class UtilityController extends Controller
     /**
      * Menghitung total peserta terdaftar per wilayah untuk Event ID = 1
      */
+    /**
+     * Menghitung total peserta terdaftar per wilayah untuk Event ID = 1
+     */
     public function countParticipantsByRegion()
     {
         $eventId = 1;
@@ -430,8 +432,18 @@ class UtilityController extends Controller
             return $statusCounts;
         });
 
-        // 5. Render HTML Tabel
-        $html = '<div style="font-family: Arial, sans-serif; max-width: 1000px; margin: 30px auto; color: #333;">';
+        // 5. Definisikan array status untuk memisahkan menjadi kolom-kolom
+        $statusColumns = [
+            'bank_data'      => 'Bank Data',
+            'process'        => 'Proses',
+            'need_revision'  => 'Revisi',
+            'verified'       => 'Terverifikasi',
+            'rejected'       => 'Ditolak',
+            'disqualified'   => 'Gugur'
+        ];
+
+        // 6. Render HTML Tabel
+        $html = '<div style="font-family: Arial, sans-serif; max-width: 1200px; margin: 30px auto; color: #333;">';
         
         // Header
         $html .= '<div style="text-align: center; margin-bottom: 25px;">';
@@ -442,59 +454,79 @@ class UtilityController extends Controller
         // Mulai Tabel
         $html .= '<table style="width: 100%; border-collapse: collapse; box-shadow: 0 4px 8px rgba(0,0,0,0.1); background-color: #fff; border-radius: 8px; overflow: hidden;">';
         $html .= '<thead>';
-        $html .= '<tr style="background-color: #2980b9; color: #ffffff; text-align: left;">';
-        $html .= '<th style="padding: 15px; width: 5%; text-align: center; border-right: 1px solid #3498db;">No</th>';
-        $html .= '<th style="padding: 15px; border-right: 1px solid #3498db;">Kafilah / Wilayah</th>';
-        $html .= '<th style="padding: 15px; text-align: center; border-right: 1px solid #3498db;">Total Peserta</th>';
-        $html .= '<th style="padding: 15px;">Rincian Status</th>';
+        $html .= '<tr style="background-color: #2980b9; color: #ffffff; text-align: center;">';
+        $html .= '<th style="padding: 15px; width: 5%; border-right: 1px solid #3498db;">No</th>';
+        $html .= '<th style="padding: 15px; border-right: 1px solid #3498db; text-align: left;">Kafilah / Wilayah</th>';
+        
+        // Render Header Kolom Status Dinamis
+        foreach ($statusColumns as $label) {
+            $html .= '<th style="padding: 15px; border-right: 1px solid #3498db;">' . $label . '</th>';
+        }
+
+        $html .= '<th style="padding: 15px;">Total Peserta</th>';
         $html .= '</tr>';
         $html .= '</thead>';
         $html .= '<tbody>';
 
-        $grandTotal = 0; // Variabel untuk menyimpan total keseluruhan
+        $grandTotal = 0; 
+        // Inisialisasi counter untuk Grand Total masing-masing status
+        $grandTotalStatuses = array_fill_keys(array_keys($statusColumns), 0);
 
         // Isi Data Tabel
         if ($summaryCounts->isEmpty()) {
-            $html .= '<tr><td colspan="4" style="padding: 20px; text-align: center; color: #7f8c8d; font-style: italic;">Belum ada data peserta yang terdaftar pada event ini.</td></tr>';
+            $colspan = count($statusColumns) + 3;
+            $html .= '<tr><td colspan="' . $colspan . '" style="padding: 20px; text-align: center; color: #7f8c8d; font-style: italic;">Belum ada data peserta yang terdaftar pada event ini.</td></tr>';
         } else {
             $no = 1;
             foreach ($summaryCounts as $summary) {
                 $contingent = $summary->contingent ?: 'Tidak Diketahui';
                 $details = isset($formattedDetails[$summary->contingent]) ? $formattedDetails[$summary->contingent] : [];
-                $grandTotal += $summary->total_peserta; // Tambahkan ke grand total
+                $grandTotal += $summary->total_peserta; 
                 
-                // Susun HTML untuk rincian status berupa badge/label kecil
-                $statusHtml = '';
-                foreach ($details as $status => $count) {
-                    $bgColor = '#95a5a6';
-                    if ($status === 'verified') $bgColor = '#27ae60';
-                    elseif ($status === 'process') $bgColor = '#f39c12';
-                    elseif ($status === 'need_revision') $bgColor = '#e67e22';
-                    elseif ($status === 'rejected' || $status === 'disqualified') $bgColor = '#c0392b';
-                    elseif ($status === 'bank_data') $bgColor = '#34495e';
-
-                    $statusHtml .= '<span style="display: inline-block; background-color: ' . $bgColor . '; color: #fff; padding: 4px 10px; border-radius: 12px; font-size: 0.85em; font-weight: bold; margin: 2px 4px 2px 0;">' . e(strtoupper(str_replace('_', ' ', $status))) . ' : ' . $count . '</span>';
-                }
-
                 $rowBg = ($no % 2 === 0) ? '#f9fbfd' : '#ffffff';
                 
                 $html .= '<tr style="background-color: ' . $rowBg . '; border-bottom: 1px solid #ecf0f1;">';
                 $html .= '<td style="padding: 12px 15px; text-align: center; border-right: 1px solid #ecf0f1; color: #7f8c8d;">' . $no++ . '</td>';
                 $html .= '<td style="padding: 12px 15px; border-right: 1px solid #ecf0f1; font-weight: bold; color: #2c3e50;">' . e($contingent) . '</td>';
-                $html .= '<td style="padding: 12px 15px; text-align: center; border-right: 1px solid #ecf0f1; font-size: 1.2em; font-weight: bold; color: #2980b9;">' . $summary->total_peserta . '</td>';
-                $html .= '<td style="padding: 12px 15px; line-height: 1.6;">' . ($statusHtml ?: '-') . '</td>';
+                
+                // Loop untuk mengisi nilai tiap-tiap status (Bank Data, Proses, dll)
+                foreach ($statusColumns as $statusKey => $label) {
+                    $count = isset($details[$statusKey]) ? $details[$statusKey] : 0;
+                    
+                    // Tambahkan nilai ke Grand Total per Status
+                    $grandTotalStatuses[$statusKey] += $count;
+                    
+                    // Beri warna angka jika lebih dari 0 agar mudah dilihat
+                    $textColor = '#7f8c8d'; // abu-abu untuk 0
+                    if ($count > 0) {
+                        if ($statusKey === 'verified') $textColor = '#27ae60';
+                        elseif ($statusKey === 'process') $textColor = '#f39c12';
+                        elseif ($statusKey === 'need_revision') $textColor = '#e67e22';
+                        elseif ($statusKey === 'rejected' || $statusKey === 'disqualified') $textColor = '#c0392b';
+                        elseif ($statusKey === 'bank_data') $textColor = '#34495e';
+                    }
+
+                    $html .= '<td style="padding: 12px 15px; text-align: center; border-right: 1px solid #ecf0f1; font-weight: bold; font-size: 1.05em; color: ' . $textColor . ';">' . $count . '</td>';
+                }
+
+                $html .= '<td style="padding: 12px 15px; text-align: center; font-size: 1.2em; font-weight: bold; color: #2980b9;">' . $summary->total_peserta . '</td>';
                 $html .= '</tr>';
             }
         }
 
         $html .= '</tbody>';
 
-        // TFOOT untuk Grand Total
+        // TFOOT untuk Grand Total Per Kolom
         $html .= '<tfoot>';
         $html .= '<tr style="background-color: #ecf0f1; border-top: 2px solid #bdc3c7;">';
         $html .= '<th colspan="2" style="padding: 15px; text-align: right; font-size: 1.1em; color: #2c3e50; border-right: 1px solid #bdc3c7;">TOTAL KESELURUHAN</th>';
-        $html .= '<th style="padding: 15px; text-align: center; font-size: 1.3em; color: #c0392b; border-right: 1px solid #bdc3c7;">' . $grandTotal . '</th>';
-        $html .= '<th></th>';
+        
+        // Render Total Keseluruhan per Status
+        foreach ($statusColumns as $statusKey => $label) {
+            $html .= '<th style="padding: 15px; text-align: center; font-size: 1.1em; color: #2c3e50; border-right: 1px solid #bdc3c7;">' . $grandTotalStatuses[$statusKey] . '</th>';
+        }
+
+        $html .= '<th style="padding: 15px; text-align: center; font-size: 1.3em; color: #c0392b;">' . $grandTotal . '</th>';
         $html .= '</tr>';
         $html .= '</tfoot>';
 
