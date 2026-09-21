@@ -73,7 +73,7 @@ class UtilityController extends Controller
         // Tambahkan orderBy('created_at', 'asc') agar data diurutkan berdasarkan waktu pembuatan dari yang terlama ke terbaru.
         $eventParticipants = \App\Models\EventParticipant::with(['participant', 'eventCategory'])
             ->where('event_id', $activeEvent->id)
-            ->orderBy('created_at', 'asc') // <-- PERUBAHAN DI SINI
+            ->orderBy('event_group_id', 'asc') // <-- PERUBAHAN DI SINI
             ->get();
 
         // 4. Kelompokkan data dan urutkan berdasarkan Region ID terkecil

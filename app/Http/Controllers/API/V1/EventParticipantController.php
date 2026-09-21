@@ -841,14 +841,38 @@ class EventParticipantController extends Controller
 
         $event = Event::findOrFail($request['event_participant']['event_id']);
 
-        if (!$event->isStageActive('persiapan') && !$event->isStageActive('pendaftaran')) {
-            return response()->json([
-                'message' => 'Tahap persiapan/pendaftaran belum dimulai atau sudah berakhir.'
-            ], 403);
-        }
+        // if (!$event->isStageActive('persiapan') && !$event->isStageActive('pendaftaran')) {
+        //     return response()->json([
+        //         'message' => 'Tahap persiapan/pendaftaran belum dimulai atau sudah berakhir.'
+        //     ], 403);
+        // }
 
         $participantId      = $participantPayload['id'] ?? null;
         $eventParticipantId = $eventParticipantPayload['id'] ?? null;
+
+        // Inisialisasi User & Role lebih awal untuk pengecekan hak akses
+        $user = auth()->user();
+        $roleSlug = optional($user->role)->slug ?? '';
+        $isPrivileged = in_array($roleSlug, ['superadmin', 'admin_event']);
+        
+        $isRegistrationOpen = $event->isStageActive('persiapan') || $event->isStageActive('pendaftaran');
+        $isCreateNew = empty($eventParticipantId); // Jika ID kosong, berarti ini fungsi Tambah (Create)
+
+        // ======================================================
+        // BLOKIR JIKA PENDAFTARAN DITUTUP (TAPI BOLEH UPDATE)
+        // ======================================================
+        if (!$isRegistrationOpen) {
+            
+            // Jika ini proses Tambah Baru (Create) DAN bukan panitia pusat
+            if ($isCreateNew && !$isPrivileged) {
+                return response()->json([
+                    'message' => 'Tahap pendaftaran sudah berakhir. Anda tidak dapat menambah peserta baru, namun masih diperbolehkan untuk mengubah (update) data peserta yang ada.'
+                ], 403);
+            }
+            
+            // Catatan: Proses Update (jika $isCreateNew == false) akan lolos dari pengecekan ini
+            // dan lanjut ke tahap validasi dan penyimpanan seperti biasa.
+        }
 
         // ============================
         // CUSTOM MESSAGES
@@ -1014,29 +1038,23 @@ class EventParticipantController extends Controller
         $hasTanggalTerbit = !empty($pData['tanggal_terbit_ktp']) && !empty($pData['tanggal_terbit_kk']);
         $eventLevel = $event->event_level;
 
-        // Helper Strict Check (Blokir role biasa, toleransi admin jika input tgl terbit)
-        $checkStrict = function ($isMismatch, $errorMsg) use ($isPrivileged, $hasTanggalTerbit) {
+        // Helper Region Check:
+        // 1. isPrivileged (Superadmin/Admin Event): Bisa Tambah & Update (Toleransi asalkan ada tgl terbit)
+        // 2. Non-Privileged (Biasa): HANYA Bisa Update (Toleransi asalkan ada tgl terbit). Tambah diblokir mutlak.
+        $checkRegionMismatch = function ($isMismatch, $errorMsg) use ($isPrivileged, $isCreateNew, $hasTanggalTerbit) {
             if ($isMismatch) {
-                if (!$isPrivileged) {
+                // Jika bukan privileged (role biasa) dan sedang Tambah Data (Create), blokir mutlak
+                if (!$isPrivileged && $isCreateNew) {
                     throw ValidationException::withMessages(['participant.nik' => $errorMsg]);
-                } else {
-                    if (!$hasTanggalTerbit) {
-                        throw ValidationException::withMessages([
-                            'participant.tanggal_terbit_ktp' => 'Bypass Admin: ' . $errorMsg . ' Silahkan isi tanggal terbit KTP dan KK.',
-                            'participant.tanggal_terbit_kk'  => 'Bypass Admin: ' . $errorMsg . ' Silahkan isi tanggal terbit KTP dan KK.',
-                        ]);
-                    }
                 }
-            }
-        };
-
-        // Helper Tolerance Check (Toleransi semua role asalkan input tgl terbit)
-        $checkTolerance = function ($isMismatch, $errorMsg) use ($hasTanggalTerbit) {
-            if ($isMismatch) {
+                
+                // Jika isPrivileged ATAU role biasa sedang Update Data, berikan toleransi
+                // Syarat mutlak: tanggal terbit KTP & KK harus diisi
                 if (!$hasTanggalTerbit) {
+                    $prefix = $isPrivileged ? 'Bypass Admin: ' : 'Syarat Update: ';
                     throw ValidationException::withMessages([
-                        'participant.tanggal_terbit_ktp' => $errorMsg . ' Silahkan isi tanggal terbit KTP dan KK.',
-                        'participant.tanggal_terbit_kk'  => $errorMsg . ' Silahkan isi tanggal terbit KTP dan KK.',
+                        'participant.tanggal_terbit_ktp' => $prefix . $errorMsg . ' Silahkan isi tanggal terbit KTP dan KK.',
+                        'participant.tanggal_terbit_kk'  => $prefix . $errorMsg . ' Silahkan isi tanggal terbit KTP dan KK.',
                     ]);
                 }
             }
@@ -1044,31 +1062,32 @@ class EventParticipantController extends Controller
 
         switch ($eventLevel) {
             case 'national':
-                $checkTolerance(!empty($pData['province_id']) && $nikProvince !== substr((string)$pData['province_id'], 0, 2), 'NIK tidak sesuai dengan Provinsi.');
+                $checkRegionMismatch(!empty($pData['province_id']) && $nikProvince !== substr((string)$pData['province_id'], 0, 2), 'NIK tidak sesuai dengan Provinsi.');
                 break;
 
             case 'province':
-                $checkStrict(!empty($pData['province_id']) && $nikProvince !== substr((string)$pData['province_id'], 0, 2), 'Event tingkat Provinsi. NIK dari Provinsi lain tidak diizinkan. Hubungi Admin Event.');
-                $checkTolerance(!empty($pData['regency_id']) && $nikRegency !== substr((string)$pData['regency_id'], 0, 4), 'NIK tidak sesuai dengan Kabupaten/Kota.');
+                $checkRegionMismatch(!empty($pData['province_id']) && $nikProvince !== substr((string)$pData['province_id'], 0, 2), 'Event tingkat Provinsi. NIK dari Provinsi lain tidak diizinkan. Hubungi Admin Event.');
+                $checkRegionMismatch(!empty($pData['regency_id']) && $nikRegency !== substr((string)$pData['regency_id'], 0, 4), 'NIK tidak sesuai dengan Kabupaten/Kota.');
                 break;
 
             case 'regency':
-                $checkStrict(!empty($pData['province_id']) && $nikProvince !== substr((string)$pData['province_id'], 0, 2), 'Event tingkat Kabupaten/Kota. NIK dari Provinsi lain tidak diizinkan. Hubungi Admin Event untuk info lebih lanjut.');
-                $checkStrict(!empty($pData['regency_id']) && $nikRegency !== substr((string)$pData['regency_id'], 0, 4), 'Event tingkat Kabupaten/Kota. Anda tidak diizinkan input NIK dari Kabupaten/Kota lain. Hubungi Admin Event untuk melakukan Penginputan.');
-                $checkTolerance(!empty($pData['district_id']) && $nikDistrict !== substr((string)$pData['district_id'], 0, 6), 'NIK tidak sesuai dengan Kecamatan.');
+                $checkRegionMismatch(!empty($pData['province_id']) && $nikProvince !== substr((string)$pData['province_id'], 0, 2), 'Event tingkat Kabupaten/Kota. NIK dari Provinsi lain tidak diizinkan. Hubungi Admin Event untuk info lebih lanjut.');
+                $checkRegionMismatch(!empty($pData['regency_id']) && $nikRegency !== substr((string)$pData['regency_id'], 0, 4), 'Event tingkat Kabupaten/Kota. Anda tidak diizinkan input NIK dari Kabupaten/Kota lain. Hubungi Admin Event untuk melakukan Penginputan.');
+                $checkRegionMismatch(!empty($pData['district_id']) && $nikDistrict !== substr((string)$pData['district_id'], 0, 6), 'NIK tidak sesuai dengan Kecamatan.');
                 break;
 
             case 'district':
-                $checkStrict(!empty($pData['province_id']) && $nikProvince !== substr((string)$pData['province_id'], 0, 2), 'Event tingkat Kecamatan. NIK dari Provinsi lain tidak diizinkan. Hubungi Admin Event.');
-                $checkStrict(!empty($pData['regency_id']) && $nikRegency !== substr((string)$pData['regency_id'], 0, 4), 'Event tingkat Kecamatan. NIK dari Kabupaten/Kota lain tidak diizinkan. Hubungi Admin Event.');
-                $checkStrict(!empty($pData['district_id']) && $nikDistrict !== substr((string)$pData['district_id'], 0, 6), 'Event tingkat Kecamatan. NIK dari Kecamatan lain tidak diizinkan. Hubungi Admin Event.');
+                $checkRegionMismatch(!empty($pData['province_id']) && $nikProvince !== substr((string)$pData['province_id'], 0, 2), 'Event tingkat Kecamatan. NIK dari Provinsi lain tidak diizinkan. Hubungi Admin Event.');
+                $checkRegionMismatch(!empty($pData['regency_id']) && $nikRegency !== substr((string)$pData['regency_id'], 0, 4), 'Event tingkat Kecamatan. NIK dari Kabupaten/Kota lain tidak diizinkan. Hubungi Admin Event.');
+                $checkRegionMismatch(!empty($pData['district_id']) && $nikDistrict !== substr((string)$pData['district_id'], 0, 6), 'Event tingkat Kecamatan. NIK dari Kecamatan lain tidak diizinkan. Hubungi Admin Event.');
                 
                 if (!empty($pData['village_id'])) {
                     $villageCode = (string)$pData['village_id'];
-                    $checkTolerance(strlen($villageCode) >= 10 && $nikVillage !== substr($villageCode, 0, 10), 'NIK tidak sesuai dengan Desa/Kelurahan.');
+                    $checkRegionMismatch(strlen($villageCode) >= 10 && $nikVillage !== substr($villageCode, 0, 10), 'NIK tidak sesuai dengan Desa/Kelurahan.');
                 }
                 break;
         }
+        
         // ======================================================
         // END OF PENGECEKAN WILAYAH CASCADING
         // ======================================================

@@ -36,6 +36,7 @@
             class="btn btn-primary btn-sm"
             @click="openCreateModal"
             :disabled="!eventId || !canAddParticipant"
+            v-if="canAddParticipant"
           >
             <i class="fas fa-user-plus mr-1"></i>
             Tambah
@@ -1467,7 +1468,7 @@ const now = () => new Date()
 const canAddParticipant = computed(() => {
   return isDevelopmentMode.value || 
          (isStageActive('Persiapan') && mandateStatus.value.allowed) || 
-         (isStageActive('Pendaftaran') && mandateStatus.value.allowed);
+         isPrivileged.value; 
 })
 
 const canRegisterParticipant = computed(() => {
@@ -2006,28 +2007,22 @@ const validateNikByEventLevel = () => {
   }
 
   // ==========================================
-  // WRAPPER CHECKERS
+  // WRAPPER CHECKERS: Helper Cek Kesesuaian Wilayah
   // ==========================================
-  // checkStrict: Blokir mutlak untuk role biasa, Toleransi untuk Admin/Superadmin
-  const checkStrict = (isMismatch, errorMsg) => {
+  const checkRegionMismatch = (isMismatch, errorMsg) => {
     if (isMismatch) {
-      if (!isPrivileged.value) {
+      // Jika bukan privileged (role biasa) dan sedang Tambah Data (!isEdit.value), blokir mutlak
+      if (!isPrivileged.value && !isEdit.value) {
         return handleBlock(errorMsg)
-      } else {
-        return handleToleransi('Bypass Admin: ' + errorMsg + ' Silahkan isi tanggal terbit KTP dan KK.')
       }
+      
+      // Jika isPrivileged ATAU role biasa sedang Update Data (isEdit.value), berikan toleransi
+      // Syarat mutlak: tanggal terbit KTP & KK harus diisi
+      const prefix = isPrivileged.value ? 'Bypass Admin: ' : 'Syarat Update: '
+      return handleToleransi(prefix + errorMsg + ' Silahkan isi tanggal terbit KTP dan KK.')
     }
     return null
   }
-
-  // checkTolerance: Toleransi untuk semua role (hanya beda di sub-level)
-  const checkTolerance = (isMismatch, errorMsg) => {
-    if (isMismatch) {
-      return handleToleransi(errorMsg + ' Silahkan isi tanggal terbit KTP dan KK.')
-    }
-    return null
-  }
-
 
   // ==========================================
   // PENGECEKAN WILAYAH BERJENJANG (CASCADING)
@@ -2036,8 +2031,7 @@ const validateNikByEventLevel = () => {
 
   switch (level) {
     case 'national':
-      // Sub-level Check (Toleransi): Cek Provinsi
-      res = checkTolerance(
+      res = checkRegionMismatch(
         p.province_id && nikProvince !== String(p.province_id).substring(0, 2),
         'NIK tidak sesuai dengan Provinsi.'
       );
@@ -2045,15 +2039,15 @@ const validateNikByEventLevel = () => {
       break
 
     case 'province':
-      // 1. Strict Check: Provinsi
-      res = checkStrict(
+      res = checkRegionMismatch(
         p.province_id && nikProvince !== String(p.province_id).substring(0, 2),
-        'Event tingkat Provinsi. NIK dari Provinsi lain tidak diizinkan. Hubungi Admin Event.'
+        isEdit.value 
+          ? 'NIK tidak sesuai dengan Provinsi.' 
+          : 'Event tingkat Provinsi. NIK dari Provinsi lain tidak diizinkan. Hubungi Admin Event.'
       );
       if (res) return res;
 
-      // 2. Sub-level Check (Toleransi): Kabupaten/Kota
-      res = checkTolerance(
+      res = checkRegionMismatch(
         p.regency_id && nikRegency !== String(p.regency_id).substring(0, 4),
         'NIK tidak sesuai dengan Kabupaten/Kota.'
       );
@@ -2061,22 +2055,23 @@ const validateNikByEventLevel = () => {
       break
 
     case 'regency':
-      // 1. Strict Check: Provinsi
-      res = checkStrict(
+      res = checkRegionMismatch(
         p.province_id && nikProvince !== String(p.province_id).substring(0, 2),
-        'Event tingkat Kabupaten/Kota. NIK dari Provinsi lain tidak diizinkan. Hubungi Admin Event untuk info lebih lanjut.'
+        isEdit.value 
+          ? 'NIK tidak sesuai dengan Provinsi.' 
+          : 'Event tingkat Kabupaten/Kota. NIK dari Provinsi lain tidak diizinkan. Hubungi Admin Event untuk info lebih lanjut.'
       );
       if (res) return res;
 
-      // 2. Strict Check: Kabupaten/Kota
-      res = checkStrict(
+      res = checkRegionMismatch(
         p.regency_id && nikRegency !== String(p.regency_id).substring(0, 4),
-        'Event tingkat Kabupaten/Kota. Anda tidak diizinkan input NIK dari Kabupaten/Kota lain. Hubungi Admin Event untuk melakukan Penginputan.'
+        isEdit.value 
+          ? 'NIK tidak sesuai dengan Kabupaten/Kota.' 
+          : 'Event tingkat Kabupaten/Kota. Anda tidak diizinkan input NIK dari Kabupaten/Kota lain. Hubungi Admin Event untuk melakukan Penginputan.'
       );
       if (res) return res;
 
-      // 3. Sub-level Check (Toleransi): Kecamatan
-      res = checkTolerance(
+      res = checkRegionMismatch(
         p.district_id && nikDistrict !== String(p.district_id).substring(0, 6),
         'NIK tidak sesuai dengan Kecamatan.'
       );
@@ -2084,31 +2079,33 @@ const validateNikByEventLevel = () => {
       break
 
     case 'district':
-      // 1. Strict Check: Provinsi
-      res = checkStrict(
+      res = checkRegionMismatch(
         p.province_id && nikProvince !== String(p.province_id).substring(0, 2),
-        'Event tingkat Kecamatan. NIK dari Provinsi lain tidak diizinkan. Hubungi Admin Event.'
+        isEdit.value 
+          ? 'NIK tidak sesuai dengan Provinsi.' 
+          : 'Event tingkat Kecamatan. NIK dari Provinsi lain tidak diizinkan. Hubungi Admin Event.'
       );
       if (res) return res;
 
-      // 2. Strict Check: Kabupaten/Kota
-      res = checkStrict(
+      res = checkRegionMismatch(
         p.regency_id && nikRegency !== String(p.regency_id).substring(0, 4),
-        'Event tingkat Kecamatan. NIK dari Kabupaten/Kota lain tidak diizinkan. Hubungi Admin Event.'
+        isEdit.value 
+          ? 'NIK tidak sesuai dengan Kabupaten/Kota.' 
+          : 'Event tingkat Kecamatan. NIK dari Kabupaten/Kota lain tidak diizinkan. Hubungi Admin Event.'
       );
       if (res) return res;
 
-      // 3. Strict Check: Kecamatan
-      res = checkStrict(
+      res = checkRegionMismatch(
         p.district_id && nikDistrict !== String(p.district_id).substring(0, 6),
-        'Event tingkat Kecamatan. NIK dari Kecamatan lain tidak diizinkan. Hubungi Admin Event.'
+        isEdit.value 
+          ? 'NIK tidak sesuai dengan Kecamatan.' 
+          : 'Event tingkat Kecamatan. NIK dari Kecamatan lain tidak diizinkan. Hubungi Admin Event.'
       );
       if (res) return res;
 
-      // 4. Sub-level Check (Toleransi): Desa/Kelurahan
       if (p.village_id) {
         const villageCode = String(p.village_id)
-        res = checkTolerance(
+        res = checkRegionMismatch(
           villageCode.length >= 10 && nikVillage !== villageCode.substring(0, 10),
           'NIK tidak sesuai dengan Desa/Kelurahan.'
         );
