@@ -242,13 +242,7 @@
                 <h5 class="mb-1 text-primary"><strong>{{ selectedParticipant.full_name || '-' }}</strong></h5>
                 <p class="mb-0 text-sm">
                   <i class="fas fa-id-card text-muted mr-1"></i> NIK: {{ selectedParticipant.nik || '-' }} &nbsp;|&nbsp;
-                  <i class="fas fa-code-branch text-muted mr-1"></i> Cabang: {{ selectedBranchName }} &nbsp;|&nbsp;
-                  <!-- Tambahan Umur -->
-                  <i class="fas fa-calendar-alt text-muted mr-1"></i> Umur: 
-                  <strong v-if="selectedEventParticipant.age_year !== null">
-                    {{ selectedEventParticipant.age_year }}Thn {{ selectedEventParticipant.age_month }}Bln {{ selectedEventParticipant.age_day }}Hari
-                  </strong>
-                  <strong v-else>-</strong>
+                  <i class="fas fa-code-branch text-muted mr-1"></i> Cabang: {{ selectedBranchName }}
                 </p>
               </div>
               <div>
@@ -554,7 +548,7 @@
                         </tr>
                         <tr>
                           <td class="align-middle"><strong>Wilayah Lengkap</strong></td>
-                          <td class="align-middle text-muted">{{ selectedParticipant.address || '-' }}</td>
+                          <td class="align-middle text-muted">{{ selectedParticipant.full_address || '-' }}</td>
                           <td class="align-middle text-center"><i class="fas fa-check-circle text-success"
                               title="Terverifikasi By System"></i></td>
                         </tr>
@@ -1105,7 +1099,7 @@ const savingVerification = ref(false)
 
 const verificationForm = reactive({
   id: null,
-  status: null,
+  status: 'verified',
   checked_photo: false,
   checked_id_card: false,
   checked_family_card: false,
@@ -1129,14 +1123,14 @@ const verificationForm = reactive({
     document_dates: { tanggal_terbit_ktp: null, tanggal_terbit_kk: null },
     documents: { photo_url: null, id_card_url: null, family_card_url: null, bank_book_url: null, certificate_url: null, other_url: null },
   },
-  registration_status: '',
+  registration_status: 'process',
   notes: '',
 })
 
 const resetVerificationForm = () => {
   verificationForm.id = null
-  verificationForm.status = null // Pastikan terset ke null saat reset
-  verificationForm.registration_status = ''
+  verificationForm.status = 'verified'
+  verificationForm.registration_status = 'process'
   verificationForm.checked_photo = false
   verificationForm.checked_id_card = false
   verificationForm.checked_family_card = false
@@ -1171,7 +1165,7 @@ const openVerification = (ep) => {
   const v = ep?.participant?.latest_verification || ep?.latest_verification || ep?.verification || null
   if (v) {
     verificationForm.id = v.id ?? null
-    verificationForm.status = v.status || null // Ganti dari 'verified'
+    verificationForm.status = v.status || 'verified'
     verificationForm.checked_photo = !!v.checked_photo
     verificationForm.checked_id_card = !!v.checked_id_card
     verificationForm.checked_family_card = !!v.checked_family_card
@@ -1273,7 +1267,6 @@ const submitVerification = async () => {
     return
   }
 
-  // Cek apakah data form diisi lengkap saat bukan development
   if (!settingStore.isDevelopment) {
     const detailErrors = validateVerificationDetails()
     if (detailErrors.length) {
@@ -1286,61 +1279,17 @@ const submitVerification = async () => {
     }
   }
 
-  // --- LOGIKA WARNING INTERAKTIF ---
-  // Cek apakah ada satupun field yang dinilai "Tidak Sesuai" (false)
-  let hasFalseValue = false;
-  const fm = verificationForm.field_matches;
-  Object.values(fm).forEach(category => {
-    Object.values(category).forEach(val => {
-      if (val === false) hasFalseValue = true;
-    });
-  });
-
-  // Jika status LULUS tapi ada data FALSE
-  if (verificationForm.status === 'verified' && hasFalseValue) {
-    Swal.fire({
-      icon: 'error',
-      title: 'Verifikasi Tidak Valid!',
-      text: 'Anda tidak dapat memilih keputusan "Terverifikasi" karena terdapat dokumen atau data yang dinilai "Tidak Sesuai". Silakan periksa kembali penilaian Anda.',
-      confirmButtonText: 'OK, Saya Cek Kembali',
-      confirmButtonColor: '#3085d6'
-    });
-    return; // Langsung hentikan eksekusi
-  } 
-  
-  // Jika status DITOLAK tapi SEMUA data TRUE
-  if (verificationForm.status === 'rejected' && !hasFalseValue) {
-    // Cek apakah catatan diisi
-    const hasNotes = verificationForm.notes && verificationForm.notes.trim().length > 0;
-    
-    if (!hasNotes) {
-      Swal.fire({
-        icon: 'error',
-        title: 'Catatan Penolakan Wajib Diisi!',
-        text: 'Seluruh dokumen dan data telah Anda nilai "Sesuai / Valid". Jika Anda tetap ingin menolak atau meminta revisi, Anda WAJIB memberikan alasan pada kolom "Catatan Verifikator".',
-        confirmButtonText: 'OK, Saya Mengerti',
-        confirmButtonColor: '#3085d6'
-      });
-      return; // Hentikan eksekusi jika notes kosong
-    }
-    // Jika ada notes, proses reject akan diteruskan ke konfirmasi standar
-  } 
-  // --- AKHIR LOGIKA VALIDASI KETAT ---
-
-  // Konfirmasi standar (jika data konsisten dan logis)
   const confirmResult = await Swal.fire({
     icon: 'question',
     title: 'Simpan hasil verifikasi?',
-    text: 'Pastikan data dan dokumen sudah dicek dengan teliti.',
+    text: 'Pastikan data dan dokumen sudah dicek sebelum disimpan.',
     showCancelButton: true,
     confirmButtonText: 'Ya, simpan',
     cancelButtonText: 'Batal',
   })
-  
   if (!confirmResult.isConfirmed) return
 
   savingVerification.value = true
-
   try {
     const ep = selectedEventParticipant.value
     const p = selectedParticipant.value
@@ -1388,39 +1337,23 @@ const submitVerification = async () => {
   }
 }
 
-// Dropdown opsi keputusan yang menyesuaikan radio button status
+// Tambahkan di dalam <script setup>
 const filteredRegistrationStatusOptions = computed(() => {
   const currentStatus = verificationForm.status
   
-  if (!currentStatus) {
-    return [{ value: '', label: '-- Pilih Status Verifikasi Di Atas Dahulu --' }]
-  }
-
-  // Jika status verifikasi sesi adalah 'verified', hanya tampilkan opsi Lulus
+  // Jika status verifikasi sesi adalah 'verified', hanya tampilkan opsi Lulus/Diterima
   if (currentStatus === 'verified') {
     return [
       { value: 'verified', label: 'Lulus / Diterima (Verified)' }
     ]
   }
   
-  // Jika ditolak, tampilkan revisi atau tolak
+  // Jika status verifikasi sesi adalah 'rejected', tampilkan opsi selain verified (tanpa 'process')
   return [
     { value: 'need_revision', label: 'Butuh Perbaikan (Revision)' },
     { value: 'rejected', label: 'Tolak (Rejected)' },
     { value: 'disqualified', label: 'Diskualifikasi' }
   ]
-})
-
-// Watcher untuk otomatis set nilai dropdown jika radio button diklik
-watch(() => verificationForm.status, (newStatus) => {
-  if (newStatus === 'verified') {
-    verificationForm.registration_status = 'verified'
-  } else if (newStatus === 'rejected') {
-    // Otomatis arahkan ke revisi sebagai default jika ditolak
-    verificationForm.registration_status = 'need_revision'
-  } else {
-    verificationForm.registration_status = ''
-  }
 })
 
 // Watcher untuk otomatis menyesuaikan nilai dropdown jika status verifikasi sesi berubah
@@ -1438,47 +1371,6 @@ watch(() => props.status, (val) => { activeStatus.value = val || ''; fetchItems(
 watch(() => eventId.value, (val) => { if (!val) return; fetchItems(1); fetchStatusCounts() }, { immediate: true })
 watch(() => search.value, useDebounceFn(() => fetchItems(1), 400))
 watch(() => perPage.value, () => fetchItems(1))
-
-// Watcher untuk validasi interaktif
-// Otomatis mencentang checkbox jika seluruh field pada suatu kategori sudah dinilai
-watch(() => verificationForm.field_matches, (newVal) => {
-  if (!newVal) return;
-
-  // 1. Dokumen KTP & Akta Kelahiran
-  if (newVal.documents.id_card_url !== null) verificationForm.checked_id_card = true;
-  if (newVal.documents.other_url !== null) verificationForm.checked_other = true;
-
-  // 2. Data Identitas Pribadi (Harus dinilai semua agar tercentang)
-  const id = newVal.identity;
-  if (id.nik !== null && id.full_name !== null && id.place_of_birth !== null && id.date_of_birth !== null && id.gender !== null) {
-    verificationForm.checked_identity = true;
-  }
-
-  // 3. Tanggal Terbit Dokumen
-  if (newVal.document_dates.tanggal_terbit_ktp !== null && newVal.document_dates.tanggal_terbit_kk !== null) {
-    verificationForm.checked_document_dates = true;
-  }
-
-  // 4. Kartu Keluarga & Domisili
-  if (newVal.documents.family_card_url !== null) verificationForm.checked_family_card = true;
-  if (newVal.domicile.address !== null) verificationForm.checked_domicile = true;
-
-  // 5. Rekening Bank
-  if (newVal.documents.bank_book_url !== null) verificationForm.checked_bank_book = true;
-  const bank = newVal.bank_account;
-  if (bank.bank_name !== null && bank.bank_account_number !== null && bank.bank_account_name !== null) {
-    verificationForm.checked_bank_account = true;
-  }
-
-  // 6. Sertifikat & Pendidikan
-  if (newVal.documents.certificate_url !== null) verificationForm.checked_certificate = true;
-  if (newVal.education.education !== null) verificationForm.checked_education = true;
-
-  // 7. Pas Foto & Kontak
-  if (newVal.documents.photo_url !== null) verificationForm.checked_photo = true;
-  if (newVal.contact.phone_number !== null) verificationForm.checked_contact = true;
-
-}, { deep: true });
 
 onMounted(() => {
   if (!eventId.value) {

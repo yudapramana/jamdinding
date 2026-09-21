@@ -35,70 +35,120 @@ class UtilityController extends Controller
     }
 
     /**
-     * Menampilkan daftar seluruh peserta dari Event yang aktif.
-     * Tampilan tabel: No, Kontingen, Region ID, NIK, Nama
+     * Menampilkan daftar seluruh peserta dari Event yang aktif (registration_status = process).
+     * Dikelompokkan berdasarkan Region ID (dinamis), diurutkan dari Region ID terkecil.
+     * Penomoran berjalan berlanjut tanpa reset per region.
+     * Tampilan tabel: Nomor, Kontingen, Region ID, Nama Peserta, NIK, Cabang Golongan
      */
     public function activeEventParticipants()
     {
-        // 1. Ambil event yang aktif. 
-        // Sesuaikan query ini jika Anda memiliki flag is_active (contoh: Event::where('is_active', true)->first())
-        $activeEvent = \App\Models\Event::first();
+        // 1. Ambil event yang aktif.
+        $activeEvent = \App\Models\Event::first(); 
 
         if (!$activeEvent) {
             return '<h3 style="color: red; text-align: center; font-family: sans-serif; margin-top: 50px;">Tidak ada event yang aktif.</h3>';
         }
 
-        // 2. Ambil data event_participants untuk event tersebut beserta relasi participants-nya
-        $eventParticipants = \App\Models\EventParticipant::with('participant')
+        // 2. Tentukan kolom acuan Region ID berdasarkan event_level
+        $participantColumn = 'regency_id'; // Default
+        
+        switch ($activeEvent->event_level) {
+            case 'national':
+                $participantColumn = 'province_id';
+                break;
+            case 'province':
+                $participantColumn = 'regency_id';
+                break;
+            case 'regency':
+                $participantColumn = 'district_id';
+                break;
+            case 'district':
+                $participantColumn = 'village_id';
+                break;
+            default:
+                abort(422, 'Event level tidak valid');
+        }
+
+        // 3. Ambil data event_participants beserta relasi participants dan eventCategory
+        // Tambahkan orderBy('created_at', 'asc') agar data diurutkan berdasarkan waktu pembuatan dari yang terlama ke terbaru.
+        $eventParticipants = \App\Models\EventParticipant::with(['participant', 'eventCategory'])
             ->where('event_id', $activeEvent->id)
             ->where('registration_status', 'process')
+            ->orderBy('created_at', 'asc') // <-- PERUBAHAN DI SINI
             ->get();
 
-        // 3. Render HTML Tabel
-        $html = '<div style="font-family: Arial, sans-serif; max-width: 1200px; margin: 30px auto; color: #333;">';
+        // 4. Kelompokkan data dan urutkan berdasarkan Region ID terkecil
+        // Karena collection di-grouping, urutan created_at di atas akan tetap dipertahankan di dalam masing-masing grup.
+        $groupedParticipants = $eventParticipants->groupBy(function ($ep) use ($participantColumn) {
+            // Gunakan angka besar 999999 sebagai fallback agar data null/kosong disortir paling bawah
+            return $ep->participant?->{$participantColumn} ?? 999999;
+        })->sortKeys(); 
+
+        // 5. Render HTML Tabel
+        $html = '<div style="font-family: Arial, sans-serif; max-width: 1300px; margin: 30px auto; color: #333;">';
         
         $html .= '<div style="text-align: center; margin-bottom: 25px;">';
-        $html .= '<h2 style="color: #2c3e50; margin-bottom: 5px;">Daftar Peserta Terdaftar</h2>';
-        $html .= '<h4 style="color: #7f8c8d; margin-top: 0;">Event: ' . e($activeEvent->event_name ?? 'Aktif') . '</h4>';
+        $html .= '<h2 style="color: #2c3e50; margin-bottom: 5px;">Daftar Peserta Terdaftar (Proses)</h2>';
+        $html .= '<h4 style="color: #7f8c8d; margin-top: 0;">Event: ' . e($activeEvent->event_name ?? 'Aktif') . ' | Level: ' . e(strtoupper($activeEvent->event_level)) . '</h4>';
         $html .= '</div>';
 
         $html .= '<table style="width: 100%; border-collapse: collapse; box-shadow: 0 4px 8px rgba(0,0,0,0.1); background-color: #fff; border-radius: 8px; overflow: hidden;">';
         $html .= '<thead>';
         $html .= '<tr style="background-color: #2c3e50; color: #ffffff; text-align: left;">';
-        $html .= '<th style="padding: 15px; width: 5%; text-align: center; border-right: 1px solid #34495e;">No</th>';
+        // 6 Kolom
+        $html .= '<th style="padding: 15px; width: 5%; text-align: center; border-right: 1px solid #34495e;">Nomor</th>';
         $html .= '<th style="padding: 15px; border-right: 1px solid #34495e;">Kontingen</th>';
         $html .= '<th style="padding: 15px; text-align: center; border-right: 1px solid #34495e;">Region ID</th>';
+        $html .= '<th style="padding: 15px; border-right: 1px solid #34495e;">Nama Peserta</th>';
         $html .= '<th style="padding: 15px; border-right: 1px solid #34495e;">NIK</th>';
-        $html .= '<th style="padding: 15px;">Nama</th>';
+        $html .= '<th style="padding: 15px;">Cabang Golongan</th>';
         $html .= '</tr>';
         $html .= '</thead>';
         $html .= '<tbody>';
 
-        if ($eventParticipants->isEmpty()) {
-            $html .= '<tr><td colspan="5" style="padding: 20px; text-align: center; color: #7f8c8d; font-style: italic;">Belum ada data peserta yang terdaftar pada event ini.</td></tr>';
+        if ($groupedParticipants->isEmpty()) {
+            // Pastikan colspan menjadi 6 sesuai jumlah header
+            $html .= '<tr><td colspan="6" style="padding: 20px; text-align: center; color: #7f8c8d; font-style: italic;">Belum ada data peserta yang diproses pada event ini.</td></tr>';
         } else {
-            $no = 1;
-            foreach ($eventParticipants as $ep) {
-                // Background warna selang-seling agar tabel mudah dibaca
-                $rowBg = ($no % 2 === 0) ? '#f9fbfd' : '#ffffff';
+            
+            // Inisialisasi variabel $no di LUAR loop region agar tidak ter-reset
+            $no = 1; 
+            
+            // Loop per Kelompok Region
+            foreach ($groupedParticipants as $rawRegionId => $participants) {
                 
-                // Gunakan Nullsafe operator (?->) untuk mengambil data relasi participant
-                $kontingen = $ep->contingent ?: '-';
-                
-                // Region ID menggunakan regency_id (Kabupaten/Kota) sebagai basis referensi utama.
-                // Jika null, bisa fallback ke province_id.
-                $regionId = $ep->participant?->regency_id ?? $ep->participant?->province_id ?? '-';
-                
-                $nik = $ep->participant?->nik ?? '-';
-                $nama = $ep->participant?->full_name ?? '-';
+                // Ubah kembali key angka fallback menjadi string untuk ditampillkan
+                $displayRegionId = ($rawRegionId === 999999) ? 'Tidak Diketahui' : $rawRegionId;
 
-                $html .= '<tr style="background-color: ' . $rowBg . '; border-bottom: 1px solid #ecf0f1;">';
-                $html .= '<td style="padding: 12px 15px; text-align: center; border-right: 1px solid #ecf0f1; color: #7f8c8d;">' . $no++ . '</td>';
-                $html .= '<td style="padding: 12px 15px; border-right: 1px solid #ecf0f1; font-weight: bold; color: #2980b9;">' . e($kontingen) . '</td>';
-                $html .= '<td style="padding: 12px 15px; text-align: center; border-right: 1px solid #ecf0f1; color: #34495e;">' . e($regionId) . '</td>';
-                $html .= '<td style="padding: 12px 15px; border-right: 1px solid #ecf0f1; font-family: monospace; color: #2c3e50;">' . e($nik) . '</td>';
-                $html .= '<td style="padding: 12px 15px; font-weight: bold; color: #2c3e50;">' . e($nama) . '</td>';
+                // Baris Header untuk setiap Region Group
+                $html .= '<tr style="background-color: #dcdde1; border-bottom: 2px solid #bdc3c7;">';
+                // Pastikan colspan menjadi 6
+                $html .= '<td colspan="6" style="padding: 10px 15px; font-weight: bold; color: #2c3e50; text-transform: uppercase;">';
+                $html .= '📍 REGION ID: ' . e($displayRegionId) . ' <span style="float:right; color: #7f8c8d; font-size: 0.9em;">Total: ' . $participants->count() . ' Peserta</span>';
+                $html .= '</td>';
                 $html .= '</tr>';
+
+                // Loop Detail Peserta di dalam Region tersebut (sudah berurutan sesuai created_at)
+                foreach ($participants as $ep) {
+                    $rowBg = ($no % 2 === 0) ? '#f9fbfd' : '#ffffff';
+                    
+                    // Ambil detail data
+                    $kontingen = $ep->contingent ?: '-';
+                    $nama = $ep->participant?->full_name ?? '-';
+                    $nik = $ep->participant?->nik ?? '-';
+                    
+                    // Ambil Cabang Golongan dari eager load
+                    $cabangGolongan = $ep->eventCategory?->full_name ?? '-';
+
+                    $html .= '<tr style="background-color: ' . $rowBg . '; border-bottom: 1px solid #ecf0f1;">';
+                    $html .= '<td style="padding: 12px 15px; text-align: center; border-right: 1px solid #ecf0f1; color: #7f8c8d;">' . $no++ . '</td>';
+                    $html .= '<td style="padding: 12px 15px; border-right: 1px solid #ecf0f1; font-weight: bold; color: #2980b9;">' . e($kontingen) . '</td>';
+                    $html .= '<td style="padding: 12px 15px; text-align: center; border-right: 1px solid #ecf0f1; color: #34495e;">' . e($displayRegionId) . '</td>';
+                    $html .= '<td style="padding: 12px 15px; border-right: 1px solid #ecf0f1; font-weight: bold; color: #2c3e50;">' . e($nama) . '</td>';
+                    $html .= '<td style="padding: 12px 15px; border-right: 1px solid #ecf0f1; font-family: monospace; color: #2c3e50;">' . e($nik) . '</td>';
+                    $html .= '<td style="padding: 12px 15px; font-weight: 500; color: #16a085;">' . e($cabangGolongan) . '</td>';
+                    $html .= '</tr>';
+                }
             }
         }
 
