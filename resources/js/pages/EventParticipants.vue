@@ -135,6 +135,17 @@
                 <option value="nik">NIK Peserta</option>
               </select>
 
+              <!-- ➕ FILTER LAMPIRAN -->
+              <select
+                v-model="filters.lampiran_status"
+                class="form-control form-control-sm w-auto"
+                title="Progress Lampiran"
+              >
+                <option value="">Lampiran</option>
+                <option value="100">Lengkap</option>
+                <option value="not_100">Sebagian</option>
+              </select>
+
               <!-- ➕ TOMBOL REFRESH -->
               <button
                 type="button"
@@ -1592,6 +1603,7 @@ const filters = ref({
   reregistration_status: '',
   event_region_id: '',     // ➕ Tambahkan ini untuk menampung filter region
   order_by: '',
+  lampiran_status: '', // ➕ Tambahkan ini
 })
 
 
@@ -1852,6 +1864,7 @@ const fetchItems = async (page = 1) => {
         event_region_id: filters.value.event_region_id || '', // ➕ Kirim parameter region ke backend
         reregistration_status: filters.value.reregistration_status || '',
         order_by: filters.value.order_by || '',
+        lampiran_status: filters.value.lampiran_status || '', // ➕ Kirim parameter ke backend
       },
     })
 

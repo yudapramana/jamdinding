@@ -384,6 +384,9 @@ class EventParticipantController extends Controller
         $withVerifications = filter_var($request->get('withVerifications', false), FILTER_VALIDATE_BOOLEAN);
         $orderBy               = $request->get('order_by'); // ➕ Ambil parameter order_by
 
+        // ➕ Tangkap parameter filter lampiran
+        $lampiranStatus        = $request->get('lampiran_status');
+
         $eventId = $event->id;
         $with = ['participant', 'eventGroup', 'eventCategory', 'eventBranch'];
 
@@ -428,6 +431,38 @@ class EventParticipantController extends Controller
 
         if ($eventGroupId) {
             $query->where('event_group_id', $eventGroupId);
+        }
+
+        // ➕ TAMBAHKAN LOGIKA FILTER LAMPIRAN DI SINI
+        if ($lampiranStatus === '100') {
+            // Logika "Sudah 100%": Foto, Akta(other), KK terisi, DAN (KTP terisi ATAU Umur < 17)
+            $query->where(function($q) {
+                $q->whereNotNull('p.photo_url')->where('p.photo_url', '!=', '')
+                  ->whereNotNull('p.other_url')->where('p.other_url', '!=', '')
+                  ->whereNotNull('p.family_card_url')->where('p.family_card_url', '!=', '')
+                  ->where(function($sub) {
+                      $seventeenYearsAgo = Carbon::create(now()->year, 7, 1)->subYears(17)->format('Y-m-d');
+                      
+                      $sub->whereNotNull('p.id_card_url')->where('p.id_card_url', '!=', '')
+                          ->orWhere('p.date_of_birth', '>', $seventeenYearsAgo)
+                          ->orWhereNull('p.date_of_birth'); // jika null, dianggap < 17 (age = 0)
+                  });
+            });
+        } elseif ($lampiranStatus === 'not_100') {
+            // Logika "Belum 100%": Salah satu dari 3 wajib kosong, ATAU (Umur >= 17 TAPI KTP kosong)
+            $query->where(function($q) {
+                $q->where(function($sub) { $sub->whereNull('p.photo_url')->orWhere('p.photo_url', ''); })
+                  ->orWhere(function($sub) { $sub->whereNull('p.other_url')->orWhere('p.other_url', ''); })
+                  ->orWhere(function($sub) { $sub->whereNull('p.family_card_url')->orWhere('p.family_card_url', ''); })
+                  ->orWhere(function($sub) {
+                      $seventeenYearsAgo = Carbon::create(now()->year, 7, 1)->subYears(17)->format('Y-m-d');
+                      $sub->where('p.date_of_birth', '<=', $seventeenYearsAgo)
+                          ->whereNotNull('p.date_of_birth')
+                          ->where(function($sub2) {
+                              $sub2->whereNull('p.id_card_url')->orWhere('p.id_card_url', '');
+                          });
+                  });
+            });
         }
 
         // ➕ IMPLEMENTASI FILTER REGION BERDASARKAN ROLE
