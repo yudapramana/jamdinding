@@ -243,12 +243,35 @@
                 <p class="mb-0 text-sm">
                   <i class="fas fa-id-card text-muted mr-1"></i> NIK: {{ selectedParticipant.nik || '-' }} &nbsp;|&nbsp;
                   <i class="fas fa-code-branch text-muted mr-1"></i> Cabang: {{ selectedBranchName }} &nbsp;|&nbsp;
+                  
                   <!-- Tambahan Umur -->
                   <i class="fas fa-calendar-alt text-muted mr-1"></i> Umur: 
                   <strong v-if="selectedEventParticipant.age_year !== null">
                     {{ selectedEventParticipant.age_year }}Thn {{ selectedEventParticipant.age_month }}Bln {{ selectedEventParticipant.age_day }}Hari
                   </strong>
                   <strong v-else>-</strong>
+                  &nbsp;|&nbsp;
+
+                  <!-- Tambahan Kontingen & Region ID Dinamis Berdasarkan event_level -->
+                  <i class="fas fa-flag text-muted mr-1"></i> Kontingen: <strong>{{ selectedEventParticipant.contingent || '-' }}</strong>
+                  <span class="text-xs text-muted ml-1">
+                    (Region ID: 
+                    <strong v-if="eventData?.event_level === 'national'">
+                      {{ selectedParticipant?.province_id || selectedEventParticipant?.province_id || '-' }}
+                    </strong>
+                    <strong v-else-if="eventData?.event_level === 'province'">
+                      {{ selectedParticipant?.regency_id || selectedEventParticipant?.regency_id || '-' }}
+                    </strong>
+                    <strong v-else-if="eventData?.event_level === 'regency'">
+                      {{ selectedParticipant?.district_id || selectedEventParticipant?.district_id || '-' }}
+                    </strong>
+                    <strong v-else-if="eventData?.event_level === 'district'">
+                      {{ selectedParticipant?.village_id || selectedEventParticipant?.village_id || '-' }}
+                    </strong>
+                    <strong v-else>
+                      {{ selectedEventParticipant?.event_region_id || selectedEventParticipant?.region_id || '-' }}
+                    </strong>)
+                  </span>
                 </p>
               </div>
               <div>
@@ -522,6 +545,23 @@
                     </div>
 
                     <div class="form-group mb-0 mt-3 border-top pt-2">
+                      <label class="text-xs mb-1">COCOKKAN KODE DENGAN KK: 
+                        (<strong v-if="eventData?.event_level === 'national'">
+                            {{ selectedParticipant?.province_id || selectedEventParticipant?.province_id || '-' }}
+                          </strong>
+                          <strong v-else-if="eventData?.event_level === 'province'">
+                            {{ selectedParticipant?.regency_id || selectedEventParticipant?.regency_id || '-' }}
+                          </strong>
+                          <strong v-else-if="eventData?.event_level === 'regency'">
+                            {{ selectedParticipant?.district_id || selectedEventParticipant?.district_id || '-' }}
+                          </strong>
+                          <strong v-else-if="eventData?.event_level === 'district'">
+                            {{ selectedParticipant?.village_id || selectedEventParticipant?.village_id || '-' }}
+                          </strong>
+                          <strong v-else>
+                            {{ selectedEventParticipant?.event_region_id || selectedEventParticipant?.region_id || '-' }}
+                          </strong>)
+                      </label> <br>
                       <label class="text-xs mb-1">Hasil Verifikasi File KK:</label>
                       <select class="form-control form-control-sm"
                         v-model="verificationForm.field_matches.documents.family_card_url">
