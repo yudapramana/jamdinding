@@ -26,9 +26,9 @@
         <!-- Action -->
         <button
           class="hidden md:inline-flex items-center gap-1.5 px-3.5 py-1.5 text-[12.5px] rounded-md bg-[var(--gold)] text-[#2a2106] font-semibold hover:bg-[var(--gold-light)] transition-colors focus-ring"
-          @click="goToLogin"
+          @click="scrollToSection('pilih-event')"
         >
-          Masuk Portal
+          Pilih MTQ
         </button>
 
         <!-- Mobile toggle -->
@@ -56,9 +56,9 @@
           <a class="block" @click="scrollToAndClose('kontak')">Kontak</a>
           <button
             class="w-full mt-1 px-4 py-2.5 rounded-md bg-[var(--gold)] text-[#2a2106] text-[13px] font-semibold focus-ring"
-            @click="goToLogin"
+            @click="scrollToSection('pilih-event')"
           >
-            Masuk Portal
+            Pilih MTQ untuk Login
           </button>
         </div>
       </div>
@@ -159,9 +159,9 @@
           </p>
           <button
             class="px-4 py-2 rounded-md bg-[var(--primary)] text-white text-[13px] font-semibold hover:bg-[var(--primary-dark)] transition-colors focus-ring"
-            @click="goToLogin"
+            @click="scrollToSection('pilih-event')"
           >
-            Masuk Portal
+            Pilih MTQ
           </button>
         </div>
 

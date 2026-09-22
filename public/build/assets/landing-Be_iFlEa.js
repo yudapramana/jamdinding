@@ -1,0 +1,1 @@
+import{av as o,au as a}from"./Landing.vue_vue_type_style_index_0_scoped_341e4462_lang-C1jEbT9Z.js";import i from"./Landing-DGKjF9vj.js";const t=window.__INITIAL_EVENTS__||[],_=window.__LOGIN_URL__||"/login",n=o(i,{events:t,loginUrl:_}),p=a();n.use(p);n.mount("#app");

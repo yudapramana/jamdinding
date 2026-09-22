@@ -264,6 +264,17 @@
               kiri dengan data teks di kolom kanan. Berikan penilaian pada setiap baris data.
             </div>
 
+            <!-- TAMBAHAN: TOMBOL AKSI CEPAT (BULK ACTION) -->
+            <div class="d-flex gap-2 mb-3">
+              <button type="button" class="btn btn-sm btn-outline-success flex-fill font-weight-bold" @click="setBulkVerificationStatus(true)">
+                <i class="fas fa-check-double mr-1"></i> Tandai Semua Sesuai / Valid
+              </button>
+              <button type="button" class="btn btn-sm btn-outline-danger flex-fill font-weight-bold" @click="setBulkVerificationStatus(false)">
+                <i class="fas fa-times-circle mr-1"></i> Tandai Semua Tidak Sesuai
+              </button>
+            </div>
+            <!-- ======================================= -->
+
             <!-- ============================================== -->
             <!-- SECTION 1: KTP, AKTA KELAHIRAN & IDENTITAS -->
             <!-- ============================================== -->
@@ -1160,6 +1171,54 @@ const resetVerificationForm = () => {
     documents: { photo_url: null, id_card_url: null, family_card_url: null, bank_book_url: null, certificate_url: null, other_url: null },
   })
   verificationForm.notes = ''
+}
+
+const setBulkVerificationStatus = (isValid) => {
+  // 1. Centang otomatis semua checkbox "Dicek"
+  verificationForm.checked_photo = true
+  verificationForm.checked_id_card = true
+  verificationForm.checked_family_card = true
+  verificationForm.checked_bank_book = true
+  verificationForm.checked_certificate = true
+  verificationForm.checked_other = true
+  verificationForm.checked_identity = true
+  verificationForm.checked_contact = true
+  verificationForm.checked_domicile = true
+  verificationForm.checked_education = true
+  verificationForm.checked_bank_account = true
+  verificationForm.checked_document_dates = true
+
+  // 2. Set semua dropdown nilai kesesuaian menjadi Sesuai (true) atau Tidak (false)
+  const fm = verificationForm.field_matches
+  
+  // Identitas
+  fm.identity.nik = isValid
+  fm.identity.full_name = isValid
+  fm.identity.place_of_birth = isValid
+  fm.identity.date_of_birth = isValid
+  fm.identity.gender = isValid
+
+  // Kontak & Domisili
+  fm.contact.phone_number = isValid
+  fm.domicile.address = isValid
+
+  // Pendidikan & Rekening
+  fm.education.education = isValid
+  fm.bank_account.bank_account_number = isValid
+  fm.bank_account.bank_account_name = isValid
+  fm.bank_account.bank_name = isValid
+
+  // Tanggal Dokumen
+  fm.document_dates.tanggal_terbit_ktp = isValid
+  fm.document_dates.tanggal_terbit_kk = isValid
+
+  // File Dokumen
+  fm.documents.photo_url = isValid
+  fm.documents.id_card_url = isValid
+  fm.documents.family_card_url = isValid
+  fm.documents.bank_book_url = isValid
+  fm.documents.certificate_url = isValid
+  fm.documents.other_url = isValid
 }
 
 const openVerification = (ep) => {
