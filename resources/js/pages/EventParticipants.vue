@@ -754,7 +754,7 @@
                     <!-- PENDIDIKAN -->
                     <div class="col-md-4">
                         <div class="form-group">
-                        <label class="mb-1">Pendidikan <span class="text-danger">*</span></label>
+                        <label class="mb-1">Pendidikan Terakhir<span class="text-danger">*</span></label>
                         <select
                             v-model="form.participant.education"
                             class="form-control form-control-sm"

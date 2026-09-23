@@ -1010,7 +1010,7 @@ const canVerifyRole = computed(() => {
 const canShowVerifyButton = (item) => {
   if (!canVerifyRole.value) return false
   const s = item?.registration_status
-  return !['verified', 'rejected', 'disqualified'].includes(s)
+  return !['verified', 'need_revision', 'rejected', 'disqualified'].includes(s)
 }
 
 const eventData = computed(() => authUserStore.eventData || null)
