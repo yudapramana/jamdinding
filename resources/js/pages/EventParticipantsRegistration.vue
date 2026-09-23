@@ -142,7 +142,7 @@
                     </td>
                   </tr>
 
-                  <tr v-for="(item, index) in items" :key="item.id">
+                  <tr v-for="(item, index) in items" :key="item.id" :class="{ 'bg-gray-dark': isNikMismatch(item) }">
                     <td>{{ index + 1 + (meta.current_page - 1) * meta.per_page }}</td>
                     <td>
                       <strong>{{ item.participant?.full_name }}</strong><br />
@@ -953,6 +953,35 @@ import { useMasterDataStore } from '../stores/MasterDataStore'
 import { useSettingStore } from '../stores/SettingStore'
 import ViewParticipantModal from './ViewParticipantModal.vue'
 import { registrationBadgeClass, registrationStatusLabel } from './EventParticipantHelpers'
+
+// Fungsi untuk mengecek ketidaksesuaian NIK dengan event_level
+const isNikMismatch = (item) => {
+  const level = eventData.value?.event_level
+  const participant = item.participant
+  
+  if (!level || !participant || !participant.nik) return false
+
+  const nik = participant.nik.replace(/\D/g, '')
+  if (nik.length < 16) return false
+
+  const nikProvince = nik.substring(0, 2)
+  const nikRegency  = nik.substring(0, 4)
+  const nikDistrict = nik.substring(0, 6)
+
+  switch (level) {
+    case 'province':
+      // Membandingkan 2 karakter awal NIK dengan kode province_id
+      return participant.province_id && nikProvince !== String(participant.province_id).substring(0, 2)
+    case 'regency':
+      // Membandingkan 4 karakter awal NIK dengan kode regency_id
+      return participant.regency_id && nikRegency !== String(participant.regency_id).substring(0, 4)
+    case 'district':
+      // Membandingkan 6 karakter awal NIK dengan kode district_id
+      return participant.district_id && nikDistrict !== String(participant.district_id).substring(0, 6)
+    default:
+      return false
+  }
+}
 
 const props = defineProps({
   status: { type: String, default: '' },
