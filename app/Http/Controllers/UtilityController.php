@@ -469,7 +469,7 @@ class UtilityController extends Controller
             'need_revision'  => 'Revisi',
             'verified'       => 'Terverifikasi',
             'rejected'       => 'Ditolak',
-            // 'disqualified'   => 'Gugur'
+            'disqualified'   => 'Mundur/Gugur'
         ];
 
         // 7. Render HTML Tabel

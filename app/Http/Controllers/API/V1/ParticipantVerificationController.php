@@ -15,14 +15,14 @@ use Illuminate\Validation\Rule;
 class ParticipantVerificationController extends Controller
 {
     /**
-     * (Opsional) daftar semua verifikasi untuk satu participant
+     * Daftar semua verifikasi untuk satu event participant
      */
-    public function index(Participant $participant)
+    public function index(EventParticipant $eventParticipant)
     {
-        $this->authorize('view', $participant); // kalau pakai policy
+        // $this->authorize('view', $eventParticipant); // kalau pakai policy
 
         $verifications = ParticipantVerification::with('verifiedBy')
-            ->where('participant_id', $participant->id)
+            ->where('event_participant_id', $eventParticipant->id)
             ->orderByDesc('created_at')
             ->get();
 

@@ -15,10 +15,9 @@
 
         <div class="modal-body" v-if="selectedParticipant">
           <div class="row">
-            <!-- BIODATA & RIWAYAT VERIFIKASI (KIRI) -->
+            <!-- BIODATA -->
             <div class="col-md-8 mb-3">
-              <!-- BIODATA -->
-              <div class="card shadow-sm border mb-3">
+              <div class="card shadow-sm border">
                 <div class="card-header border-0 d-flex justify-content-between align-items-center py-2">
                   <span class="font-weight-bold">Biodata Peserta</span>
                 </div>
@@ -155,7 +154,7 @@
                     </tbody>
                   </table>
 
-                  <!-- Catatan Daftar Ulang -->
+                  <!-- ✅ Catatan Daftar Ulang (muncul jika rejected) -->
                   <div
                     v-if="selectedParticipant?.reregistration_status === 'rejected'"
                     class="p-3 border-top"
@@ -173,161 +172,9 @@
                   </div>
                 </div>
               </div>
-
-              <!-- VERIFIKASI PESERTA BOX -->
-              <div class="card shadow-sm border mt-3">
-                <div class="card-header border-0 py-2 d-flex justify-content-between align-items-center bg-light">
-                  <div class="d-flex align-items-center">
-                    <span class="font-weight-bold mr-2"><i class="fas fa-clipboard-check text-primary mr-1"></i> Riwayat Verifikasi</span>
-                    <span v-if="verificationEntries.length" class="badge badge-primary border">
-                      {{ verificationEntries.length }} data
-                    </span>
-                  </div>
-                  <!-- Tombol dipindah ke dalam header -->
-                  <button 
-                    class="btn btn-sm btn-outline-primary font-weight-bold" 
-                    @click="fetchVerificationHistory" 
-                    :disabled="isLoadingHistory"
-                  >
-                    <i class="fas fa-sync-alt mr-1" :class="{ 'fa-spin': isLoadingHistory }"></i>
-                    {{ isLoadingHistory ? 'Memuat...' : 'Muat Riwayat Lengkap' }}
-                  </button>
-                </div>
-
-                <div class="card-body p-2 bg-white">
-                  <div v-if="isLoadingHistory" class="text-center py-4 text-muted">
-                    <i class="fas fa-spinner fa-spin fa-2x mb-2"></i><br>Memuat riwayat...
-                  </div>
-
-                  <template v-else>
-                    <!-- JIKA ADA RIWAYAT YANG DIKLIK / DETAIL -->
-                    <div v-if="selectedVerificationDetail" class="detail-verifikasi">
-                      <button class="btn btn-sm btn-light border w-100 mb-2 font-weight-bold text-left" @click="closeVerificationDetail">
-                        <i class="fas fa-arrow-left mr-1"></i> Kembali ke Daftar Riwayat
-                      </button>
-
-                      <div class="border rounded p-3 bg-light shadow-sm">
-                        <div class="d-flex justify-content-between align-items-start mb-2 border-bottom pb-2">
-                          <div>
-                            <div class="font-weight-bold">
-                              <span class="badge px-2 py-1" :class="verificationStatusClass(selectedVerificationDetail.status)">
-                                {{ selectedVerificationDetail.status || '-' }}
-                              </span>
-                              <span class="text-muted text-xs ml-2">
-                                #{{ selectedVerificationDetail.id || '-' }}
-                              </span>
-                            </div>
-                            <div class="text-xs text-muted mt-2">
-                              Waktu Verifikasi:
-                              <strong class="text-dark">{{ formatDateTime(selectedVerificationDetail.verified_at || selectedVerificationDetail.created_at) }}</strong>
-                            </div>
-                            <div class="text-xs text-muted">
-                              Petugas:
-                              <strong class="text-dark">{{ selectedVerificationDetail.verified_by?.name || selectedVerificationDetail.verifier?.name || selectedVerificationDetail.verified_by_name || '-' }}</strong>
-                            </div>
-                          </div>
-                          <div class="text-right">
-                            <div class="text-xs text-muted">Checklist Progress</div>
-                            <div class="font-weight-bold h5 mb-0 text-primary">
-                              {{ countChecked(selectedVerificationDetail).checked }} / {{ countChecked(selectedVerificationDetail).total }}
-                            </div>
-                          </div>
-                        </div>
-
-                        <!-- Badges ringkas -->
-                        <div class="mt-3">
-                          <div class="text-xs font-weight-bold text-muted mb-1">Pemeriksaan Dokumen Fisik/File:</div>
-                          <div class="d-flex flex-wrap">
-                            <span class="badge border mr-1 mb-1 py-1 px-2" :class="selectedVerificationDetail.checked_photo ? 'badge-success' : 'badge-light text-muted'">Foto</span>
-                            <span class="badge border mr-1 mb-1 py-1 px-2" :class="selectedVerificationDetail.checked_id_card ? 'badge-success' : 'badge-light text-muted'">KTP</span>
-                            <span class="badge border mr-1 mb-1 py-1 px-2" :class="selectedVerificationDetail.checked_family_card ? 'badge-success' : 'badge-light text-muted'">KK</span>
-                            <span class="badge border mr-1 mb-1 py-1 px-2" :class="selectedVerificationDetail.checked_bank_book ? 'badge-success' : 'badge-light text-muted'">Tabungan</span>
-                            <span class="badge border mr-1 mb-1 py-1 px-2" :class="selectedVerificationDetail.checked_certificate ? 'badge-success' : 'badge-light text-muted'">Sertifikat</span>
-                            <span class="badge border mr-1 mb-1 py-1 px-2" :class="selectedVerificationDetail.checked_other ? 'badge-success' : 'badge-light text-muted'">Lainnya</span>
-                          </div>
-                        </div>
-
-                        <div class="mt-2">
-                          <div class="text-xs font-weight-bold text-muted mb-1">Pemeriksaan Kesesuaian Data:</div>
-                          <div class="d-flex flex-wrap">
-                            <span class="badge badge-info mr-1 mb-1 py-1 px-2" v-if="selectedVerificationDetail.checked_identity">Identitas</span>
-                            <span class="badge badge-info mr-1 mb-1 py-1 px-2" v-if="selectedVerificationDetail.checked_contact">Kontak</span>
-                            <span class="badge badge-info mr-1 mb-1 py-1 px-2" v-if="selectedVerificationDetail.checked_domicile">Domisili</span>
-                            <span class="badge badge-info mr-1 mb-1 py-1 px-2" v-if="selectedVerificationDetail.checked_education">Pendidikan</span>
-                            <span class="badge badge-info mr-1 mb-1 py-1 px-2" v-if="selectedVerificationDetail.checked_bank_account">Rekening</span>
-                            <span class="badge badge-info mr-1 mb-1 py-1 px-2" v-if="selectedVerificationDetail.checked_document_dates">Tgl Dokumen</span>
-                          </div>
-                        </div>
-
-                        <!-- Notes -->
-                        <div v-if="selectedVerificationDetail.notes" class="mt-3 text-sm border-top pt-2">
-                          <div class="text-muted text-xs font-weight-bold mb-1">Catatan Penolakan / Perbaikan:</div>
-                          <div class="border border-danger rounded p-2 bg-white text-danger font-weight-bold">
-                            <i class="fas fa-exclamation-circle mr-1"></i> {{ selectedVerificationDetail.notes }}
-                          </div>
-                        </div>
-
-                        <!-- field_matches (JSON) -->
-                        <details v-if="selectedVerificationDetail.field_matches" class="mt-3 border-top pt-2">
-                          <summary class="text-xs font-weight-bold text-primary" style="cursor:pointer; outline: none;">
-                            <i class="fas fa-cogs mr-1"></i> Lihat Data Mentah Penilaian per Field
-                          </summary>
-                          <pre class="mb-0 mt-2 p-2 bg-dark text-light rounded text-xs" style="max-height: 200px; overflow-y: auto; border: 1px solid #444;">{{ safeJson(selectedVerificationDetail.field_matches) }}</pre>
-                        </details>
-                      </div>
-                    </div>
-
-                    <!-- JIKA DAFTAR RIWAYAT -->
-                    <div v-else>
-                      <div v-if="verificationEntries.length === 0" class="text-muted text-sm text-center py-4 bg-light border rounded border-dashed">
-                        <i class="fas fa-clipboard text-secondary fa-2x mb-2 opacity-50"></i><br>
-                        Belum ada catatan verifikasi untuk peserta ini. <br>
-                        <small>Klik "Muat Riwayat Lengkap" untuk mengecek ulang ke server.</small>
-                      </div>
-
-                      <div v-else>
-                        <div
-                          v-for="(v, idx) in verificationEntries"
-                          :key="v.id || idx"
-                          class="border rounded p-3 mb-2 bg-white shadow-sm riwayat-hover"
-                          @click="viewVerificationDetail(v)"
-                          style="cursor: pointer;"
-                        >
-                          <div class="d-flex justify-content-between align-items-center">
-                            <div>
-                              <div class="font-weight-bold mb-1">
-                                <span class="badge" :class="verificationStatusClass(v.status)">
-                                  <i class="fas fa-circle text-xs mr-1" style="font-size: 8px;"></i>
-                                  {{ v.status === 'verified' ? 'TERVERIFIKASI' : (v.status === 'rejected' ? 'DITOLAK' : v.status) }}
-                                </span>
-                              </div>
-                              <div class="text-xs text-muted">
-                                <i class="far fa-clock mr-1"></i> <strong>{{ formatDateTime(v.verified_at || v.created_at) }}</strong>
-                              </div>
-                              <div class="text-xs text-muted mt-1">
-                                <i class="far fa-user mr-1"></i> Oleh: <strong>{{ v.verified_by?.name || v.verifier?.name || v.verified_by_name || 'Petugas Sistem' }}</strong>
-                              </div>
-                            </div>
-                            <div class="text-right d-flex flex-column align-items-end justify-content-center h-100">
-                              <span class="badge badge-light border mb-2 text-muted">
-                                Checklist: {{ countChecked(v).checked }}/{{ countChecked(v).total }}
-                              </span>
-                              <div class="text-primary text-xs font-weight-bold bg-light px-2 py-1 rounded">
-                                Lihat Detail <i class="fas fa-chevron-right ml-1 text-xs"></i>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </template>
-
-                </div>
-              </div>
-
             </div>
 
-            <!-- BERKAS + TANGGAL (KANAN) -->
+            <!-- BERKAS + TANGGAL -->
             <div class="col-md-4">
               <!-- BERKAS PESERTA -->
               <div class="card shadow-sm border mb-3">
@@ -337,8 +184,8 @@
                 <div class="card-body p-0">
                   <div
                     v-if="selectedParticipant.participant?.photo_url"
-                    class="mx-auto rounded-circle overflow-hidden border mt-3 mb-3"
-                    style="width:160px;height:160px;"
+                    class="mx-auto rounded-circle overflow-hidden border"
+                    style="width:180px;height:180px;"
                   >
                     <img
                       :src="selectedParticipant.participant.photo_url"
@@ -350,10 +197,9 @@
 
                   <div
                     v-else
-                    class="mx-auto text-muted mt-4 mb-4"
+                    class="mx-auto text-muted"
                     style="align-items: center; text-align: center;"
                   >
-                    <i class="fas fa-user-circle fa-4x opacity-50 mb-2"></i><br>
                     Tidak ada foto
                   </div>
 
@@ -361,7 +207,7 @@
                     <li class="list-group-item d-flex justify-content-between align-items-center">
                       <span>Foto</span>
                       <span
-                        class="badge badge-pill px-3"
+                        class="badge badge-pill"
                         :class="hasFileDetail('photo_url') ? 'badge-success' : 'badge-secondary'"
                         @click="openFileDetail('photo_url')"
                         style="cursor: pointer;"
@@ -373,7 +219,7 @@
                     <li class="list-group-item d-flex justify-content-between align-items-center">
                       <span>KTP</span>
                       <span
-                        class="badge badge-pill px-3"
+                        class="badge badge-pill"
                         :class="hasFileDetail('id_card_url') ? 'badge-success' : 'badge-secondary'"
                         @click="openFileDetail('id_card_url')"
                         style="cursor: pointer;"
@@ -385,7 +231,7 @@
                     <li class="list-group-item d-flex justify-content-between align-items-center">
                       <span>Kartu Keluarga</span>
                       <span
-                        class="badge badge-pill px-3"
+                        class="badge badge-pill"
                         :class="hasFileDetail('family_card_url') ? 'badge-success' : 'badge-secondary'"
                         @click="openFileDetail('family_card_url')"
                         style="cursor: pointer;"
@@ -397,7 +243,7 @@
                     <li class="list-group-item d-flex justify-content-between align-items-center">
                       <span>Buku Tabungan</span>
                       <span
-                        class="badge badge-pill px-3"
+                        class="badge badge-pill"
                         :class="hasFileDetail('bank_book_url') ? 'badge-success' : 'badge-secondary'"
                         @click="openFileDetail('bank_book_url')"
                         style="cursor: pointer;"
@@ -407,9 +253,9 @@
                       </span>
                     </li>
                     <li class="list-group-item d-flex justify-content-between align-items-center">
-                      <span>Piagam</span>
+                      <span>Piagam Penghargaan</span>
                       <span
-                        class="badge badge-pill px-3"
+                        class="badge badge-pill"
                         :class="hasFileDetail('certificate_url') ? 'badge-success' : 'badge-secondary'"
                         @click="openFileDetail('certificate_url')"
                         style="cursor: pointer;"
@@ -419,9 +265,9 @@
                       </span>
                     </li>
                     <li class="list-group-item d-flex justify-content-between align-items-center">
-                      <span>Akta</span>
+                      <span>Akta Kelahiran</span>
                       <span
-                        class="badge badge-pill px-3"
+                        class="badge badge-pill"
                         :class="hasFileDetail('other_url') ? 'badge-success' : 'badge-secondary'"
                         @click="openFileDetail('other_url')"
                         style="cursor: pointer;"
@@ -435,37 +281,164 @@
               </div>
 
               <!-- TANGGAL DATA -->
-              <div class="card shadow-sm border mb-3">
+              <div class="card shadow-sm border">
                 <div class="card-body p-0">
                   <table class="table table-sm mb-0 mx-auto text-center">
                     <tbody>
                       <tr>
-                        <th class="py-2">
-                          <i class="fas fa-sign-in-alt text-muted mr-1"></i> Tanggal Input Biodata<br />
-                          <span class="text-danger font-weight-bold mt-1 d-block">
+                        <th>
+                          Tanggal Input Biodata<br />
+                          <span class="text-right text-danger font-weight-bold">
                             {{ formatDateTime(selectedParticipant.participant?.created_at) }}
                           </span>
                         </th>
                       </tr>
+
                       <tr>
-                        <th class="py-2">
-                          <i class="fas fa-edit text-muted mr-1"></i> Tanggal Update Biodata<br />
-                          <span class="text-danger font-weight-bold mt-1 d-block">
+                        <th>
+                          Tanggal Update Biodata<br />
+                          <span class="text-right text-danger font-weight-bold">
                             {{ formatDateTime(selectedParticipant.participant?.updated_at) }}
                           </span>
                         </th>
                       </tr>
+                      <!-- kalau mau pakai tanggal registrasi lomba dari eventparticipant, bisa buka lagi yang ini
+                      <tr>
+                        <th>
+                          Tanggal Registrasi Lomba<br />
+                          <span class="text-right text-danger font-weight-bold">
+                            {{ formatDateTime(selectedParticipant.created_at) }}
+                          </span>
+                        </th>
+                      </tr>
+                      <tr>
+                        <th>
+                          Update Registrasi Lomba<br />
+                          <span class="text-right text-danger font-weight-bold">
+                            {{ formatDateTime(selectedParticipant.updated_at) }}
+                          </span>
+                        </th>
+                      </tr>
+                      -->
                     </tbody>
                   </table>
                 </div>
               </div>
 
+              <!-- VERIFIKASI PESERTA (participant_verifications) -->
+              <div class="card shadow-sm border mt-3" v-if="hasVerificationsLoaded">
+                <div class="card-header border-0 py-2 d-flex justify-content-between align-items-center">
+                  <span class="font-weight-bold">Riwayat Verifikasi</span>
+
+                  <span v-if="verificationEntries.length" class="badge badge-light border">
+                    {{ verificationEntries.length }} data
+                  </span>
+                </div>
+
+                <div class="card-body p-2">
+                  <!-- Jika relasi tidak di-load sama sekali -->
+                  <div v-if="!hasVerificationsLoaded" class="text-muted text-sm text-center py-2">
+                    Verifikasi belum dimuat (aktifkan <code>withVerifications</code> di list).
+                  </div>
+
+                  <!-- Jika relasi di-load tapi kosong -->
+                  <div v-else-if="verificationEntries.length === 0" class="text-muted text-sm text-center py-2">
+                    Belum ada catatan verifikasi.
+                  </div>
+
+                  <!-- Jika ada data -->
+                  <div v-else>
+                    <div
+                      v-for="(v, idx) in verificationEntries"
+                      :key="v.id || idx"
+                      class="border rounded p-2 mb-2"
+                    >
+                      <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                          <div class="font-weight-bold">
+                            <span class="badge" :class="verificationStatusClass(v.status)">
+                              {{ v.status || '-' }}
+                            </span>
+                            <span class="text-muted text-xs ml-2">
+                              #{{ v.id || '-' }}
+                            </span>
+                          </div>
+
+                          <div class="text-xs text-muted mt-1">
+                            Waktu:
+                            <strong>{{ formatDateTime(v.verified_at || v.created_at) }}</strong>
+                          </div>
+
+                          <div class="text-xs text-muted">
+                            Petugas:
+                            <strong>{{ v.verifier?.name || v.verified_by_name || v.verified_by || '-' }}</strong>
+                          </div>
+                        </div>
+
+                        <div class="text-right">
+                          <div class="text-xs text-muted">Checklist</div>
+                          <div class="font-weight-bold">
+                            {{ countChecked(v).checked }} / {{ countChecked(v).total }}
+                          </div>
+                        </div>
+                      </div>
+
+                      <!-- Badges ringkas -->
+                      <div class="mt-2 d-flex flex-wrap">
+                        <span class="badge badge-light border mr-1 mb-1" :class="v.checked_photo ? 'badge-success' : 'badge-secondary'">
+                          Foto
+                        </span>
+                        <span class="badge badge-light border mr-1 mb-1" :class="v.checked_id_card ? 'badge-success' : 'badge-secondary'">
+                          KTP
+                        </span>
+                        <span class="badge badge-light border mr-1 mb-1" :class="v.checked_family_card ? 'badge-success' : 'badge-secondary'">
+                          KK
+                        </span>
+                        <span class="badge badge-light border mr-1 mb-1" :class="v.checked_bank_book ? 'badge-success' : 'badge-secondary'">
+                          Tabungan
+                        </span>
+                        <span class="badge badge-light border mr-1 mb-1" :class="v.checked_certificate ? 'badge-success' : 'badge-secondary'">
+                          Sertifikat
+                        </span>
+                        <span class="badge badge-light border mr-1 mb-1" :class="v.checked_other ? 'badge-success' : 'badge-secondary'">
+                          Lainnya
+                        </span>
+                      </div>
+
+                      <div class="mt-1 d-flex flex-wrap">
+                        <span class="badge badge-info mr-1 mb-1" v-if="v.checked_identity">Identitas</span>
+                        <span class="badge badge-info mr-1 mb-1" v-if="v.checked_contact">Kontak</span>
+                        <span class="badge badge-info mr-1 mb-1" v-if="v.checked_domicile">Domisili</span>
+                        <span class="badge badge-info mr-1 mb-1" v-if="v.checked_education">Pendidikan</span>
+                        <span class="badge badge-info mr-1 mb-1" v-if="v.checked_bank_account">Rekening</span>
+                        <span class="badge badge-info mr-1 mb-1" v-if="v.checked_document_dates">Tgl Dokumen</span>
+                      </div>
+
+                      <!-- Notes -->
+                      <div v-if="v.notes" class="mt-2 text-sm">
+                        <div class="text-muted text-xs mb-1">Catatan:</div>
+                        <div class="border rounded p-2 bg-light">{{ v.notes }}</div>
+                      </div>
+
+                      <!-- field_matches (JSON) -->
+                      <details v-if="v.field_matches" class="mt-2">
+                        <summary class="text-xs text-muted" style="cursor:pointer;">
+                          Detail field_matches
+                        </summary>
+                        <pre class="mb-0 mt-2 p-2 bg-dark text-light rounded text-xs">{{ safeJson(v.field_matches) }}</pre>
+                      </details>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+
             </div>
           </div>
         </div>
 
-        <div class="modal-footer py-2 bg-light">
-          <button type="button" class="btn btn-secondary px-4" data-dismiss="modal">
+        <div class="modal-footer py-2">
+          <button type="button" class="btn btn-sm btn-secondary" data-dismiss="modal">
             Tutup
           </button>
         </div>
@@ -475,54 +448,12 @@
 </template>
 
 <script setup>
-import { defineProps, computed, ref, watch } from 'vue'
-import axios from 'axios'
+import { defineProps, computed } from 'vue'
 import { formatDate, formatDateTime } from './EventParticipantHelpers'
 
 const props = defineProps({
   selectedParticipant: { type: Object, default: null },
 })
-
-const isLoadingHistory = ref(false)
-const fetchedVerifications = ref([])
-const selectedVerificationDetail = ref(null)
-
-// Reset state saat modal dibuka kembali / berganti peserta
-watch(() => props.selectedParticipant, () => {
-  fetchedVerifications.value = []
-  selectedVerificationDetail.value = null
-})
-
-// Fungsi memanggil API ParticipantVerificationController@index
-const fetchVerificationHistory = async () => {
-  // Ambil identifier dari event_participant (bukan master participant)
-  const identifier = props.selectedParticipant?.id
-  
-  if (!identifier) return
-
-  isLoadingHistory.value = true
-  try {
-    // Sesuaikan endpoint dengan route baru
-    const res = await axios.get(`/api/v1/event-participants/${identifier}/verifications`)
-    
-    // Data dikemas di dalam property data dari controller JSON response
-    fetchedVerifications.value = res.data.data || []
-  } catch (error) {
-    console.error('Gagal memuat riwayat verifikasi:', error)
-  } finally {
-    isLoadingHistory.value = false
-  }
-}
-
-// Handler klik detail riwayat
-const viewVerificationDetail = (v) => {
-  selectedVerificationDetail.value = v
-}
-
-// Kembali ke daftar dari detail
-const closeVerificationDetail = () => {
-  selectedVerificationDetail.value = null
-}
 
 const hasFileDetail = (field) => {
   if (!props.selectedParticipant?.participant) return false
@@ -535,18 +466,12 @@ const openFileDetail = (field) => {
   window.open(url, '_blank')
 }
 
-/** 
- * Data entries yang akan dimunculkan di kotak Riwayat Verifikasi
- * Jika data dari API telah di-fetch, maka akan meng-override relasi bawaan (fallback).
- */
+/** ✅ Normalisasi verifications: bisa dari latestVerification, latest_verification, atau array verifications */
 const verificationEntries = computed(() => {
-  if (fetchedVerifications.value.length > 0) {
-    return fetchedVerifications.value
-  }
-
   const sp = props.selectedParticipant
   if (!sp) return []
 
+  // kemungkinan bentuk relasi yang dipakai backend
   const latest =
     sp.latestVerification ||
     sp.latest_verification ||
@@ -565,10 +490,9 @@ const verificationEntries = computed(() => {
 })
 
 const hasVerificationsLoaded = computed(() => {
-  if (fetchedVerifications.value.length > 0) return true
-  
   const sp = props.selectedParticipant
   if (!sp) return false
+  // kalau salah satu key ada, berarti memang di-load (meski kosong)
   return (
     'verifications' in sp ||
     'latestVerification' in sp ||
@@ -577,21 +501,32 @@ const hasVerificationsLoaded = computed(() => {
   )
 })
 
-/** Helper status badge */
+/** ✅ Helper status badge */
 const verificationStatusClass = (status) => {
   if (status === 'verified') return 'badge-success'
   if (status === 'rejected') return 'badge-danger'
   return 'badge-secondary'
 }
 
-/** Hitung checklist ringkas */
+/** ✅ Hitung checklist ringkas (berapa yang dicentang) */
 const countChecked = (v) => {
   if (!v) return { checked: 0, total: 0 }
 
   const keys = [
-    'checked_photo','checked_id_card','checked_family_card','checked_bank_book',
-    'checked_certificate','checked_other','checked_identity','checked_contact',
-    'checked_domicile','checked_education','checked_bank_account','checked_document_dates'
+    // dokumen
+    'checked_photo',
+    'checked_id_card',
+    'checked_family_card',
+    'checked_bank_book',
+    'checked_certificate',
+    'checked_other',
+    // kelompok data
+    'checked_identity',
+    'checked_contact',
+    'checked_domicile',
+    'checked_education',
+    'checked_bank_account',
+    'checked_document_dates',
   ]
 
   const total = keys.length
@@ -608,18 +543,3 @@ const safeJson = (obj) => {
 }
 </script>
 
-<style scoped>
-.riwayat-hover:hover {
-  background-color: #f0f7ff !important;
-  border-color: #b8daff !important;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 6px rgba(0,0,0,0.1) !important;
-  transition: all 0.2s ease-in-out;
-}
-.riwayat-hover {
-  transition: all 0.2s ease-in-out;
-}
-.border-dashed {
-  border: 2px dashed #dee2e6;
-}
-</style>

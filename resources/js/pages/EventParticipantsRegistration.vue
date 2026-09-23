@@ -1009,6 +1009,14 @@ const canVerifyRole = computed(() => {
 
 const canShowVerifyButton = (item) => {
   if (!canVerifyRole.value) return false
+  
+  const u = currentUser.value
+  const roleId = Number(u?.role_id ?? u?.role?.id ?? null)
+  
+  // Jika role id adalah 1, tombol verifikasi akan selalu tampil di status apa pun
+  if (roleId === 1) return true
+  
+  // Untuk role 2 dan 4, terapkan aturan pembatasan berdasarkan status pendaftaran
   const s = item?.registration_status
   return !['verified', 'need_revision', 'rejected', 'disqualified'].includes(s)
 }
@@ -1036,7 +1044,7 @@ const statusList = [
   { key: 'verified', label: 'Diterima', badgeClass: 'badge-success' },
   { key: 'need_revision', label: 'Perbaiki', badgeClass: 'badge-info' },
   { key: 'rejected', label: 'Tolak', badgeClass: 'badge-secondary' },
-  { key: 'disqualified', label: 'Mundur', badgeClass: 'badge-danger' },
+  { key: 'disqualified', label: 'Mundur/Gugur', badgeClass: 'badge-danger' },
 ]
 
 const statusCounts = ref({
@@ -1506,7 +1514,7 @@ const filteredRegistrationStatusOptions = computed(() => {
   return [
     { value: 'need_revision', label: 'Butuh Perbaikan (Revision)' },
     { value: 'rejected', label: 'Tolak (Rejected)' },
-    { value: 'disqualified', label: 'Diskualifikasi' }
+    { value: 'disqualified', label: 'Mundur/Gugur' }
   ]
 })
 

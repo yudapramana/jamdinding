@@ -86,7 +86,7 @@
                 <option value="verified">Verified</option>
                 <option value="need_revision">Revisi</option>
                 <option value="rejected">Ditolak</option>
-                <option value="disqualified">Diskualifikasi</option>
+                <option value="disqualified">Mundur/Gugur</option>
               </select>
 
               <!-- CABANG / GOLONGAN -->

@@ -106,7 +106,7 @@ export const registrationStatusLabel = (status) => {
     case 'rejected':
       return 'Ditolak'
     case 'disqualified':
-      return 'Diskualifikasi'
+      return 'Mundur / Gugur'
     default:
       return status
   }

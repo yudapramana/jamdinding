@@ -237,7 +237,7 @@ Route::middleware(['auth:sanctum']) // kalau belum pakai sanctum, boleh dihapus 
         // EVENT PARTICIPANT - VERIFICATIONS
         Route::get('get/event-participants/status-counts', [EventParticipantController::class, 'statusCounts']);
         Route::get('get/event-participants/{eventParticipant}/biodata-pdf', [EventParticipantController::class, 'biodataPdf'])->name('participants.biodata-pdf');
-        Route::get('participants/{participant}/verifications', [ParticipantVerificationController::class, 'index']);
+        Route::get('event-participants/{eventParticipant}/verifications', [ParticipantVerificationController::class, 'index']);
         Route::post('participants/{participant}/verifications', [ParticipantVerificationController::class, 'store']);
         Route::get('participants/{participant}/verifications/{verification}', [ParticipantVerificationController::class, 'show']);
         
