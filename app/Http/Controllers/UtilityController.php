@@ -466,7 +466,7 @@ class UtilityController extends Controller
         $statusColumns = [
             'bank_data'      => 'Bank Data',
             'process'        => 'Proses',
-            // 'need_revision'  => 'Revisi',
+            'need_revision'  => 'Revisi',
             'verified'       => 'Terverifikasi',
             'rejected'       => 'Ditolak',
             // 'disqualified'   => 'Gugur'
