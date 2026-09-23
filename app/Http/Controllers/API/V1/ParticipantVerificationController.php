@@ -94,6 +94,7 @@ class ParticipantVerificationController extends Controller
             'event_participant_id' => $data['event_participant_id'] ?? null,
             'verified_by' => Auth::id(),
             'status' => $data['status'],
+            'registration_status' => $data['registration_status'],
 
             'checked_photo' => $data['checked_photo'],
             'checked_id_card' => $data['checked_id_card'],

@@ -17,6 +17,7 @@ class ParticipantVerification extends Model
         'event_participant_id',
         'verified_by',
         'status',
+        'registration_status',
 
         'checked_photo',
         'checked_id_card',

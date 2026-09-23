@@ -676,6 +676,14 @@ return new class extends Migration
             $table->foreignId('verified_by')->constrained('users');
 
             $table->enum('status', ['verified', 'rejected'])->default('verified');
+            $table->enum('registration_status', [
+                            'bank_data',        // data awal dari bankdata
+                            'process',          // sedang diproses
+                            'verified',         // sudah diverifikasi
+                            'need_revision',    // perlu perbaikan
+                            'rejected',         // ditolak
+                            'disqualified'      // didiskualifikasi
+                        ])->default('bank_data');
 
             // ================
             // DOKUMEN DICEK?

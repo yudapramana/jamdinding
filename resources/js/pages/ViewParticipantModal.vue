@@ -209,11 +209,19 @@
                       <div class="border rounded p-3 bg-light shadow-sm">
                         <div class="d-flex justify-content-between align-items-start mb-2 border-bottom pb-2">
                           <div>
-                            <div class="font-weight-bold">
-                              <span class="badge px-2 py-1" :class="verificationStatusClass(selectedVerificationDetail.status)">
-                                {{ selectedVerificationDetail.status || '-' }}
+                            <div class="font-weight-bold d-flex align-items-center flex-wrap">
+                              <!-- Status Hasil Verifikasi Sesi Tersebut -->
+                              <span class="badge px-2 py-1 mr-2 mb-1" :class="registrationBadgeClass(selectedVerificationDetail.status)">
+                                {{ registrationStatusLabel(selectedVerificationDetail.status).toUpperCase() }}
                               </span>
-                              <span class="text-muted text-xs ml-2">
+                              
+                              <!-- Status Pendaftaran (Registration Status) Jika Ada -->
+                              <span v-if="selectedVerificationDetail.registration_status" class="badge badge-light border px-2 py-1 mr-2 mb-1" title="Keputusan Status Pendaftaran">
+                                <i class="fas fa-flag text-muted mr-1"></i>
+                                Keputusan: {{ registrationStatusLabel(selectedVerificationDetail.registration_status) }}
+                              </span>
+
+                              <span class="text-muted text-xs mb-1">
                                 #{{ selectedVerificationDetail.id || '-' }}
                               </span>
                             </div>
@@ -295,12 +303,19 @@
                         >
                           <div class="d-flex justify-content-between align-items-center">
                             <div>
-                              <div class="font-weight-bold mb-1">
-                                <span class="badge" :class="verificationStatusClass(v.status)">
-                                  <i class="fas fa-circle text-xs mr-1" style="font-size: 8px;"></i>
-                                  {{ v.status === 'verified' ? 'TERVERIFIKASI' : (v.status === 'rejected' ? 'DITOLAK' : v.status) }}
+                              <div class="font-weight-bold mb-1 d-flex flex-wrap align-items-center">
+                                <!-- Status Hasil Verifikasi Sesi Tersebut -->
+                                <span class="badge mr-2 mb-1" :class="registrationBadgeClass(v.status)">
+                                  {{ registrationStatusLabel(v.status).toUpperCase() }}
+                                </span>
+                                
+                                <!-- Status Pendaftaran (Registration Status) Jika Ada -->
+                                <span v-if="v.registration_status" class="badge badge-light border mb-1" title="Keputusan Status Pendaftaran">
+                                  <i class="fas fa-flag text-muted mr-1"></i>
+                                  Keputusan: {{ registrationStatusLabel(v.registration_status) }}
                                 </span>
                               </div>
+                              
                               <div class="text-xs text-muted">
                                 <i class="far fa-clock mr-1"></i> <strong>{{ formatDateTime(v.verified_at || v.created_at) }}</strong>
                               </div>
@@ -308,6 +323,7 @@
                                 <i class="far fa-user mr-1"></i> Oleh: <strong>{{ v.verified_by?.name || v.verifier?.name || v.verified_by_name || 'Petugas Sistem' }}</strong>
                               </div>
                             </div>
+                            
                             <div class="text-right d-flex flex-column align-items-end justify-content-center h-100">
                               <span class="badge badge-light border mb-2 text-muted">
                                 Checklist: {{ countChecked(v).checked }}/{{ countChecked(v).total }}
@@ -477,7 +493,12 @@
 <script setup>
 import { defineProps, computed, ref, watch } from 'vue'
 import axios from 'axios'
-import { formatDate, formatDateTime } from './EventParticipantHelpers'
+import { 
+  formatDate, 
+  formatDateTime,
+  registrationBadgeClass,
+  registrationStatusLabel,
+} from './EventParticipantHelpers'
 
 const props = defineProps({
   selectedParticipant: { type: Object, default: null },
@@ -582,6 +603,19 @@ const verificationStatusClass = (status) => {
   if (status === 'verified') return 'badge-success'
   if (status === 'rejected') return 'badge-danger'
   return 'badge-secondary'
+}
+
+/** Helper status label */
+const verificationStatusLabel = (status) => {
+  const labels = {
+    'bank_data': 'Bank Data',
+    'process': 'Proses',
+    'need_revision': 'Revisi',
+    'verified': 'Terverifikasi',
+    'rejected': 'Ditolak',
+    'disqualified': 'Mundur/Gugur'
+  }
+  return labels[status] || status || '-'
 }
 
 /** Hitung checklist ringkas */
