@@ -3,7 +3,7 @@
     <div class="container-fluid">
       <div class="d-flex justify-content-between align-items-center">
         <div>
-          <h1 class="mb-1">Pendaftaran Peserta Event</h1>
+          <h1 class="mb-1">Pendaftaran Peserta Event S</h1>
           <p class="mb-0 text-muted text-sm">
             Mengelola Bagian Pendaftaran peserta yang terdaftar pada event aktif
           </p>

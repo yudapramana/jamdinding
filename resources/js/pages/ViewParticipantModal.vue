@@ -183,7 +183,6 @@
                       {{ verificationEntries.length }} data
                     </span>
                   </div>
-                  <!-- Tombol dipindah ke dalam header -->
                   <button 
                     class="btn btn-sm btn-outline-primary font-weight-bold" 
                     @click="fetchVerificationHistory" 
@@ -210,12 +209,10 @@
                         <div class="d-flex justify-content-between align-items-start mb-2 border-bottom pb-2">
                           <div>
                             <div class="font-weight-bold d-flex align-items-center flex-wrap">
-                              <!-- Status Hasil Verifikasi Sesi Tersebut -->
                               <span class="badge px-2 py-1 mr-2 mb-1" :class="registrationBadgeClass(selectedVerificationDetail.status)">
                                 {{ registrationStatusLabel(selectedVerificationDetail.status).toUpperCase() }}
                               </span>
                               
-                              <!-- Status Pendaftaran (Registration Status) Jika Ada -->
                               <span v-if="selectedVerificationDetail.registration_status" class="badge badge-light border px-2 py-1 mr-2 mb-1" title="Keputusan Status Pendaftaran">
                                 <i class="fas fa-flag text-muted mr-1"></i>
                                 Keputusan: {{ registrationStatusLabel(selectedVerificationDetail.registration_status) }}
@@ -275,13 +272,35 @@
                           </div>
                         </div>
 
-                        <!-- field_matches (JSON) -->
-                        <details v-if="selectedVerificationDetail.field_matches" class="mt-3 border-top pt-2">
-                          <summary class="text-xs font-weight-bold text-primary" style="cursor:pointer; outline: none;">
-                            <i class="fas fa-cogs mr-1"></i> Lihat Data Mentah Penilaian per Field
-                          </summary>
-                          <pre class="mb-0 mt-2 p-2 bg-dark text-light rounded text-xs" style="max-height: 200px; overflow-y: auto; border: 1px solid #444;">{{ safeJson(selectedVerificationDetail.field_matches) }}</pre>
-                        </details>
+                        <!-- field_matches (DETAIL UI & JSON) -->
+                        <div v-if="parsedFieldMatches" class="mt-3 border-top pt-3">
+                          <div class="text-xs font-weight-bold text-dark mb-3">
+                            <i class="fas fa-list-check text-primary mr-1"></i> Detail Kesesuaian Data (Validasi per Item):
+                          </div>
+                          
+                          <!-- Masonry Grid yang merapatkan posisi setiap kategori ke atas -->
+                          <div class="masonry-layout">
+                            <div v-for="(fields, category) in parsedFieldMatches" :key="category" class="card shadow-sm border mb-3 masonry-item">
+                              <div class="card-header bg-white py-1 px-2 border-bottom text-center">
+                                <span class="text-xs font-weight-bold text-uppercase text-secondary">{{ getFieldLabel(category, null) }}</span>
+                              </div>
+                              <ul class="list-group list-group-flush text-xs">
+                                <li v-for="(value, key) in fields" :key="key" class="list-group-item d-flex justify-content-between align-items-center py-1 px-2">
+                                  <span class="text-muted">{{ getFieldLabel(category, key) }}</span>
+                                  <span v-if="value === true" class="badge badge-success px-2"><i class="fas fa-check mr-1"></i>Sesuai</span>
+                                  <span v-else-if="value === false" class="badge badge-danger px-2"><i class="fas fa-times mr-1"></i>Tidak Sesuai</span>
+                                </li>
+                              </ul>
+                            </div>
+                          </div>
+
+                          <details class="mt-2 pt-2 text-center">
+                            <summary class="text-xs font-weight-bold text-muted" style="cursor:pointer; outline: none;">
+                              <i class="fas fa-code mr-1"></i> Lihat Data Mentah JSON
+                            </summary>
+                            <pre class="mb-0 mt-2 p-2 bg-dark text-light text-left rounded text-xs" style="max-height: 200px; overflow-y: auto; border: 1px solid #444;">{{ safeJson(selectedVerificationDetail.field_matches) }}</pre>
+                          </details>
+                        </div>
                       </div>
                     </div>
 
@@ -304,12 +323,10 @@
                           <div class="d-flex justify-content-between align-items-center">
                             <div>
                               <div class="font-weight-bold mb-1 d-flex flex-wrap align-items-center">
-                                <!-- Status Hasil Verifikasi Sesi Tersebut -->
                                 <span class="badge mr-2 mb-1" :class="registrationBadgeClass(v.status)">
                                   {{ registrationStatusLabel(v.status).toUpperCase() }}
                                 </span>
                                 
-                                <!-- Status Pendaftaran (Registration Status) Jika Ada -->
                                 <span v-if="v.registration_status" class="badge badge-light border mb-1" title="Keputusan Status Pendaftaran">
                                   <i class="fas fa-flag text-muted mr-1"></i>
                                   Keputusan: {{ registrationStatusLabel(v.registration_status) }}
@@ -516,17 +533,12 @@ watch(() => props.selectedParticipant, () => {
 
 // Fungsi memanggil API ParticipantVerificationController@index
 const fetchVerificationHistory = async () => {
-  // Ambil identifier dari event_participant (bukan master participant)
   const identifier = props.selectedParticipant?.id
-  
   if (!identifier) return
 
   isLoadingHistory.value = true
   try {
-    // Sesuaikan endpoint dengan route baru
     const res = await axios.get(`/api/v1/event-participants/${identifier}/verifications`)
-    
-    // Data dikemas di dalam property data dari controller JSON response
     fetchedVerifications.value = res.data.data || []
   } catch (error) {
     console.error('Gagal memuat riwayat verifikasi:', error)
@@ -556,10 +568,6 @@ const openFileDetail = (field) => {
   window.open(url, '_blank')
 }
 
-/** 
- * Data entries yang akan dimunculkan di kotak Riwayat Verifikasi
- * Jika data dari API telah di-fetch, maka akan meng-override relasi bawaan (fallback).
- */
 const verificationEntries = computed(() => {
   if (fetchedVerifications.value.length > 0) {
     return fetchedVerifications.value
@@ -598,14 +606,12 @@ const hasVerificationsLoaded = computed(() => {
   )
 })
 
-/** Helper status badge */
 const verificationStatusClass = (status) => {
   if (status === 'verified') return 'badge-success'
   if (status === 'rejected') return 'badge-danger'
   return 'badge-secondary'
 }
 
-/** Helper status label */
 const verificationStatusLabel = (status) => {
   const labels = {
     'bank_data': 'Bank Data',
@@ -618,16 +624,13 @@ const verificationStatusLabel = (status) => {
   return labels[status] || status || '-'
 }
 
-/** Hitung checklist ringkas */
 const countChecked = (v) => {
   if (!v) return { checked: 0, total: 0 }
-
   const keys = [
     'checked_photo','checked_id_card','checked_family_card','checked_bank_book',
     'checked_certificate','checked_other','checked_identity','checked_contact',
     'checked_domicile','checked_education','checked_bank_account','checked_document_dates'
   ]
-
   const total = keys.length
   const checked = keys.reduce((sum, k) => sum + (v[k] ? 1 : 0), 0)
   return { checked, total }
@@ -640,6 +643,112 @@ const safeJson = (obj) => {
     return ''
   }
 }
+
+// -------------------------------------------------------------
+// HELPER UNTUK KONVERSI FIELD_MATCHES KE UI YANG LEBIH RAPI
+// -------------------------------------------------------------
+
+// Mendapatkan nilai label per kategori dan field
+const getFieldLabel = (category, key) => {
+  const categoryLabels = {
+    identity: 'Identitas',
+    contact: 'Kontak',
+    domicile: 'Domisili',
+    education: 'Pendidikan',
+    bank_account: 'Rekening Bank',
+    document_dates: 'Tanggal Dokumen',
+    documents: 'Dokumen Fisik'
+  }
+
+  const fieldLabels = {
+    identity: {
+      nik: 'NIK',
+      full_name: 'Nama Lengkap',
+      place_of_birth: 'Tempat Lahir',
+      date_of_birth: 'Tanggal Lahir',
+      gender: 'Jenis Kelamin'
+    },
+    contact: {
+      phone_number: 'No. Telepon'
+    },
+    domicile: {
+      province_id: 'ID Provinsi',
+      regency_id: 'ID Kab/Kota',
+      district_id: 'ID Kecamatan',
+      village_id: 'ID Desa/Kel.',
+      address: 'Alamat',
+      province_name: 'Nama Provinsi',
+      regency_name: 'Nama Kab/Kota',
+      district_name: 'Nama Kecamatan',
+      village_name: 'Nama Desa/Kel.'
+    },
+    education: {
+      education: 'Pendidikan'
+    },
+    bank_account: {
+      bank_account_number: 'No. Rekening',
+      bank_account_name: 'Nama Rekening',
+      bank_name: 'Nama Bank'
+    },
+    document_dates: {
+      tanggal_terbit_ktp: 'Tgl Terbit KTP',
+      tanggal_terbit_kk: 'Tgl Terbit KK'
+    },
+    documents: {
+      photo_url: 'Foto',
+      id_card_url: 'KTP',
+      family_card_url: 'Kartu Keluarga',
+      bank_book_url: 'Buku Tabungan',
+      certificate_url: 'Sertifikat/Piagam',
+      other_url: 'Akta Kelahiran' // Catatan Khusus
+    }
+  }
+
+  if (key === null) return categoryLabels[category] || category
+  return fieldLabels[category]?.[key] || key
+}
+
+// Compute proper JSON dan filter data null
+const parsedFieldMatches = computed(() => {
+  let data = selectedVerificationDetail.value?.field_matches
+  if (!data) return null
+  
+  if (typeof data === 'string') {
+    try {
+      data = JSON.parse(data)
+    } catch (e) {
+      return null
+    }
+  }
+
+  // Filter membuang field yang bernilai null, 
+  // dan jika satu kategori (misal: domisili) kosong, kotak tersebut tidak akan dirender
+  const filteredData = {}
+  
+  if (data && typeof data === 'object') {
+    for (const category in data) {
+      if (data[category] && typeof data[category] === 'object') {
+        const fields = data[category]
+        const validFields = {}
+        let hasValidField = false
+        
+        for (const key in fields) {
+          // Hanya masukkan ke data jika valuenya tidak null
+          if (fields[key] !== null) {
+            validFields[key] = fields[key]
+            hasValidField = true
+          }
+        }
+        
+        if (hasValidField) {
+          filteredData[category] = validFields
+        }
+      }
+    }
+  }
+  
+  return Object.keys(filteredData).length > 0 ? filteredData : null
+})
 </script>
 
 <style scoped>
@@ -655,5 +764,23 @@ const safeJson = (obj) => {
 }
 .border-dashed {
   border: 2px dashed #dee2e6;
+}
+
+/* Kustomisasi css kolom (Masonry) untuk layout box yang rapat */
+.masonry-layout {
+  column-count: 2;
+  column-gap: 1rem;
+}
+.masonry-item {
+  break-inside: avoid;
+  page-break-inside: avoid;
+  display: inline-block; /* Mencegah terpotong */
+  width: 100%;
+}
+
+@media (max-width: 767px) {
+  .masonry-layout {
+    column-count: 1;
+  }
 }
 </style>
