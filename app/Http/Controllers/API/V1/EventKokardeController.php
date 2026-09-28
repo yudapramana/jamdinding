@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Models\Province;
 use App\Models\Regency;
 use App\Models\District;
+use App\Models\EventGroup;
 use App\Models\Role;
 use App\Models\Village;
 use Illuminate\Http\Request;
@@ -66,6 +67,7 @@ class EventKokardeController extends Controller
             $rows = EventParticipant::query()
                 ->with(['participant','event','eventBranch','eventGroup','eventCategory'])
                 ->where('event_id', $event->id)
+                ->where('registration_status', 'verified')
                 ->whereNotNull('event_category_id')
                 ->whereHas('participant', fn ($q) =>
                     $q->where($participantColumn, $region->id)
@@ -121,7 +123,7 @@ class EventKokardeController extends Controller
 
 
     /**
-     * EXPORT LEMBAR VERIFIKASI FOTO PER GOLONGAN/CABANG (A4, 1 PESERTA = 1 HALAMAN)
+     * EXPORT LEMBAR VERIFIKASI FOTO PER GOLONGAN/CABANG
      */
     public function exportVerificationPdf(Request $request)
     {
@@ -131,11 +133,15 @@ class EventKokardeController extends Controller
         ]);
 
         $event = Event::findOrFail($request->event_id);
+        
+        // Ambil data event group untuk mengecek atribut is_team
+        $group = EventGroup::findOrFail($request->event_group_id);
 
         $rows = EventParticipant::query()
             ->with(['participant', 'eventBranch', 'eventGroup', 'eventCategory'])
             ->where('event_id', $event->id)
             ->where('event_group_id', $request->event_group_id)
+            ->where('registration_status', 'verified')
             ->whereHas('participant', fn ($q) => $q->whereNotNull('photo_url'))
             ->orderByRaw('participant_number IS NULL, participant_number')
             ->get();
@@ -144,9 +150,24 @@ class EventKokardeController extends Controller
             return 'Tidak ada peserta pada golongan tersebut';
         }
 
+        // === LOGIKA UNTUK CABANG BEREGU (TEAM) ===
+        if ($group->is_team) {
+            // Kelompokkan peserta berdasarkan Kategori (event_category_id) dan Wilayah (contingent)
+            $groupedRows = $rows->groupBy(function ($item) {
+                return $item->event_category_id . '_' . ($item->contingent ?? 'non-contingent');
+            });
+
+            return view('pdf.verifikasi-tim', [
+                'event' => $event,
+                'group' => $group,
+                'groupedRows' => $groupedRows,
+            ]);
+        }
+
+        // === LOGIKA UNTUK CABANG INDIVIDU (DEFAULT) ===
         return view('pdf.verifikasi-golongan', [
             'event' => $event,
-            'group' => $rows->first()->eventGroup,
+            'group' => $group, 
             'rows'  => $rows,
         ]);
     }
