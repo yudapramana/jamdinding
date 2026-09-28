@@ -22,7 +22,10 @@
             font-family: Arial, Helvetica, sans-serif;
         }
 
+        /* SHEET SEBAGAI FLEX CONTAINER VERTICAL */
         .sheet {
+            display: flex;
+            flex-direction: column;
             width: 297mm;
             height: 210mm;
             padding: 10mm;
@@ -31,7 +34,12 @@
             position: relative;
         }
 
-        /* HEADER */
+        /* ================= HEADER SECTION ================= */
+        .header-section {
+            flex-shrink: 0;
+            /* Header tidak ikut menyusut/membesar */
+        }
+
         .header {
             display: flex;
             justify-content: space-between;
@@ -73,46 +81,62 @@
             margin-bottom: 10px;
         }
 
-        /* GRID PESERTA */
+        /* ================= BODY / KOTAK PESERTA ================= */
+        /* Kontainer mengambil sisa tinggi kertas secara penuh */
         .participants-container {
             display: flex;
-            flex-wrap: wrap;
             justify-content: center;
-            gap: 15px;
-            margin-top: 15px;
+            gap: 20px;
+            flex-grow: 1;
+            margin-top: 10px;
+            margin-bottom: 20px;
+            /* Sisakan sedikit ruang untuk tulisan footer */
         }
 
         .participant-card {
-            width: 4.5cm;
-            /* Ukuran bisa disesuaikan dengan jumlah maksimal peserta per regu */
-            text-align: center;
-            border: 2px solid #000;
-            padding: 5px;
+            flex: 1;
+            max-width: 32%;
+            /* Menjaga ukuran tetap konsisten maksimal 3 box */
+            border: 3px solid #000;
+            padding: 10px;
             background: #fff;
             box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
         }
 
+        /* Frame foto akan memanjang mengisi sisa tinggi dalam card */
         .photo-frame {
             width: 100%;
-            height: 6cm;
+            flex-grow: 1;
             border: 2px solid #000;
             box-sizing: border-box;
-            margin-bottom: 6px;
+            margin-bottom: 10px;
+            background: #f8f8f8;
+            overflow: hidden;
         }
 
         .photo-frame img {
             width: 100%;
             height: 100%;
             object-fit: cover;
+            object-position: top center;
+            /* Fokus di bagian kepala jika foto terpotong */
         }
 
         .name {
-            font-size: 12px;
+            font-size: 18px;
             font-weight: 900;
             text-transform: uppercase;
-            line-height: 1.2;
+            line-height: 1.3;
+            text-align: center;
+            min-height: 45px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
+        /* ================= FOOTER ================= */
         .footer {
             position: absolute;
             bottom: 10mm;
@@ -137,26 +161,28 @@
         @endphp
 
         <section class="sheet">
-            <!-- HEADER -->
-            <div class="header">
-                <img src="{{ asset('images/logo-pemda.png') }}" alt="Logo Pemda">
-                <img src="{{ asset('images/logo-kemenag.png') }}" alt="Logo Kemenag">
+            <!-- HEADER SECTION -->
+            <div class="header-section">
+                <div class="header">
+                    <img src="{{ asset('images/logo-pemda.png') }}" alt="Logo Pemda">
+                    <img src="{{ asset('images/logo-kemenag.png') }}" alt="Logo Kemenag">
+                </div>
+
+                <div class="event-title">
+                    {{ $event->event_name }}
+                </div>
+                <div class="event-subtitle">
+                    {{ strtoupper($event?->event_location ?? '-') }}
+                </div>
+
+                <div class="team-info">
+                    LEMBAR VERIFIKASI TIM / BEREGU <br>
+                    {{ $firstMember->eventGroup?->branch_name ?? '-' }} - {{ $categoryName }} <br>
+                    KAFILAH: {{ $contingent }}
+                </div>
             </div>
 
-            <div class="event-title">
-                {{ $event->event_name }}
-            </div>
-            <div class="event-subtitle">
-                {{ strtoupper($event?->event_location ?? '-') }}
-            </div>
-
-            <div class="team-info">
-                LEMBAR VERIFIKASI TIM / BEREGU <br>
-                {{ $firstMember->eventGroup?->branch_name ?? '-' }} - {{ $categoryName }} <br>
-                KAFILAH: {{ $contingent }}
-            </div>
-
-            <!-- ANGGOTA TIM -->
+            <!-- ANGGOTA TIM (UKURAN FULL HEIGHT) -->
             <div class="participants-container">
                 @foreach ($teamMembers as $ep)
                     <div class="participant-card">
