@@ -360,6 +360,15 @@
                               </div>
                             </div>
                           </div>
+                          
+                          <!-- CATATAN VERIFIKASI DIMUNCULKAN DI DEPAN -->
+                          <div v-if="v.notes" class="mt-3 text-sm border-top pt-2">
+                            <div class="text-muted text-xs font-weight-bold mb-1">Catatan Penolakan / Perbaikan:</div>
+                            <div class="border rounded p-2 font-weight-bold" :class="v.status === 'rejected' || v.registration_status === 'rejected' ? 'border-danger text-danger bg-white' : 'bg-light text-dark'">
+                              <i class="fas" :class="v.status === 'rejected' || v.registration_status === 'rejected' ? 'fa-exclamation-circle' : 'fa-comment-dots'"></i> {{ v.notes }}
+                            </div>
+                          </div>
+
                         </div>
                       </div>
                     </div>
