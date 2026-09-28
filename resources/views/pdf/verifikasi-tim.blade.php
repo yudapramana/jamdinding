@@ -22,10 +22,8 @@
             font-family: Arial, Helvetica, sans-serif;
         }
 
-        /* SHEET SEBAGAI FLEX CONTAINER VERTICAL */
+        /* ================= SHEET ================= */
         .sheet {
-            display: flex;
-            flex-direction: column;
             width: 297mm;
             height: 210mm;
             padding: 10mm;
@@ -35,11 +33,6 @@
         }
 
         /* ================= HEADER SECTION ================= */
-        .header-section {
-            flex-shrink: 0;
-            /* Header tidak ikut menyusut/membesar */
-        }
-
         .header {
             display: flex;
             justify-content: space-between;
@@ -82,36 +75,32 @@
         }
 
         /* ================= BODY / KOTAK PESERTA ================= */
-        /* Kontainer mengambil sisa tinggi kertas secara penuh */
         .participants-container {
             display: flex;
             justify-content: center;
-            gap: 20px;
-            flex-grow: 1;
-            margin-top: 10px;
-            margin-bottom: 20px;
-            /* Sisakan sedikit ruang untuk tulisan footer */
+            align-items: flex-start;
+            gap: 15mm;
+            /* Jarak antar peserta */
+            margin-top: 15mm;
         }
 
         .participant-card {
-            flex: 1;
-            max-width: 32%;
-            /* Menjaga ukuran tetap konsisten maksimal 3 box */
+            width: 78mm;
+            /* Ukuran pasti agar 3 card muat horizontal (3x78 = 234mm) */
             border: 3px solid #000;
-            padding: 10px;
+            padding: 6mm;
             background: #fff;
             box-sizing: border-box;
-            display: flex;
-            flex-direction: column;
         }
 
-        /* Frame foto akan memanjang mengisi sisa tinggi dalam card */
+        /* Ukuran frame foto dibuat fix (Aspect Ratio tetap terjaga) */
         .photo-frame {
             width: 100%;
-            flex-grow: 1;
+            height: 105mm;
+            /* Tinggi fix agar foto besar namun tidak menabrak footer */
             border: 2px solid #000;
             box-sizing: border-box;
-            margin-bottom: 10px;
+            margin-bottom: 6mm;
             background: #f8f8f8;
             overflow: hidden;
         }
@@ -121,16 +110,17 @@
             height: 100%;
             object-fit: cover;
             object-position: top center;
-            /* Fokus di bagian kepala jika foto terpotong */
         }
 
+        /* Ruang nama diatur agar aman untuk 2 baris teks */
         .name {
-            font-size: 18px;
+            font-size: 16px;
             font-weight: 900;
             text-transform: uppercase;
             line-height: 1.3;
             text-align: center;
-            min-height: 45px;
+            min-height: 42px;
+            /* Aman untuk nama yang panjang (2 baris) */
             display: flex;
             align-items: center;
             justify-content: center;
@@ -162,7 +152,7 @@
 
         <section class="sheet">
             <!-- HEADER SECTION -->
-            <div class="header-section">
+            <div>
                 <div class="header">
                     <img src="{{ asset('images/logo-pemda.png') }}" alt="Logo Pemda">
                     <img src="{{ asset('images/logo-kemenag.png') }}" alt="Logo Kemenag">
@@ -182,7 +172,7 @@
                 </div>
             </div>
 
-            <!-- ANGGOTA TIM (UKURAN FULL HEIGHT) -->
+            <!-- ANGGOTA TIM (UKURAN FIX & AMAN DARI OVERFLOW) -->
             <div class="participants-container">
                 @foreach ($teamMembers as $ep)
                     <div class="participant-card">
@@ -197,9 +187,9 @@
             </div>
 
             <!-- FOOTER -->
-            {{-- <div class="footer">
+            <div class="footer">
                 Cocokkan wajah peserta dengan foto di atas sebelum tampil
-            </div> --}}
+            </div>
         </section>
 
         @if (!$loop->last)
