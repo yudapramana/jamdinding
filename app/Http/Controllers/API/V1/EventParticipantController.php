@@ -413,7 +413,33 @@ class EventParticipantController extends Controller
         } elseif ($orderBy === 'nik') {
             $query->orderBy('p.nik');
         } else {
-            // Default pengurutan seperti saat ini
+            // Default pengurutan seperti saat ini dengan modifikasi luar daerah
+
+            $prefixLength = 0;
+            $regionId = '';
+
+            // Menentukan region pelaksana berdasarkan event level
+            if ($event->event_level === 'province') {
+                $regionId = $event->province_id;
+                $prefixLength = 2; // Prefix NIK Provinsi
+            } elseif ($event->event_level === 'regency') {
+                $regionId = $event->regency_id;
+                $prefixLength = 4; // Prefix NIK Kabupaten/Kota
+            } elseif ($event->event_level === 'district') {
+                $regionId = $event->district_id;
+                $prefixLength = 6; // Prefix NIK Kecamatan
+            }
+
+            // Jika ada regionId yang dibandingkan
+            if (!empty($regionId) && $prefixLength > 0) {
+                // 1. Sort agar NIK luar daerah diletakkan paling atas (0 = Atas, 1 = Bawah)
+                $query->orderByRaw("CASE WHEN LEFT(p.nik, ?) = ? THEN 1 ELSE 0 END ASC", [$prefixLength, $regionId]);
+                
+                // 2. Sort spesifik bagi NIK yang luar daerah agar urut rapi di kelompok atas
+                $query->orderByRaw("CASE WHEN LEFT(p.nik, ?) != ? THEN p.nik END ASC", [$prefixLength, $regionId]);
+            }
+
+            // 3. Pengurutan default setelah dipisah atas (luar daerah) & bawah (lokal)
             $query->orderBy('p.gender')
                   ->orderBy('event_participants.contingent')
                   ->orderBy('event_participants.event_category_id')
