@@ -197,9 +197,9 @@
             </div>
 
             <!-- FOOTER -->
-            <div class="footer">
+            {{-- <div class="footer">
                 Cocokkan wajah peserta dengan foto di atas sebelum tampil
-            </div>
+            </div> --}}
         </section>
 
         @if (!$loop->last)
