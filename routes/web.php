@@ -127,6 +127,8 @@ Route::controller(UtilityController::class)->group(function () {
     Route::get('/verified-participants', 'verifiedParticipants');
     Route::get('/verified-participants-by-contingent', 'verifiedParticipantSortBycontingent');
     Route::get('/verified-participants-by-region', 'verifiedParticipantSortByRegion');
+    Route::get('/contingent-gender-recap', 'contingentGenderRecap');
+    Route::get('/group-gender-recap', 'groupGenderRecap');
 });
 
 /*

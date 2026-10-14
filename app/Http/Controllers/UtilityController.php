@@ -35,6 +35,120 @@ class UtilityController extends Controller
     }
 
     /**
+     * Menampilkan rekapitulasi jumlah peserta terverifikasi 
+     * berdasarkan Utusan (Kontingen) dan Jenis Kelamin.
+     */
+    public function contingentGenderRecap()
+    {
+        // 1. Ambil event yang aktif.
+        $activeEvent = \App\Models\Event::first(); 
+
+        if (!$activeEvent) {
+            return '<h3 style="color: red; text-align: center; font-family: sans-serif; margin-top: 50px;">Tidak ada event yang aktif.</h3>';
+        }
+
+        // 2. Tentukan kolom acuan Region ID untuk pengurutan berdasarkan event_level
+        $participantColumn = 'regency_id'; // Default
+        switch ($activeEvent->event_level) {
+            case 'national':
+                $participantColumn = 'province_id';
+                break;
+            case 'province':
+                $participantColumn = 'regency_id';
+                break;
+            case 'regency':
+                $participantColumn = 'district_id';
+                break;
+            case 'district':
+                $participantColumn = 'village_id';
+                break;
+        }
+
+        // 3. Query rekapitulasi data dengan melakukan join ke tabel participants
+        // untuk membaca nilai gender dan region_id.
+        $summary = \App\Models\EventParticipant::query()
+            ->join('participants', 'event_participants.participant_id', '=', 'participants.id')
+            ->where('event_participants.event_id', $activeEvent->id)
+            ->where('event_participants.registration_status', 'verified') // Hanya hitung yang verified
+            ->select(
+                'event_participants.contingent',
+                "participants.{$participantColumn} as region_id",
+                \DB::raw("SUM(CASE WHEN participants.gender = 'MALE' THEN 1 ELSE 0 END) as male_count"),
+                \DB::raw("SUM(CASE WHEN participants.gender = 'FEMALE' THEN 1 ELSE 0 END) as female_count"),
+                \DB::raw("COUNT(event_participants.id) as total")
+            )
+            ->groupBy('event_participants.contingent', "participants.{$participantColumn}")
+            ->orderBy('region_id', 'asc') // Urutkan berdasarkan ID wilayah agar urutan daerah sesuai hierarki
+            ->get();
+
+        // 4. Render HTML Tabel menyerupai gambar
+        $html = '<div style="font-family: Arial, sans-serif; max-width: 800px; margin: 30px auto; color: #000;">';
+        
+        $html .= '<table style="width: 100%; border-collapse: collapse; border: 2px solid #000; font-size: 14px;">';
+        $html .= '<thead>';
+        
+        // Baris Header 1
+        $html .= '<tr>';
+        $html .= '<th rowspan="2" style="border: 1px solid #000; padding: 10px; width: 5%; text-align: center;">NO</th>';
+        $html .= '<th rowspan="2" style="border: 1px solid #000; padding: 10px; text-align: center;">UTUSAN</th>';
+        $html .= '<th colspan="2" style="border: 1px solid #000; padding: 10px; text-align: center;">PESERTA</th>';
+        $html .= '<th rowspan="2" style="border: 1px solid #000; padding: 10px; text-align: center; width: 15%;">JUMLAH</th>';
+        $html .= '</tr>';
+
+        // Baris Header 2 (Sub-header PESERTA)
+        $html .= '<tr>';
+        $html .= '<th style="border: 1px solid #000; padding: 8px; text-align: center; width: 15%;">LAKI-LAKI</th>';
+        $html .= '<th style="border: 1px solid #000; padding: 8px; text-align: center; width: 15%;">PEREMPUAN</th>';
+        $html .= '</tr>';
+        $html .= '</thead>';
+        $html .= '<tbody>';
+
+        $totalMale = 0;
+        $totalFemale = 0;
+        $grandTotal = 0;
+
+        if ($summary->isEmpty()) {
+            $html .= '<tr><td colspan="5" style="border: 1px solid #000; padding: 15px; text-align: center; font-style: italic;">Belum ada data peserta terverifikasi pada event ini.</td></tr>';
+        } else {
+            $no = 1;
+            foreach ($summary as $row) {
+                $contingent = $row->contingent ?: '-';
+                
+                // Tambahkan ke total akumulasi terbawah
+                $totalMale += $row->male_count;
+                $totalFemale += $row->female_count;
+                $grandTotal += $row->total;
+
+                $html .= '<tr>';
+                $html .= '<td style="border: 1px solid #000; padding: 8px; text-align: center;">' . $no++ . '</td>';
+                // Utusan rata kiri sesuai gambar
+                $html .= '<td style="border: 1px solid #000; padding: 8px 15px; text-align: left;">' . e(strtoupper($contingent)) . '</td>';
+                $html .= '<td style="border: 1px solid #000; padding: 8px; text-align: center;">' . $row->male_count . '</td>';
+                $html .= '<td style="border: 1px solid #000; padding: 8px; text-align: center;">' . $row->female_count . '</td>';
+                $html .= '<td style="border: 1px solid #000; padding: 8px; text-align: center;">' . $row->total . '</td>';
+                $html .= '</tr>';
+            }
+        }
+
+        $html .= '</tbody>';
+        
+        // Baris Footer (Jumlah Keseluruhan)
+        $html .= '<tfoot>';
+        $html .= '<tr>';
+        $html .= '<th colspan="2" style="border: 1px solid #000; padding: 10px; text-align: center;">JUMLAH</th>';
+        $html .= '<th style="border: 1px solid #000; padding: 10px; text-align: center;">' . $totalMale . '</th>';
+        $html .= '<th style="border: 1px solid #000; padding: 10px; text-align: center;">' . $totalFemale . '</th>';
+        $html .= '<th style="border: 1px solid #000; padding: 10px; text-align: center;">' . $grandTotal . '</th>';
+        $html .= '</tr>';
+        $html .= '</tfoot>';
+        
+        $html .= '</table>';
+        $html .= '</div>';
+
+        return $html;
+    }
+
+    /**
      * Menampilkan daftar peserta dengan status terverifikasi (verified)
      * Format tabel disesuaikan dengan format SK/Penetapan.
      */
@@ -237,6 +351,105 @@ class UtilityController extends Controller
         }
 
         $html .= '</tbody>';
+        $html .= '</table>';
+        $html .= '</div>';
+
+        return $html;
+    }
+
+    /**
+     * Menampilkan rekapitulasi jumlah peserta terverifikasi 
+     * berdasarkan Cabang Golongan (Event Group) dan Jenis Kelamin.
+     */
+    public function groupGenderRecap()
+    {
+        // 1. Ambil event yang aktif.
+        $activeEvent = \App\Models\Event::first(); 
+
+        if (!$activeEvent) {
+            return '<h3 style="color: red; text-align: center; font-family: sans-serif; margin-top: 50px;">Tidak ada event yang aktif.</h3>';
+        }
+
+        // 2. Query rekapitulasi data dengan melakukan join ke tabel participants dan event_groups
+        $summary = \App\Models\EventParticipant::query()
+            ->join('participants', 'event_participants.participant_id', '=', 'participants.id')
+            ->join('event_groups', 'event_participants.event_group_id', '=', 'event_groups.id')
+            ->where('event_participants.event_id', $activeEvent->id)
+            ->where('event_participants.registration_status', 'verified') // Hanya hitung yang verified
+            ->select(
+                'event_groups.full_name as group_name',
+                \DB::raw("SUM(CASE WHEN participants.gender = 'MALE' THEN 1 ELSE 0 END) as male_count"),
+                \DB::raw("SUM(CASE WHEN participants.gender = 'FEMALE' THEN 1 ELSE 0 END) as female_count"),
+                \DB::raw("COUNT(event_participants.id) as total")
+            )
+            // Grouping dan pengurutan berdasarkan hierarki cabang dan golongan
+            ->groupBy('event_groups.id', 'event_groups.full_name', 'event_groups.order_number', 'event_groups.branch_id')
+            ->orderBy('event_groups.branch_id', 'asc')
+            ->orderBy('event_groups.order_number', 'asc')
+            ->get();
+
+        // 3. Render HTML Tabel menyerupai gambar
+        $html = '<div style="font-family: Arial, sans-serif; max-width: 800px; margin: 30px auto; color: #000;">';
+        
+        $html .= '<table style="width: 100%; border-collapse: collapse; border: 2px solid #000; font-size: 14px;">';
+        $html .= '<thead>';
+        
+        // Baris Header 1
+        $html .= '<tr>';
+        $html .= '<th rowspan="2" style="border: 1px solid #000; padding: 10px; width: 5%; text-align: center;">NO</th>';
+        // Header mengikuti format gambar (tertulis UTUSAN meskipun isinya Cabang)
+        $html .= '<th rowspan="2" style="border: 1px solid #000; padding: 10px; text-align: center;">UTUSAN</th>';
+        $html .= '<th colspan="2" style="border: 1px solid #000; padding: 10px; text-align: center;">PESERTA</th>';
+        $html .= '<th rowspan="2" style="border: 1px solid #000; padding: 10px; text-align: center; width: 15%;">JUMLAH</th>';
+        $html .= '</tr>';
+
+        // Baris Header 2 (Sub-header PESERTA)
+        $html .= '<tr>';
+        $html .= '<th style="border: 1px solid #000; padding: 8px; text-align: center; width: 15%;">LAKI-LAKI</th>';
+        $html .= '<th style="border: 1px solid #000; padding: 8px; text-align: center; width: 15%;">PEREMPUAN</th>';
+        $html .= '</tr>';
+        $html .= '</thead>';
+        $html .= '<tbody>';
+
+        $totalMale = 0;
+        $totalFemale = 0;
+        $grandTotal = 0;
+
+        if ($summary->isEmpty()) {
+            $html .= '<tr><td colspan="5" style="border: 1px solid #000; padding: 15px; text-align: center; font-style: italic;">Belum ada data peserta terverifikasi pada event ini.</td></tr>';
+        } else {
+            $no = 1;
+            foreach ($summary as $row) {
+                $groupName = $row->group_name ?: '-';
+                
+                // Tambahkan ke total akumulasi terbawah
+                $totalMale += $row->male_count;
+                $totalFemale += $row->female_count;
+                $grandTotal += $row->total;
+
+                $html .= '<tr>';
+                $html .= '<td style="border: 1px solid #000; padding: 8px; text-align: center;">' . $no++ . '</td>';
+                // Cabang rata kiri sesuai gambar
+                $html .= '<td style="border: 1px solid #000; padding: 8px 15px; text-align: left;">' . e(strtoupper($groupName)) . '</td>';
+                $html .= '<td style="border: 1px solid #000; padding: 8px; text-align: center;">' . $row->male_count . '</td>';
+                $html .= '<td style="border: 1px solid #000; padding: 8px; text-align: center;">' . $row->female_count . '</td>';
+                $html .= '<td style="border: 1px solid #000; padding: 8px; text-align: center;">' . $row->total . '</td>';
+                $html .= '</tr>';
+            }
+        }
+
+        $html .= '</tbody>';
+        
+        // Baris Footer (Jumlah Keseluruhan) - Mengikuti gambar tanpa teks "JUMLAH" di kolom pertama, tapi digabung
+        $html .= '<tfoot>';
+        $html .= '<tr>';
+        $html .= '<th colspan="2" style="border: 1px solid #000; padding: 10px; text-align: center;">JUMLAH</th>';
+        $html .= '<th style="border: 1px solid #000; padding: 10px; text-align: center;">' . $totalMale . '</th>';
+        $html .= '<th style="border: 1px solid #000; padding: 10px; text-align: center;">' . $totalFemale . '</th>';
+        $html .= '<th style="border: 1px solid #000; padding: 10px; text-align: center;">' . $grandTotal . '</th>';
+        $html .= '</tr>';
+        $html .= '</tfoot>';
+        
         $html .= '</table>';
         $html .= '</div>';
 
