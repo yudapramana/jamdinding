@@ -60,9 +60,7 @@ class UtilityController extends Controller
         
         // Bagian Header Judul
         $html .= '<div style="text-align: center; margin-bottom: 20px; font-weight: bold; font-size: 14px; line-height: 1.5;">';
-        $html .= 'PENETAPAN QORI/QORIAH, HAFIDZ/HAFIDZAH, MUFASSIR/MUFASSIROH, QIROATUL KUTUB,<br>';
-        $html .= 'TIM SYARHIL QUR\'AN, TIM FAHMIL QUR\'AN, KALIGRAFI DAN MMQ<br>';
-        $html .= 'SEBAGAI PESERTA<br>';
+        $html .= 'PENETAPAN SEBAGAI PESERTA<br>';
         $html .= 'PADA ' . strtoupper($activeEvent->event_name ?? 'MTQ') . ' TAHUN ' . ($activeEvent->event_year ?? date('Y'));
         $html .= '</div>';
 
