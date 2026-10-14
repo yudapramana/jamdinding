@@ -64,7 +64,8 @@ class User extends Authenticatable
         'nip_name',
         'role_names',
         'must_change_password',
-        'permissions'
+        'permissions',
+        // 'clerk_panels' // <--- Tambahkan di sini
     ];
 
     public function getFormattedCreatedAtAttribute()
@@ -272,6 +273,42 @@ class User extends Authenticatable
             ->withPivot(['is_chief'])
             ->withTimestamps();
     }
+
+    /**
+     * Relasi ke penugasan (tabel pivot) panitera
+     */
+    public function clerkAssignment()
+    {
+        return $this->hasOne(EventJudgePanelClerk::class, 'user_id');
+    }
+
+    /**
+     * Helper untuk mengambil langsung Majelis Hakim-nya.
+     * Menggunakan nama 'clerkPanel' (singular) karena 1 panitera = 1 panel.
+     * 
+     * NOTE: Jika Anda menggunakan 'clerkPanels' (plural) di Frontend, 
+     * ubah saja namanya menjadi 'clerkPanels' di sini agar API response tidak rusak.
+     * Namun saya buat format Array di append agar struktur lama tidak rusak.
+     */
+    // public function getClerkPanelsAttribute()
+    // {
+    //     // Mengembalikan array berisi 1 panel agar frontend yang pakai [0] tidak error
+    //     if ($this->clerkAssignment && $this->clerkAssignment->eventJudgePanel) {
+            
+    //         // Lakukan load() agar relasi 'eventGroups' ikut termuat ke dalam JSON
+    //         $panel = $this->clerkAssignment->eventJudgePanel->load('eventGroups');
+            
+    //         // Sisipkan data pivot buatan agar frontend yang akses .is_active tidak error
+    //         $panel->pivot = [
+    //             'is_active' => $this->clerkAssignment->is_active,
+    //             'notes' => $this->clerkAssignment->notes,
+    //         ];
+            
+    //         return [$panel];
+    //     }
+        
+    //     return [];
+    // }
 
     /**
      * Ambil ID wilayah user berdasarkan region_type tertentu.

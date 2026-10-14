@@ -30,6 +30,7 @@
     "pdfjs-dist": "^5.1.91",
     "pinia": "^2.1.7",
     "primevue": "^3.48.1",
+    "quran-meta": "^7.0.0",
     "register-service-worker": "^1.7.2",
     "roboto-fontface": "*",
     "sweetalert2": "^11.10.5",

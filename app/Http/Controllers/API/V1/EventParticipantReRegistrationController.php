@@ -40,7 +40,7 @@ class EventParticipantReRegistrationController extends Controller
 
         // ➕ Closure Reusable untuk Filter Wilayah ke relasi Participant
         $regionFilter = function ($q) use ($roleSlug, $eventRegionId, $event, $user) {
-            if (in_array($roleSlug, ['superadmin', 'admin_event'], true)) {
+            if (in_array($roleSlug, ['superadmin', 'admin_event', 'panitera'], true)) {
                 if (!empty($eventRegionId)) {
                     $level = $event->event_level;
                     if ($level === 'province') {
@@ -229,7 +229,6 @@ class EventParticipantReRegistrationController extends Controller
             ], 422);
         }
 
-
         $request->validate([
             'branch_sequence' => 'required|integer|min:1|max:99',
         ]);
@@ -238,6 +237,7 @@ class EventParticipantReRegistrationController extends Controller
             return response()->json(['message' => 'Nomor sudah dikunci.'], 422);
         }
 
+        // Cek duplikasi nomor undian (branch_sequence)
         $exists = EventParticipant::where('event_id', $eventParticipant->event_id)
             ->where('event_branch_id', $eventParticipant->event_branch_id)
             ->where('event_category_id', $eventParticipant->event_category_id)
@@ -248,12 +248,68 @@ class EventParticipantReRegistrationController extends Controller
             return response()->json(['message' => 'Nomor sudah digunakan.'], 422);
         }
 
+        // Ambil data gender dari relasi participant
+        $eventParticipant->load('participant');
+        $gender = strtoupper($eventParticipant->participant->gender);
+
+        // Array Urutan Kontingen Kecamatan
+        $districts = [
+            "IV Jurai", 
+            "Bayang", 
+            "IV Nagari Bayang Utara", 
+            "Batang Kapas", 
+            "Koto XI Tarusan", 
+            "Sutera", 
+            "Lengayang", 
+            "Ranah Pesisir", 
+            "Linggo Sari Baganti", 
+            "Airpura", 
+            "Pancung Soal", 
+            "Basa Ampek Balai Tapan", 
+            "Ranah Ampek Hulu Tapan", 
+            "Lunang", 
+            "Silaut"
+        ];
+
+        // Cari index kontingen peserta (case-insensitive)
+        $contingentName = trim($eventParticipant->contingent);
+        $districtIndex = false;
+
+        foreach ($districts as $index => $district) {
+            if (strcasecmp($district, $contingentName) === 0) {
+                $districtIndex = $index;
+                break;
+            }
+        }
+
+        if ($districtIndex === false) {
+            return response()->json([
+                'message' => "Kontingen '{$contingentName}' tidak ditemukan dalam daftar urutan wilayah."
+            ], 422);
+        }
+
+        /**
+         * Logika Chest Number:
+         * Index 0 (IV Jurai) -> Putri = 1, Putra = 2
+         * Index 1 (Bayang) -> Putri = 3, Putra = 4
+         * Rumus: (Index * 2) + (Gender === 'FEMALE' ? 1 : 2)
+         */
+        $chestNumber = ($districtIndex * 2) + ($gender === 'FEMALE' ? 1 : 2);
+
         $branchCode = $eventParticipant->eventGroup->code;
+
+        // Format akhir: TL.04.01.14 (BranchCode . ChestNumber . BranchSequence)
+        $participantNumber = sprintf(
+            '%s.%02d.%02d', 
+            $branchCode, 
+            $chestNumber, 
+            $request->branch_sequence
+        );
 
         $eventParticipant->update([
             'branch_code' => $branchCode,
             'branch_sequence' => $request->branch_sequence,
-            'participant_number' => sprintf('%s.%02d', $branchCode, $request->branch_sequence),
+            'participant_number' => $participantNumber,
         ]);
 
         return response()->json([

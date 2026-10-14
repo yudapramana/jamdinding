@@ -117,9 +117,14 @@ Route::controller(UtilityController::class)->group(function () {
     Route::get('/all-users', 'allUsers');
     Route::get('/event-participants/count-by-region', 'countParticipantsByRegion');
     Route::get('/event-participants/count-by-branch', 'countParticipantsByBranchGroup');
+    // ➕ Tambahkan route baru ini
+    Route::get('/generate-chest-numbers', 'generateChestNumbers');
+    Route::get('/generate-team-chest-numbers', 'generateTeamChestNumbers');
     Route::get('/xup', 'xUp');
     Route::get('/xdown/{view}', 'xDown');
     Route::get('/view-error/{view}', 'viewError');
+    // ➕ Tambahkan route baru ini untuk melihat peserta terverifikasi
+    Route::get('/verified-participants', 'verifiedParticipants');
 });
 
 /*

@@ -19,19 +19,331 @@ class UtilityController extends Controller
         // 1. Pastikan user sudah login (jika belum, akan otomatis diarahkan ke halaman login)
         $this->middleware('auth');
 
-        // 2. 🔒 Middleware untuk membatasi akses hanya untuk role superadmin
+        // 2. 🔒 Middleware untuk membatasi akses hanya untuk role superadmin dan admin_event
         $this->middleware(function ($request, $next) {
             $user = Auth::user();
             
             // Gunakan Nullsafe operator (?->) agar tidak error jika relasi role kosong
             $roleSlug = $user?->role?->slug ?? '';
 
-            if ($roleSlug !== 'superadmin') {
-                abort(403, 'Unauthorized. Hanya Superadmin yang diizinkan mengakses halaman ini.');
+            if (!in_array($roleSlug, ['superadmin', 'admin_event'])) {
+                abort(403, 'Unauthorized. Hanya Superadmin dan Admin Event yang diizinkan mengakses halaman ini.');
             }
 
             return $next($request);
         });
+    }
+
+    /**
+     * Menampilkan daftar peserta dengan status terverifikasi (verified)
+     * Format tabel disesuaikan dengan format SK/Penetapan.
+     */
+    public function verifiedParticipants()
+    {
+        // 1. Ambil event yang aktif.
+        $activeEvent = \App\Models\Event::first(); 
+
+        if (!$activeEvent) {
+            return '<h3 style="color: red; text-align: center; font-family: sans-serif; margin-top: 50px;">Tidak ada event yang aktif.</h3>';
+        }
+
+        // 2. Ambil data event_participants yang statusnya 'verified'
+        $participants = \App\Models\EventParticipant::with(['participant', 'eventGroup'])
+            ->where('event_id', $activeEvent->id)
+            ->where('registration_status', 'verified')
+            ->orderBy('event_branch_id', 'asc')
+            ->orderBy('participant_number', 'asc')
+            ->get();
+
+        // 3. Render HTML Tabel menyesuaikan desain gambar
+        $html = '<div style="font-family: Arial, sans-serif; max-width: 1000px; margin: 30px auto; color: #000;">';
+        
+        // Bagian Header Judul
+        $html .= '<div style="text-align: center; margin-bottom: 20px; font-weight: bold; font-size: 14px; line-height: 1.5;">';
+        $html .= 'PENETAPAN QORI/QORIAH, HAFIDZ/HAFIDZAH, MUFASSIR/MUFASSIROH, QIROATUL KUTUB,<br>';
+        $html .= 'TIM SYARHIL QUR\'AN, TIM FAHMIL QUR\'AN, KALIGRAFI DAN MMQ<br>';
+        $html .= 'SEBAGAI PESERTA<br>';
+        $html .= 'PADA ' . strtoupper($activeEvent->event_name ?? 'MTQ') . ' TAHUN ' . ($activeEvent->event_year ?? date('Y'));
+        $html .= '</div>';
+
+        // Bagian Tabel
+        $html .= '<table style="width: 100%; border-collapse: collapse; border: 2px solid #000; font-size: 13px;">';
+        $html .= '<thead>';
+        $html .= '<tr style="background-color: #92d050; border-bottom: 2px solid #000;">';
+        $html .= '<th style="border: 2px solid #000; padding: 8px; text-align: center; width: 5%;">NO.<br>URUT</th>';
+        $html .= '<th style="border: 2px solid #000; padding: 8px; text-align: center;">NO.<br>PESERTA</th>';
+        $html .= '<th style="border: 2px solid #000; padding: 8px; text-align: left;">NAMA PESERTA</th>';
+        $html .= '<th style="border: 2px solid #000; padding: 8px; text-align: center;">CABANG</th>';
+        $html .= '<th style="border: 2px solid #000; padding: 8px; text-align: center;">GOLONGAN</th>';
+        $html .= '<th style="border: 2px solid #000; padding: 8px; text-align: center;">JENIS KELAMIN</th>';
+        $html .= '<th style="border: 2px solid #000; padding: 8px; text-align: center;">KAFILAH</th>';
+        $html .= '</tr>';
+        $html .= '</thead>';
+        $html .= '<tbody>';
+
+        if ($participants->isEmpty()) {
+            $html .= '<tr><td colspan="7" style="border: 1px solid #000; padding: 15px; text-align: center; font-style: italic;">Belum ada peserta yang terverifikasi pada event ini.</td></tr>';
+        } else {
+            $no = 1;
+            foreach ($participants as $ep) {
+                $noPeserta = substr($ep->participant_number, 0, 8);
+                $nama = $ep->participant?->full_name ?? '-';
+                
+                // Ambil string cabang asli
+                $cabangRaw = $ep->eventGroup?->branch_name ?? '-';
+                $golongan = $ep->eventGroup?->group_name ?? '-';
+                
+                // Filter: Jika ada teks di dalam kurung, ambil yang di dalam kurung saja
+                if (preg_match('/\((.*?)\)/', $cabangRaw, $matches)) {
+                    $cabangFinal = trim($matches[1]);
+                } else {
+                    $cabangFinal = trim($cabangRaw);
+                }
+                
+                $jk = '-';
+                if ($ep->participant?->gender === 'MALE') {
+                    $jk = 'laki-laki';
+                } elseif ($ep->participant?->gender === 'FEMALE') {
+                    $jk = 'perempuan';
+                }
+                
+                $kafilah = $ep->contingent ?: '-';
+
+                $html .= '<tr>';
+                $html .= '<td style="border: 2px solid #000; padding: 6px 8px; text-align: center;">' . $no++ . '</td>';
+                $html .= '<td style="border: 2px solid #000; padding: 6px 8px; text-align: center;">' . e($noPeserta) . '</td>';
+                $html .= '<td style="border: 2px solid #000; padding: 6px 8px;">' . e(strtoupper($nama)) . '</td>';
+                $html .= '<td style="border: 2px solid #000; padding: 6px 8px; text-align: center;">' . e(ucwords(strtolower($cabangFinal))) . '</td>';
+                $html .= '<td style="border: 2px solid #000; padding: 6px 8px; text-align: center;">' . e(ucwords(strtolower($golongan))) . '</td>';
+                $html .= '<td style="border: 2px solid #000; padding: 6px 8px; text-align: center;">' . e($jk) . '</td>';
+                // ✅ PERBAIKAN: Menghapus strtolower() agar format teks kafilah tetap sesuai aslinya
+                $html .= '<td style="border: 2px solid #000; padding: 6px 8px; text-align: center;">' . e($kafilah) . '</td>';
+                $html .= '</tr>';
+            }
+        }
+
+        $html .= '</tbody>';
+        $html .= '</table>';
+        $html .= '</div>';
+
+        return $html;
+    }
+
+    /**
+     * Mengisi participant_number awal (BranchCode.ChestNumber) 
+     * untuk seluruh peserta individu yang sudah terverifikasi.
+     */
+    public function generateChestNumbers()
+    {
+        // Ambil event yang aktif
+        $activeEvent = \App\Models\Event::first(); 
+
+        if (!$activeEvent) {
+            return response()->json(['message' => 'Tidak ada event aktif.'], 404);
+        }
+
+        // Ambil peserta yang sudah diverifikasi pendaftarannya
+        $participants = \App\Models\EventParticipant::with(['participant', 'eventGroup'])
+            ->where('event_id', $activeEvent->id)
+            ->where('registration_status', 'verified')
+            ->get();
+
+        // Array Urutan Kontingen Kecamatan
+        $districts = [
+            "IV Jurai", 
+            "Bayang", 
+            "IV Nagari Bayang Utara", 
+            "Batang Kapas", 
+            "Koto XI Tarusan", 
+            "Sutera", 
+            "Lengayang", 
+            "Ranah Pesisir", 
+            "Linggo Sari Baganti", 
+            "Airpura", 
+            "Pancung Soal", 
+            "Basa Ampek Balai Tapan", 
+            "Ranah Ampek Hulu Tapan", 
+            "Lunang", 
+            "Silaut"
+        ];
+
+        $updatedCount = 0;
+        $skippedCount = 0;
+        $errors = [];
+
+        foreach ($participants as $ep) {
+            // Lewati jika peserta adalah tim (cabang beregu)
+            if ($ep->eventGroup && $ep->eventGroup->is_team) {
+                $skippedCount++;
+                continue;
+            }
+
+            // Validasi data participant
+            if (!$ep->participant) {
+                $errors[] = "Peserta dengan EventParticipant ID {$ep->id} tidak memiliki data master relasi.";
+                $skippedCount++;
+                continue;
+            }
+
+            $gender = strtoupper($ep->participant->gender);
+            $contingentName = trim($ep->contingent);
+            $districtIndex = false;
+
+            // Cari index berdasarkan nama kontingen (case-insensitive)
+            foreach ($districts as $index => $district) {
+                if (strcasecmp($district, $contingentName) === 0) {
+                    $districtIndex = $index;
+                    break;
+                }
+            }
+
+            if ($districtIndex === false) {
+                $errors[] = "Kontingen '{$contingentName}' tidak dikenali (ID: {$ep->id}).";
+                $skippedCount++;
+                continue;
+            }
+
+            /**
+             * Logika Chest Number:
+             * Index 0 (IV Jurai) -> Putri = 1, Putra = 2
+             * Index 1 (Bayang) -> Putri = 3, Putra = 4
+             * Rumus: (Index * 2) + (Gender === 'FEMALE' ? 1 : 2)
+             */
+            $chestNumber = ($districtIndex * 2) + ($gender === 'FEMALE' ? 1 : 2);
+            $branchCode = $ep->eventGroup->code;
+
+            // Format: BranchCode.ChestNumber (Contoh: TL.04.01)
+            $participantNumber = sprintf('%s.%02d', $branchCode, $chestNumber);
+
+            // Update ke database
+            $ep->update([
+                'branch_code' => $branchCode,
+                'participant_number' => $participantNumber,
+            ]);
+
+            $updatedCount++;
+        }
+
+        return response()->json([
+            'message' => 'Generate awal Chest Number selesai.',
+            'event_id' => $activeEvent->id,
+            'summary' => [
+                'updated_participants' => $updatedCount,
+                'skipped_teams_or_invalid' => $skippedCount,
+            ],
+            'errors' => $errors
+        ]);
+    }
+
+    /**
+     * Mengisi participant_number awal (BranchCode.ChestNumber) 
+     * untuk seluruh tim (EventTeam) yang valid, beserta seluruh 
+     * anggota tim di tabel event_participants.
+     */
+    public function generateTeamChestNumbers()
+    {
+        $activeEvent = \App\Models\Event::first(); 
+
+        if (!$activeEvent) {
+            return response()->json(['message' => 'Tidak ada event aktif.'], 404);
+        }
+
+        // Ambil tim yang berada di event aktif dan memiliki minimal 1 anggota terverifikasi
+        $teams = \App\Models\EventTeam::with(['eventCategory', 'eventGroup'])
+            ->where('event_id', $activeEvent->id)
+            ->whereHas('participants', function($q) {
+                $q->where('registration_status', 'verified');
+            })
+            ->get();
+
+        $districts = [
+            "IV Jurai", 
+            "Bayang", 
+            "IV Nagari Bayang Utara", 
+            "Batang Kapas", 
+            "Koto XI Tarusan", 
+            "Sutera", 
+            "Lengayang", 
+            "Ranah Pesisir", 
+            "Linggo Sari Baganti", 
+            "Airpura", 
+            "Pancung Soal", 
+            "Basa Ampek Balai Tapan", 
+            "Ranah Ampek Hulu Tapan", 
+            "Lunang", 
+            "Silaut"
+        ];
+
+        $updatedCount = 0;
+        $skippedCount = 0;
+        $errors = [];
+
+        foreach ($teams as $team) {
+            // Validasi keberadaan relasi master
+            if (!$team->eventCategory || !$team->eventGroup) {
+                $errors[] = "Tim ID {$team->id} tidak memiliki relasi kategori atau golongan.";
+                $skippedCount++;
+                continue;
+            }
+
+            $categoryName = strtoupper($team->eventCategory->category_name ?? '');
+            
+            // Validasi gender berdasarkan nama kategori
+            if (!in_array($categoryName, ['PUTRA', 'PUTRI'])) {
+                $errors[] = "Tim ID {$team->id} memiliki kategori yang bukan Putra/Putri ({$categoryName}).";
+                $skippedCount++;
+                continue;
+            }
+            
+            $isFemale = ($categoryName === 'PUTRI');
+            $contingentName = trim($team->contingent);
+            $districtIndex = false;
+
+            // Cari index berdasarkan nama kontingen (case-insensitive)
+            foreach ($districts as $index => $district) {
+                if (strcasecmp($district, $contingentName) === 0) {
+                    $districtIndex = $index;
+                    break;
+                }
+            }
+
+            if ($districtIndex === false) {
+                $errors[] = "Kontingen '{$contingentName}' tidak dikenali (Tim ID: {$team->id}).";
+                $skippedCount++;
+                continue;
+            }
+
+            // Hitung Chest Number (Perbaikan operator perkalian pada index)
+            $chestNumber = ($districtIndex * 2) + ($isFemale ? 1 : 2);
+            $branchCode = $team->eventGroup->code;
+
+            // Format Awal: BranchCode.ChestNumber (Contoh: MSQ.02)
+            $participantNumber = sprintf('%s.%02d', $branchCode, $chestNumber);
+
+            // 1. Update ke tabel event_teams
+            $team->update([
+                'branch_code' => $branchCode,
+                'participant_number' => $participantNumber,
+            ]);
+
+            // 2. Update massal ke tabel event_participants yang tergabung di dalam tim ini
+            \App\Models\EventParticipant::where('event_team_id', $team->id)->update([
+                'branch_code' => $branchCode,
+                'participant_number' => $participantNumber,
+            ]);
+
+            $updatedCount++;
+        }
+
+        return response()->json([
+            'message' => 'Generate awal Chest Number untuk Tim dan Anggotanya selesai.',
+            'event_id' => $activeEvent->id,
+            'summary' => [
+                'updated_teams' => $updatedCount,
+                'skipped_teams' => $skippedCount,
+            ],
+            'errors' => $errors
+        ]);
     }
 
     /**

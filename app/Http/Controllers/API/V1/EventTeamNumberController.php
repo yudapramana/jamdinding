@@ -143,12 +143,69 @@ class EventTeamNumberController extends Controller
             return response()->json(['message' => 'Nomor tim sudah digunakan.'], 422);
         }
 
-        $branchCode = $eventTeam->eventGroup->branch->code . '-G';
+        // Ambil data kategori untuk mendeteksi Putra/Putri
+        $eventTeam->load(['eventCategory', 'eventGroup']);
+        $categoryName = strtoupper($eventTeam->eventCategory->category_name ?? '');
+        $isFemale = ($categoryName === 'PUTRI');
+
+        // Array Urutan Kontingen Kecamatan
+        $districts = [
+            "IV Jurai", 
+            "Bayang", 
+            "IV Nagari Bayang Utara", 
+            "Batang Kapas", 
+            "Koto XI Tarusan", 
+            "Sutera", 
+            "Lengayang", 
+            "Ranah Pesisir", 
+            "Linggo Sari Baganti", 
+            "Airpura", 
+            "Pancung Soal", 
+            "Basa Ampek Balai Tapan", 
+            "Ranah Ampek Hulu Tapan", 
+            "Lunang", 
+            "Silaut"
+        ];
+
+        // Cari index kontingen tim (case-insensitive)
+        $contingentName = trim($eventTeam->contingent);
+        $districtIndex = false;
+
+        foreach ($districts as $index => $district) {
+            if (strcasecmp($district, $contingentName) === 0) {
+                $districtIndex = $index;
+                break;
+            }
+        }
+
+        if ($districtIndex === false) {
+            return response()->json([
+                'message' => "Kontingen '{$contingentName}' tidak ditemukan dalam daftar urutan wilayah."
+            ], 422);
+        }
+
+        /**
+         * Logika Chest Number:
+         * Index 0 (IV Jurai) -> Putri = 1, Putra = 2
+         * Index 1 (Bayang) -> Putri = 3, Putra = 4
+         * Rumus: (Index * 2) + (isFemale ? 1 : 2)
+         */
+        $chestNumber = ($districtIndex * 2) + ($isFemale ? 1 : 2);
+
+        $branchCode = $eventTeam->eventGroup->code;
+
+        // Format akhir: BranchCode.ChestNumber.BranchSequence (Contoh: TL.04.01.14)
+        $participantNumber = sprintf(
+            '%s.%02d.%02d', 
+            $branchCode, 
+            $chestNumber, 
+            $request->branch_sequence
+        );
 
         $eventTeam->update([
             'branch_code' => $branchCode,
             'branch_sequence' => $request->branch_sequence,
-            'participant_number' => sprintf('%s.%02d', $branchCode, $request->branch_sequence),
+            'participant_number' => $participantNumber,
         ]);
 
         return response()->json([

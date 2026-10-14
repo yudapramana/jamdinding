@@ -130,6 +130,17 @@
                 </td>
                 <td class="text-center">
                   <div class="btn-group btn-group-sm">
+
+                    <!-- Tombol Khusus Panitera: Assign Majelis -->
+                    <button
+                      v-if="u.role && u.role.name.toLowerCase().includes('panitera')"
+                      class="btn btn-outline-info"
+                      title="Assign Majelis"
+                      @click="openAssignPanelModal(u)"
+                    >
+                      <i class="fas fa-gavel"></i>
+                    </button>
+                    
                     <button
                       class="btn btn-outline-warning"
                       title="Edit"
@@ -415,6 +426,66 @@
       </div>
     </div>
 
+    <!-- Modal Assign Majelis untuk Panitera -->
+    <div class="modal fade" id="assignPanelModal" tabindex="-1" role="dialog">
+      <div class="modal-dialog" role="document">
+        <div class="modal-content">
+          <div class="modal-header py-2">
+            <h5 class="modal-title">
+              <i class="fas fa-gavel mr-2"></i>
+              Assign Majelis Panitera
+            </h5>
+            <button type="button" class="close" data-dismiss="modal">
+              <span>&times;</span>
+            </button>
+          </div>
+
+          <div class="modal-body">
+            <div v-if="selectedPanitera" class="mb-3">
+              <strong>Panitera:</strong> {{ selectedPanitera.name }} <br>
+              <strong>Username:</strong> {{ selectedPanitera.username }}
+            </div>
+
+            <form @submit.prevent="submitAssignPanel">
+              <div class="form-group mb-2">
+                <label class="mb-2">Pilih Majelis yang ditugaskan:</label>
+                
+                <div v-if="isLoadingPanels" class="text-muted text-sm">
+                  <i class="fas fa-spinner fa-spin mr-1"></i> Memuat daftar majelis...
+                </div>
+                <div v-else-if="availablePanels.length === 0" class="alert alert-warning text-sm">
+                  Tidak ada majelis yang ditemukan untuk event ini. Silakan buat Majelis Hakim terlebih dahulu.
+                </div>
+                
+                <!-- Ubah jadi Select Dropdown karena 1 Panitera = 1 Majelis -->
+                <div v-else>
+                  <select v-model="selectedPanelId" class="form-control form-control-sm">
+                    <option :value="null">-- Tidak Ada / Cabut Penugasan --</option>
+                    <option 
+                      v-for="panel in availablePanels" 
+                      :key="panel.id" 
+                      :value="panel.id"
+                    >
+                      {{ panel.name }} <span v-if="panel.code">({{ panel.code }})</span>
+                    </option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="text-right mt-4">
+                <button type="button" class="btn btn-sm btn-secondary mr-2" data-dismiss="modal">Batal</button>
+                <button type="submit" class="btn btn-sm btn-primary" :disabled="isAssigning || isLoadingPanels">
+                  <i v-if="isAssigning" class="fas fa-spinner fa-spin mr-1"></i>
+                  <i v-else class="fas fa-save mr-1"></i>
+                  Simpan Penugasan
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+
   </section>
 </template>
 
@@ -461,6 +532,84 @@ const generateForm = ref({
   default_password: '',
   email_domain: '',
 })
+
+// --- STATE UNTUK ASSIGN MAJELIS ---
+const selectedPanitera = ref(null)
+const availablePanels = ref([])
+const selectedPanelId = ref(null) // Tetap menggunakan value tunggal
+const isLoadingPanels = ref(false)
+const isAssigning = ref(false)
+const hasFetchedPanels = ref(false)
+
+// Fungsi membuka modal assign majelis
+const openAssignPanelModal = async (u) => {
+  if (!eventId.value) {
+    alert('Event belum terdeteksi!')
+    return
+  }
+
+  selectedPanitera.value = u
+  selectedPanelId.value = null
+  isLoadingPanels.value = true
+
+  $('#assignPanelModal').modal('show')
+
+  try {
+    // 1. Fetch available panels HANYA 1 KALI (di-cache)
+    if (!hasFetchedPanels.value) {
+      const resPanels = await axios.get('/api/v1/event-judge-panels', {
+        params: { event_id: eventId.value, per_page: 100 }
+      })
+      availablePanels.value = resPanels.data.data || resPanels.data || []
+      hasFetchedPanels.value = true
+    }
+
+    // 2. Fetch detail user untuk mendapatkan majelis yang sudah dipilih (aktif)
+    const resUser = await axios.get(`/api/v1/users/${u.id}`)
+    
+    // Gunakan relasi clerk_assignment secara langsung
+    const assignment = resUser.data.clerk_assignment || resUser.data.clerkAssignment || null
+    
+    // Jika ada data assignment, langsung ambil event_judge_panel_id-nya
+    if (assignment && assignment.event_judge_panel_id) {
+      selectedPanelId.value = assignment.event_judge_panel_id
+    }
+
+  } catch (error) {
+    console.error('Gagal mengambil data penugasan:', error)
+    alert('Terjadi kesalahan saat memuat data majelis atau user.')
+  } finally {
+    isLoadingPanels.value = false
+  }
+}
+
+// Fungsi submit data penugasan ke backend
+const submitAssignPanel = async () => {
+  isAssigning.value = true
+  try {
+    // Backend API Anda menerima format array `panel_ids`. 
+    // Kita bungkus `selectedPanelId` ke dalam array jika ada isinya.
+    const panelIdsPayload = selectedPanelId.value ? [selectedPanelId.value] : []
+
+    await axios.post(`/api/v1/users/${selectedPanitera.value.id}/assign-panels`, {
+      panel_ids: panelIdsPayload
+    })
+
+    $('#assignPanelModal').modal('hide')
+    Swal.fire({
+      icon: 'success',
+      title: 'Berhasil',
+      text: 'Penugasan majelis berhasil disimpan',
+      showConfirmButton: false,
+      timer: 1500,
+    })
+  } catch (error) {
+    console.error('Gagal menyimpan penugasan:', error)
+    alert(error.response?.data?.message || 'Gagal menyimpan penugasan majelis.')
+  } finally {
+    isAssigning.value = false
+  }
+}
 
 /**
  * Computed untuk nama event (skema baru + fallback)
@@ -745,6 +894,21 @@ const deleteUser = async (u) => {
   }
 }
 
+// kalau eventData di AuthUserStore berubah (pilih event baru), sinkron & reload
+watch(
+  () => authUserStore.eventData?.id,
+  (newId, oldId) => {
+    if (newId && newId !== oldId) {
+      syncEventContext()
+      
+      // TAMBAHKAN BARIS INI: Reset cache panel agar di-fetch ulang untuk event yang baru
+      hasFetchedPanels.value = false 
+      availablePanels.value = []
+      
+      fetchUsers(1)
+    }
+  }
+)
 
 watch(perPage, () => {
   fetchUsers(1)

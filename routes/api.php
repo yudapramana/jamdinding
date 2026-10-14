@@ -31,10 +31,12 @@ use App\Http\Controllers\API\V1\EventJudgeController;
 use App\Http\Controllers\API\V1\EventJudgePanelController;
 use App\Http\Controllers\API\V1\EventKokardeController;
 use App\Http\Controllers\API\V1\EventLocationController;
+use App\Http\Controllers\API\V1\EventMaqraController;
 use App\Http\Controllers\API\V1\EventMedalRuleController;
 use App\Http\Controllers\API\V1\EventMedalStandingController;
 use App\Http\Controllers\API\V1\EventParticipantController;
 use App\Http\Controllers\API\V1\EventParticipantReRegistrationController;
+use App\Http\Controllers\API\V1\EventQuestionPackageController;
 use App\Http\Controllers\API\V1\EventRegionMandateController;
 use App\Http\Controllers\API\V1\EventStageController;
 use App\Http\Controllers\API\V1\EventTeamNumberController;
@@ -56,6 +58,7 @@ use App\Http\Controllers\API\V1\UserController;
 use App\Http\Controllers\WhatsAppController;
 use App\Http\Controllers\Auth\PasswordResetWhatsappController;
 use App\Http\Controllers\API\V1\MandateController;
+use App\Models\EventJudgePanel;
 
 /*
 |--------------------------------------------------------------------------
@@ -88,6 +91,23 @@ Route::middleware(['auth:sanctum']) // kalau belum pakai sanctum, boleh dihapus 
     ->prefix('v1')
     ->group(function () {
 
+        // Endpoint untuk mengambil daftar majelis berdasarkan parameter ?event_id=X
+        Route::get('event-judge-panels', [EventJudgePanelController::class, 'allPanels']);
+
+        // Routes untuk Bank Maqra (Surat & Ayat)
+        Route::get('/event-maqras', [EventMaqraController::class, 'index']);
+        Route::post('/event-maqras', [EventMaqraController::class, 'store']);
+        // TAMBAHKAN ROUTE IMPORT DI SINI
+        Route::post('/event-maqras/import', [EventMaqraController::class, 'import']); 
+        Route::put('/event-maqras/{eventMaqra}', [EventMaqraController::class, 'update']);
+        Route::delete('/event-maqras/{eventMaqra}', [EventMaqraController::class, 'destroy']);
+
+        // Routes untuk Bank Soal (Paket Soal)
+        Route::get('/event-question-packages', [EventQuestionPackageController::class, 'index']);
+        Route::post('/event-question-packages', [EventQuestionPackageController::class, 'store']);
+        Route::post('/event-question-packages/import', [EventQuestionPackageController::class, 'import']);
+        Route::put('/event-question-packages/{eventQuestionPackage}', [EventQuestionPackageController::class, 'update']);
+        Route::delete('/event-question-packages/{eventQuestionPackage}', [EventQuestionPackageController::class, 'destroy']);
 
         Route::get('/events/{event}/region-mandates', [EventRegionMandateController::class, 'index']);
         Route::post('/events/{event}/region-mandates/upload', [EventRegionMandateController::class, 'upload']);
@@ -211,6 +231,9 @@ Route::middleware(['auth:sanctum']) // kalau belum pakai sanctum, boleh dihapus 
         Route::apiResource('users', UserController::class);
         Route::post('events/{event}/generate-users', [UserController::class, 'generateUsersByEvent']);
         Route::get('roles', [RoleController::class, 'index']);
+
+        // Tambahkan route ini untuk assign panitera ke majelis
+        Route::post('users/{user}/assign-panels', [UserController::class, 'assignPanels']);
 
         // EVENT MEDAL RULES
         Route::get('event-medal-rules', [EventMedalRuleController::class, 'index']);

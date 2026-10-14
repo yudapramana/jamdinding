@@ -84,6 +84,16 @@ export default [
         component: () => import('./pages/event/EventList.vue'),
       },
       {
+        path: 'event/maqra',
+        name: 'admin.events.maqra',
+        component: () => import('./pages/event/BankMaqra.vue'),
+      },
+      {
+        path: 'event/question-packages',
+        name: 'admin.events.question-packages',
+        component: () => import('./pages/event/BankQuestionPackage.vue'),
+      },
+      {
         path: 'event/stages',
         name: 'admin.event.stages',
         component: () => import('./pages/event/EventStageList.vue'),

@@ -90,6 +90,9 @@ class MasterController extends Controller
                         'order'     => $g->order_number,
                         'max_age'   => $g->max_age,
                         'is_active' => $g->status === 'active',
+                        'judge_assignment_mode' => $g->judge_assignment_mode,
+                        'has_maqra_drawing' => $g->has_maqra_drawing,
+                        'is_double_drawing' => $g->is_double_drawing,
                     ]);
                 break;
 

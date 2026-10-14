@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
 
 use App\Models\Event;
+use App\Models\EventJudgePanelClerk;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
@@ -36,6 +37,7 @@ class UserController extends Controller
             ->with([
                 'role:id,name',
                 'event:id,event_name',
+                'clerkAssignment.eventJudgePanel.eventGroups' // <--- TAMBAHKAN RELASI INI DI SINI
             ])
             ->orderBy('username');
 
@@ -88,8 +90,43 @@ class UserController extends Controller
     public function show(User $user)
     {
         return response()->json(
-            $user->load(['role', 'event', 'employee'])
+            $user->load(['role', 'event', 'employee', 'clerkAssignment.eventJudgePanel.eventGroups'])
         );
+    }
+
+    // ==========================================
+    // TAMBAHKAN METHOD BARU INI DI BAGIAN BAWAH
+    // ==========================================
+    public function assignPanels(Request $request, User $user)
+    {
+        $validated = $request->validate([
+            'panel_ids'   => 'array',
+            'panel_ids.*' => 'exists:event_judge_panels,id',
+        ]);
+
+        // Karena sekarang 1 user hanya 1 panel, kita ambil id pertama saja jika ada
+        $panelId = !empty($validated['panel_ids']) ? $validated['panel_ids'][0] : null;
+
+        if ($panelId) {
+            // Assign atau Update
+            EventJudgePanelClerk::updateOrCreate(
+                ['user_id' => $user->id],
+                [
+                    'event_judge_panel_id' => $panelId,
+                    'is_active' => true,
+                ]
+            );
+        } else {
+            // Jika frontend mengirim array kosong (Cabut Penugasan)
+            EventJudgePanelClerk::where('user_id', $user->id)->delete();
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Berhasil mengatur penugasan majelis untuk panitera.',
+            // $user->load() tidak perlu clerkPanels karena sudah di $appends
+            'data'    => $user->load(['role', 'event', 'employee']),
+        ]);
     }
 
     public function update(Request $request, User $user)

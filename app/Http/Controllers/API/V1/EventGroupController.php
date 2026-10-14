@@ -130,6 +130,7 @@ class EventGroupController extends Controller
                 'is_team',
                 'order_number',
                 'status',
+                'has_maqra_drawing',
             ]);
 
             return response()->json([
@@ -164,6 +165,9 @@ class EventGroupController extends Controller
             'is_team'               => ['nullable', 'boolean'],
             'order_number'          => ['nullable', 'integer', 'min:1'],
             'judge_assignment_mode' => ['nullable', 'in:BY_PANEL,BY_COMPONENT'],
+            'has_maqra_drawing'        => ['nullable', 'boolean'],
+            'preparation_time_minutes' => ['nullable', 'integer', 'min:0'],
+            'is_double_drawing'        => ['nullable', 'boolean'],
         ]);
 
         $event  = Event::findOrFail($data['event_id']);
@@ -198,6 +202,9 @@ class EventGroupController extends Controller
             'is_team'      => $data['is_team'] ?? false,
             'order_number' => $data['order_number'] ?? null,
             'judge_assignment_mode' => $data['judge_assignment_mode'] ?? 'BY_PANEL',
+            'has_maqra_drawing'        => $data['has_maqra_drawing'] ?? false,
+            'preparation_time_minutes' => $data['preparation_time_minutes'] ?? 0,
+            'is_double_drawing'        => $data['is_double_drawing'] ?? false,
         ]);
 
         return response()->json([
@@ -218,6 +225,9 @@ class EventGroupController extends Controller
             'is_team'      => ['nullable', 'boolean'],
             'order_number' => ['nullable', 'integer', 'min:1'],
             'judge_assignment_mode' => ['nullable', 'in:BY_PANEL,BY_COMPONENT'],
+            'has_maqra_drawing'        => ['nullable', 'boolean'],
+            'preparation_time_minutes' => ['nullable', 'integer', 'min:0'],
+            'is_double_drawing'        => ['nullable', 'boolean'],
         ]);
 
         // handle perubahan branch_id / group_id → cek unique
@@ -274,6 +284,16 @@ class EventGroupController extends Controller
         }
         if (array_key_exists('judge_assignment_mode', $data)) {
             $eventGroup->judge_assignment_mode = $data['judge_assignment_mode'];
+        }
+
+        if (array_key_exists('has_maqra_drawing', $data)) {
+            $eventGroup->has_maqra_drawing = (bool) $data['has_maqra_drawing'];
+        }
+        if (array_key_exists('preparation_time_minutes', $data)) {
+            $eventGroup->preparation_time_minutes = $data['preparation_time_minutes'] ?? 0;
+        }
+        if (array_key_exists('is_double_drawing', $data)) {
+            $eventGroup->is_double_drawing = (bool) $data['is_double_drawing'];
         }
 
         $eventGroup->save();

@@ -74,8 +74,9 @@ export const useMasterDataStore = defineStore('MasterDataStore', () => {
 
   /* ---------- GROUPS ---------- */
 
-  const loadAllEventGroups = async () => {
-    eventGroups.value = await fetchMaster('event_groups')
+  // force = true → lewati cache & ambil ulang dari server (dipakai setelah create/update/delete)
+  const loadAllEventGroups = async (force = false) => {
+    eventGroups.value = await fetchMaster('event_groups', {}, force)
   }
 
   const loadEventGroups = async (eventBranchId = null) => {

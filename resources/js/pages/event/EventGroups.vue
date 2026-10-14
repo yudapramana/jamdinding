@@ -286,12 +286,13 @@
             </button>
           </div>
 
-          <div class="modal-body pt-2">
+          <div class="modal-body py-2 px-3">
             <form @submit.prevent="submitForm">
               <div class="row">
+                <!-- Baris 1: Cabang & Golongan -->
                 <div class="col-md-6">
                   <div class="form-group mb-2">
-                    <label class="mb-1">Cabang Lomba</label>
+                    <label class="mb-1 small font-weight-bold">Cabang Lomba</label>
                     <select
                       v-model="form.branch_id"
                       class="form-control form-control-sm"
@@ -303,17 +304,18 @@
                         :key="b.id"
                         :value="b.id"
                       >
-                        {{ b.name }}
-                        <span v-if="b.code"> ({{ b.code }})</span>
+                        {{ b.name }}<template v-if="b.code"> ({{ b.code }})</template>
                       </option>
                     </select>
-                    <small class="text-muted">
-                      Data diambil dari master <strong>Branches</strong>.
+                    <small class="form-text text-muted mt-0">
+                      Dari master <strong>Branches</strong>.
                     </small>
                   </div>
+                </div>
 
+                <div class="col-md-6">
                   <div class="form-group mb-2">
-                    <label class="mb-1">Golongan</label>
+                    <label class="mb-1 small font-weight-bold">Golongan</label>
                     <select
                       v-model="form.group_id"
                       class="form-control form-control-sm"
@@ -325,45 +327,48 @@
                         :key="g.id"
                         :value="g.id"
                       >
-                        {{ g.name }}
-                        <span v-if="g.code"> ({{ g.code }})</span>
+                        {{ g.name }}<template v-if="g.code"> ({{ g.code }})</template>
                       </option>
                     </select>
-                    <small class="text-muted">
-                      Data diambil dari master <strong>Groups</strong>.
+                    <small class="form-text text-muted mt-0">
+                      Dari master <strong>Groups</strong>.
                     </small>
                   </div>
+                </div>
 
+                <!-- Baris 2: Nama Lengkap -->
+                <div class="col-12">
                   <div class="form-group mb-2">
-                    <label class="mb-1">Nama Lengkap (Full Name)</label>
+                    <label class="mb-1 small font-weight-bold">Nama Lengkap (Full Name)</label>
                     <input
                       v-model="form.full_name"
                       type="text"
                       class="form-control form-control-sm"
                       placeholder="Contoh: Hafalan 10 Juz - Remaja"
                     />
-                    <small class="text-muted">
+                    <small class="form-text text-muted mt-0">
                       Jika dikosongkan, akan digenerate dari nama cabang + golongan.
                     </small>
                   </div>
                 </div>
 
-                <div class="col-md-6">
+                <!-- Baris 3: Maks Umur, Status, Jenis, Urutan -->
+                <div class="col-6 col-md-3">
                   <div class="form-group mb-2">
-                    <label class="mb-1">Maksimal Umur</label>
+                    <label class="mb-1 small font-weight-bold">Maks. Umur</label>
                     <input
                       v-model.number="form.max_age"
                       type="number"
                       min="0"
                       class="form-control form-control-sm"
                     />
-                    <small class="text-muted">
-                      0 berarti tidak dibatasi umur.
-                    </small>
+                    <small class="form-text text-muted mt-0">0 = tanpa batas</small>
                   </div>
+                </div>
 
+                <div class="col-6 col-md-3">
                   <div class="form-group mb-2">
-                    <label class="mb-1">Status</label>
+                    <label class="mb-1 small font-weight-bold">Status</label>
                     <select
                       v-model="form.status"
                       class="form-control form-control-sm"
@@ -372,9 +377,11 @@
                       <option value="inactive">Nonaktif</option>
                     </select>
                   </div>
+                </div>
 
+                <div class="col-6 col-md-3">
                   <div class="form-group mb-2">
-                    <label class="mb-1">Jenis</label>
+                    <label class="mb-1 small font-weight-bold">Jenis</label>
                     <select
                       v-model="form.is_team"
                       class="form-control form-control-sm"
@@ -383,9 +390,11 @@
                       <option :value="true">Tim</option>
                     </select>
                   </div>
+                </div>
 
+                <div class="col-6 col-md-3">
                   <div class="form-group mb-2">
-                    <label class="mb-1">Urutan Tampil</label>
+                    <label class="mb-1 small font-weight-bold">Urutan Tampil</label>
                     <input
                       v-model.number="form.order_number"
                       type="number"
@@ -395,43 +404,105 @@
                   </div>
                 </div>
 
-                <div class="form-group mb-2">
-                  <label class="mb-1">Model Penilaian</label>
+                <!-- Baris 4: Model Penilaian & Cabut Maqra -->
+                <div class="col-md-6">
+                  <div class="form-group mb-2">
+                    <label class="mb-1 small font-weight-bold">Model Penilaian</label>
 
-                  <div class="custom-control custom-radio">
-                    <input
-                      type="radio"
-                      id="judgeModePanel"
-                      class="custom-control-input"
-                      value="BY_PANEL"
-                      v-model="form.judge_assignment_mode"
-                    >
-                    <label class="custom-control-label" for="judgeModePanel">
-                      Majelis menilai seluruh komponen
-                    </label>
+                    <div class="custom-control custom-radio">
+                      <input
+                        type="radio"
+                        id="judgeModePanel"
+                        class="custom-control-input"
+                        value="BY_PANEL"
+                        v-model="form.judge_assignment_mode"
+                      >
+                      <label class="custom-control-label" for="judgeModePanel">
+                        Majelis menilai seluruh komponen
+                      </label>
+                    </div>
+
+                    <div class="custom-control custom-radio">
+                      <input
+                        type="radio"
+                        id="judgeModeComponent"
+                        class="custom-control-input"
+                        value="BY_COMPONENT"
+                        v-model="form.judge_assignment_mode"
+                      >
+                      <label class="custom-control-label" for="judgeModeComponent">
+                        Juri ditentukan per komponen
+                      </label>
+                    </div>
                   </div>
-
-                  <div class="custom-control custom-radio">
-                    <input
-                      type="radio"
-                      id="judgeModeComponent"
-                      class="custom-control-input"
-                      value="BY_COMPONENT"
-                      v-model="form.judge_assignment_mode"
-                    >
-                    <label class="custom-control-label" for="judgeModeComponent">
-                      Juri ditentukan per komponen
-                    </label>
-                  </div>
-
-                  <small class="text-muted">
-                    Pilih cara penugasan juri pada golongan ini.
-                  </small>
                 </div>
 
+                <div class="col-md-6">
+                  <div class="form-group mb-2">
+                    <label class="mb-1 small font-weight-bold">Gunakan Sistem Cabut Maqra/Soal?</label>
+                    <select
+                      v-model="form.has_maqra_drawing"
+                      class="form-control form-control-sm"
+                    >
+                      <option :value="false">Tidak (Default)</option>
+                      <option :value="true">Ya, Aktifkan Cabut Maqra</option>
+                    </select>
+                  </div>
+                </div>
+
+                <!-- Pengaturan Cabut Maqra: hanya tampil jika diaktifkan -->
+                <div class="col-12" v-if="form.has_maqra_drawing">
+                  <div class="p-2 border rounded bg-light mb-1">
+                    <h6 class="text-primary mb-2 small font-weight-bold">
+                      <i class="fas fa-cogs mr-1"></i> Pengaturan Cabut Maqra
+                    </h6>
+
+                    <div class="row">
+                      <div class="col-md-6">
+                        <div class="form-group mb-1">
+                          <label class="mb-1 small font-weight-bold">Waktu Persiapan (Menit)</label>
+                          <input
+                            v-model.number="form.preparation_time_minutes"
+                            type="number"
+                            min="0"
+                            class="form-control form-control-sm"
+                          />
+                          <small class="form-text text-muted mt-1">
+                            <b>1440</b> = cabut H-1 (Tilawah Dewasa) &middot;
+                            <b>30</b> = Tartil &middot;
+                            <b>0</b> = cabut langsung di panggung (Tahfiz)
+                          </small>
+                        </div>
+                      </div>
+
+                      <div class="col-md-6">
+                        <div class="form-group mb-1">
+                          <label class="mb-1 small font-weight-bold">Sistem Pengundian Ganda?</label>
+                          <select
+                            v-model="form.is_double_drawing"
+                            class="form-control form-control-sm"
+                          >
+                            <option :value="false">Tidak (Satu Kali Cabut)</option>
+                            <option :value="true">Ya, Dua Kali Cabut (Tahfiz + Tilawah)</option>
+                          </select>
+                          <small class="form-text text-muted mt-1">
+                            Untuk ujian terpisah, mis. Maqra Tilawah H-1 lalu Paket Soal Tahfiz di mimbar.
+                          </small>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
 
-              <div class="text-right mt-3">
+              <div class="text-right mt-2">
+                <button
+                  type="button"
+                  class="btn btn-sm btn-light border mr-1"
+                  data-dismiss="modal"
+                >
+                  Batal
+                </button>
                 <button
                   type="submit"
                   class="btn btn-sm btn-primary"
@@ -612,6 +683,7 @@ import { useDebounceFn } from '@vueuse/core'
 import axios from 'axios'
 import Swal from 'sweetalert2'
 import { useAuthUserStore } from '../../stores/AuthUserStore'
+import { useMasterDataStore } from '../../stores/MasterDataStore'
 import { useRoute, useRouter } from 'vue-router' // 👈
 
 const formatMaxAge = (maxAge) => {
@@ -622,6 +694,18 @@ const formatMaxAge = (maxAge) => {
 }
 
 const authUserStore = useAuthUserStore()
+const masterDataStore = useMasterDataStore()
+
+// Ambil ulang master eventGroups di MasterDataStore (force = lewati cache)
+// agar komponen lain yang memakai store ini langsung mendapat data terbaru.
+const refreshMasterGroups = async () => {
+  console.log('refreshMasterGroups run');
+  try {
+    await masterDataStore.loadAllEventGroups(true)
+  } catch (error) {
+    console.error('Gagal menyegarkan master event groups:', error)
+  }
+}
 
 const route = useRoute()   // 👈
 const router = useRouter() // 👈
@@ -669,6 +753,7 @@ const assignJudgePanel = async (eventGroupId, panelId) => {
     })
 
     fetchItems(meta.value.current_page)
+    refreshMasterGroups()
 
   } catch (e) {
     Toast.fire({
@@ -712,7 +797,10 @@ const form = ref({
   status: 'active',
   is_team: false,
   order_number: null,
-  judge_assignment_mode: 'BY_PANEL'
+  judge_assignment_mode: 'BY_PANEL',
+  has_maqra_drawing: false,
+  preparation_time_minutes: 0,
+  is_double_drawing: false,
 })
 
 const fetchBranchesAndGroups = async () => {
@@ -807,7 +895,10 @@ const openCreateModal = () => {
     status: 'active',
     is_team: false,
     order_number: (meta.value.total || 0) + 1,
-    judge_assignment_mode: 'BY_PANEL'
+    judge_assignment_mode: 'BY_PANEL',
+    has_maqra_drawing: false,
+    preparation_time_minutes: 0,
+    is_double_drawing: false,
   }
   $('#eventGroupModal').modal('show')
 }
@@ -823,8 +914,10 @@ const openEditModal = (item) => {
     status: item.status,
     is_team: !!item.is_team,
     order_number: item.order_number,
-    judge_assignment_mode: item.judge_assignment_mode
-
+    judge_assignment_mode: item.judge_assignment_mode,
+    has_maqra_drawing: !!item.has_maqra_drawing,
+    preparation_time_minutes: item.preparation_time_minutes || 0,
+    is_double_drawing: !!item.is_double_drawing,
   }
   $('#eventGroupModal').modal('show')
 }
@@ -851,6 +944,9 @@ const submitForm = async () => {
     is_team: form.value.is_team,
     order_number: form.value.order_number,
     judge_assignment_mode: form.value.judge_assignment_mode,
+    has_maqra_drawing: form.value.has_maqra_drawing,
+    preparation_time_minutes: form.value.preparation_time_minutes,
+    is_double_drawing: form.value.is_double_drawing,
   }
 
   try {
@@ -864,6 +960,7 @@ const submitForm = async () => {
 
     $('#eventGroupModal').modal('hide')
     fetchItems(meta.value.current_page)
+    refreshMasterGroups()
   } catch (error) {
     console.error('Gagal menyimpan event_group:', error)
     let message = 'Gagal menyimpan data golongan event.'
@@ -894,6 +991,7 @@ const deleteItem = async (item) => {
     await axios.delete(`/api/v1/event-groups/${item.id}`)
     Swal.fire('Terhapus', 'Golongan event berhasil dihapus.', 'success')
     fetchItems(meta.value.current_page)
+    refreshMasterGroups()
   } catch (error) {
     console.error('Gagal menghapus event_group:', error)
     Swal.fire('Gagal', 'Gagal menghapus golongan event.', 'error')
@@ -931,6 +1029,7 @@ const generateFromTemplate = async () => {
 
     Swal.fire('Berhasil', 'Golongan event berhasil digenerate dari template.', 'success')
     fetchItems(1)
+    refreshMasterGroups()
   } catch (error) {
     console.error('Gagal generate dari template (event_groups):', error)
     let message = 'Gagal generate golongan dari template.'

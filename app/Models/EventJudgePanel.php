@@ -38,7 +38,7 @@ class EventJudgePanel extends Model
 
     public function eventGroups()
     {
-        return $this->hasMany(EventGroup::class);
+        return $this->hasMany(EventGroup::class, 'event_judge_panel_id');
     }
 
     public function location()

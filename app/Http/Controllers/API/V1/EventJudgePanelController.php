@@ -18,7 +18,39 @@ use App\Models\EventLocation;
 class EventJudgePanelController extends Controller
 {
 
-    
+    /**
+     * Mengambil semua daftar panel/majelis berdasarkan query event_id
+     * Endpoint: GET /api/v1/event-judge-panels?event_id=X
+     */
+    public function allPanels(Request $request)
+    {
+        $eventId = $request->get('event_id');
+
+        $query = EventJudgePanel::query();
+
+        // Filter berdasarkan event_id jika dikirim dari frontend
+        if ($eventId) {
+            $query->where('event_id', $eventId);
+        }
+
+        // Jika frontend meminta format simple (opsional, untuk dropdown biasa)
+        if ($request->boolean('simple')) {
+            return response()->json([
+                'data' => $query->where('is_active', true)
+                                ->orderBy('name')
+                                ->get(['id', 'code', 'name', 'event_location_id'])
+            ]);
+        }
+
+        $perPage = (int) $request->get('per_page', 100);
+
+        // Mengembalikan data majelis menggunakan pagination
+        $panels = $query->with('location') // Load relasi lokasi jika diperlukan nanti
+                        ->orderBy('name')
+                        ->paginate($perPage);
+
+        return response()->json($panels);
+    }
 
     public function assignLocation(EventJudgePanel $panel, Request $request)
     {

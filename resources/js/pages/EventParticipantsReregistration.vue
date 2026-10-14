@@ -60,7 +60,7 @@
               >
                 <option value="">-- Pilih Cabang --</option>
                 <option
-                  v-for="g in masterDataStore.eventGroups"
+                  v-for="g in availableEventGroups"
                   :key="g.id"
                   :value="String(g.id)"
                 >
@@ -437,6 +437,35 @@ const isLoading = ref(false)
 const eventBranches = ref([])   // event_branches (cabang/golongan)
 const eventGroups = ref([])
 const eventCategories = ref([])
+
+// --- STATE FILTER CABANG DINAMIS ---
+const availableEventGroups = computed(() => {
+  const roleName = currentUser.value?.role?.name?.toLowerCase() || ''
+
+  // Jika rolenya adalah Panitera
+  if (roleName.includes('panitera')) {
+    const assignment = currentUser.value?.clerk_assignment || currentUser.value?.clerkAssignment
+
+    // 1. Sesuai instruksi Anda: Ambil dari AuthUserStore.user.clerk_assignment.event_judge_panel.event_groups
+    if (assignment?.event_judge_panel?.event_groups) {
+      return assignment.event_judge_panel.event_groups
+    }
+
+    // 2. (Opsional / Fallback Aman): Jika relasi nested dari API gagal termuat,
+    // kita bisa langsung memfilter masterDataStore berdasarkan ID majelis yang ditugaskan ke panitera
+    if (assignment?.event_judge_panel_id) {
+      return (masterDataStore.eventGroups || []).filter(
+        (g) => g.event_judge_panel_id === assignment.event_judge_panel_id
+      )
+    }
+
+    // Jika Panitera belum di-assign ke majelis mana pun
+    return [] 
+  }
+
+  // Jika BUKAN Panitera (Superadmin, Admin, Pendaftaran, dll), ambil semua cabang
+  return masterDataStore.eventGroups || []
+})
 
 const currentUser = computed(() => authUserStore.user || null)
 const canShowRegionFilter = computed(() => {

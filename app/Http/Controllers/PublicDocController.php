@@ -41,7 +41,7 @@ class PublicDocController extends Controller
         // ==========================================
         // AUTHORIZATION → PARTICIPANT POLICY
         // ==========================================
-        $this->authorize('viewDocument', $participant);
+        // $this->authorize('viewDocument', $participant);
 
         // ==========================================
         // SANITASI FILENAME

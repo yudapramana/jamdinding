@@ -14,7 +14,7 @@ class ProfileController extends Controller
     {
         $user = $request->user();
         $user->load('role');
-        $user->load('province', 'regency', 'district', 'village');
+        $user->load('province', 'regency', 'district', 'village', 'clerkAssignment.eventJudgePanel.eventGroups');
         return $user;
     }
 

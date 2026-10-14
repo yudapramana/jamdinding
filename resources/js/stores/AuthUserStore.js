@@ -46,6 +46,8 @@ export const useAuthUserStore = defineStore('AuthUserStore', () => {
         roles: [],
         rolenames: [],
         permissions: [],
+        // 👇 TAMBAHKAN BARIS INI UNTUK PANITERA
+        clerk_assignment: {},
     }));
 
     // ==================================================
