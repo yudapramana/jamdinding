@@ -73,7 +73,7 @@ class UtilityController extends Controller
         $html .= '<th style="border: 2px solid #000; padding: 8px; text-align: left;">NAMA PESERTA</th>';
         $html .= '<th style="border: 2px solid #000; padding: 8px; text-align: center;">CABANG</th>';
         $html .= '<th style="border: 2px solid #000; padding: 8px; text-align: center;">GOLONGAN</th>';
-        $html .= '<th style="border: 2px solid #000; padding: 8px; text-align: center;">JENIS KELAMIN</th>';
+        $html .= '<th style="border: 2px solid #000; padding: 8px; text-align: center;">KATEGORIN</th>';
         $html .= '<th style="border: 2px solid #000; padding: 8px; text-align: center;">KAFILAH</th>';
         $html .= '</tr>';
         $html .= '</thead>';
@@ -100,9 +100,9 @@ class UtilityController extends Controller
                 
                 $jk = '-';
                 if ($ep->participant?->gender === 'MALE') {
-                    $jk = 'laki-laki';
+                    $jk = 'Putra';
                 } elseif ($ep->participant?->gender === 'FEMALE') {
-                    $jk = 'perempuan';
+                    $jk = 'Putri';
                 }
                 
                 $kafilah = $ep->contingent ?: '-';
@@ -115,6 +115,217 @@ class UtilityController extends Controller
                 $html .= '<td style="border: 2px solid #000; padding: 6px 8px; text-align: center;">' . e(ucwords(strtolower($golongan))) . '</td>';
                 $html .= '<td style="border: 2px solid #000; padding: 6px 8px; text-align: center;">' . e($jk) . '</td>';
                 // ✅ PERBAIKAN: Menghapus strtolower() agar format teks kafilah tetap sesuai aslinya
+                $html .= '<td style="border: 2px solid #000; padding: 6px 8px; text-align: center;">' . e($kafilah) . '</td>';
+                $html .= '</tr>';
+            }
+        }
+
+        $html .= '</tbody>';
+        $html .= '</table>';
+        $html .= '</div>';
+
+        return $html;
+    }
+
+    /**
+     * Menampilkan daftar peserta dengan status terverifikasi (verified)
+     * Format tabel disesuaikan dengan format SK/Penetapan.
+     * Secara spesifik diurutkan berdasarkan Region ID (Wilayah) terlebih dahulu, lalu cabang.
+     */
+    public function verifiedParticipantSortByRegion()
+    {
+        // 1. Ambil event yang aktif.
+        $activeEvent = \App\Models\Event::first(); 
+
+        if (!$activeEvent) {
+            return '<h3 style="color: red; text-align: center; font-family: sans-serif; margin-top: 50px;">Tidak ada event yang aktif.</h3>';
+        }
+
+        // 2. Tentukan kolom acuan Region ID berdasarkan event_level
+        $participantColumn = 'regency_id'; // Default
+        
+        switch ($activeEvent->event_level) {
+            case 'national':
+                $participantColumn = 'province_id';
+                break;
+            case 'province':
+                $participantColumn = 'regency_id';
+                break;
+            case 'regency':
+                $participantColumn = 'district_id';
+                break;
+            case 'district':
+                $participantColumn = 'village_id';
+                break;
+        }
+
+        // 3. Ambil data event_participants yang statusnya 'verified'
+        // Lakukan JOIN dengan tabel participants agar bisa melakukan orderBy pada kolom region_id
+        $participants = \App\Models\EventParticipant::with(['participant', 'eventGroup'])
+            ->join('participants', 'event_participants.participant_id', '=', 'participants.id')
+            ->select('event_participants.*', "participants.{$participantColumn} as region_id")
+            ->where('event_participants.event_id', $activeEvent->id)
+            ->where('event_participants.registration_status', 'verified')
+            // Diurutkan berdasarkan region_id dahulu, baru cabang dan nomor peserta
+            ->orderBy('region_id', 'asc')
+            ->orderBy('event_participants.event_branch_id', 'asc')
+            ->orderBy('event_participants.participant_number', 'asc')
+            ->get();
+
+        // 4. Render HTML Tabel
+        $html = '<div style="font-family: Arial, sans-serif; max-width: 1000px; margin: 30px auto; color: #000;">';
+        
+        // Bagian Header Judul (Sederhana)
+        $html .= '<div style="text-align: center; margin-bottom: 20px; font-weight: bold; font-size: 14px; line-height: 1.5;">';
+        $html .= 'PENETAPAN PESERTA<br>';
+        $html .= strtoupper($activeEvent->event_name ?? 'MUSABAQAH TILAWATIL QURAN') . ' TAHUN ' . ($activeEvent->event_year ?? date('Y'));
+        $html .= '</div>';
+
+        // Bagian Tabel
+        $html .= '<table style="width: 100%; border-collapse: collapse; border: 2px solid #000; font-size: 13px;">';
+        $html .= '<thead>';
+        $html .= '<tr style="background-color: #92d050; border-bottom: 2px solid #000;">';
+        $html .= '<th style="border: 2px solid #000; padding: 8px; text-align: center; width: 5%;">NO.<br>URUT</th>';
+        $html .= '<th style="border: 2px solid #000; padding: 8px; text-align: center;">NO.<br>PESERTA</th>';
+        $html .= '<th style="border: 2px solid #000; padding: 8px; text-align: left;">NAMA PESERTA</th>';
+        $html .= '<th style="border: 2px solid #000; padding: 8px; text-align: center;">CABANG</th>';
+        $html .= '<th style="border: 2px solid #000; padding: 8px; text-align: center;">GOLONGAN</th>';
+        $html .= '<th style="border: 2px solid #000; padding: 8px; text-align: center;">KATEGORIN</th>';
+        $html .= '<th style="border: 2px solid #000; padding: 8px; text-align: center;">KAFILAH</th>';
+        $html .= '</tr>';
+        $html .= '</thead>';
+        $html .= '<tbody>';
+
+        if ($participants->isEmpty()) {
+            $html .= '<tr><td colspan="7" style="border: 1px solid #000; padding: 15px; text-align: center; font-style: italic;">Belum ada peserta yang terverifikasi pada event ini.</td></tr>';
+        } else {
+            $no = 1;
+            foreach ($participants as $ep) {
+                $noPeserta = substr($ep->participant_number, 0, 8);
+                $nama = $ep->participant?->full_name ?? '-';
+                
+                // Ambil string cabang asli
+                $cabangRaw = $ep->eventGroup?->branch_name ?? '-';
+                $golongan = $ep->eventGroup?->group_name ?? '-';
+                
+                // Filter: Jika ada teks di dalam kurung, ambil yang di dalam kurung saja
+                if (preg_match('/\((.*?)\)/', $cabangRaw, $matches)) {
+                    $cabangFinal = trim($matches[1]);
+                } else {
+                    $cabangFinal = trim($cabangRaw);
+                }
+                
+                $jk = '-';
+                if ($ep->participant?->gender === 'MALE') {
+                    $jk = 'Putra';
+                } elseif ($ep->participant?->gender === 'FEMALE') {
+                    $jk = 'Putri';
+                }
+                
+                $kafilah = $ep->contingent ?: '-';
+
+                $html .= '<tr>';
+                $html .= '<td style="border: 2px solid #000; padding: 6px 8px; text-align: center;">' . $no++ . '</td>';
+                $html .= '<td style="border: 2px solid #000; padding: 6px 8px; text-align: center;">' . e($noPeserta) . '</td>';
+                $html .= '<td style="border: 2px solid #000; padding: 6px 8px;">' . e(strtoupper($nama)) . '</td>';
+                $html .= '<td style="border: 2px solid #000; padding: 6px 8px; text-align: center;">' . e(ucwords(strtolower($cabangFinal))) . '</td>';
+                $html .= '<td style="border: 2px solid #000; padding: 6px 8px; text-align: center;">' . e(ucwords(strtolower($golongan))) . '</td>';
+                $html .= '<td style="border: 2px solid #000; padding: 6px 8px; text-align: center;">' . e($jk) . '</td>';
+                $html .= '<td style="border: 2px solid #000; padding: 6px 8px; text-align: center;">' . e($kafilah) . '</td>';
+                $html .= '</tr>';
+            }
+        }
+
+        $html .= '</tbody>';
+        $html .= '</table>';
+        $html .= '</div>';
+
+        return $html;
+    }
+
+    /**
+     * Menampilkan daftar peserta dengan status terverifikasi (verified)
+     * Format tabel disesuaikan dengan format SK/Penetapan.
+     * Secara spesifik diurutkan berdasarkan kontingen (kafilah) terlebih dahulu, lalu cabang.
+     */
+    public function verifiedParticipantSortBycontingent()
+    {
+        // 1. Ambil event yang aktif.
+        $activeEvent = \App\Models\Event::first(); 
+
+        if (!$activeEvent) {
+            return '<h3 style="color: red; text-align: center; font-family: sans-serif; margin-top: 50px;">Tidak ada event yang aktif.</h3>';
+        }
+
+        // 2. Ambil data event_participants yang statusnya 'verified'
+        $participants = \App\Models\EventParticipant::with(['participant', 'eventGroup'])
+            ->where('event_id', $activeEvent->id)
+            ->where('registration_status', 'verified')
+            // Diurutkan berdasarkan contingent dahulu, baru cabang dan nomor peserta
+            ->orderBy('contingent', 'asc')
+            ->orderBy('event_branch_id', 'asc')
+            ->orderBy('participant_number', 'asc')
+            ->get();
+
+        // 3. Render HTML Tabel
+        $html = '<div style="font-family: Arial, sans-serif; max-width: 1000px; margin: 30px auto; color: #000;">';
+        
+        // Bagian Header Judul (Sederhana)
+        $html .= '<div style="text-align: center; margin-bottom: 20px; font-weight: bold; font-size: 14px; line-height: 1.5;">';
+        $html .= 'PENETAPAN PESERTA<br>';
+        $html .= strtoupper($activeEvent->event_name ?? 'MUSABAQAH TILAWATIL QURAN') . ' TAHUN ' . ($activeEvent->event_year ?? date('Y'));
+        $html .= '</div>';
+
+        // Bagian Tabel
+        $html .= '<table style="width: 100%; border-collapse: collapse; border: 2px solid #000; font-size: 13px;">';
+        $html .= '<thead>';
+        $html .= '<tr style="background-color: #92d050; border-bottom: 2px solid #000;">';
+        $html .= '<th style="border: 2px solid #000; padding: 8px; text-align: center; width: 5%;">NO.<br>URUT</th>';
+        $html .= '<th style="border: 2px solid #000; padding: 8px; text-align: center;">NO.<br>PESERTA</th>';
+        $html .= '<th style="border: 2px solid #000; padding: 8px; text-align: left;">NAMA PESERTA</th>';
+        $html .= '<th style="border: 2px solid #000; padding: 8px; text-align: center;">CABANG</th>';
+        $html .= '<th style="border: 2px solid #000; padding: 8px; text-align: center;">GOLONGAN</th>';
+        $html .= '<th style="border: 2px solid #000; padding: 8px; text-align: center;">KATEGORIN</th>';
+        $html .= '<th style="border: 2px solid #000; padding: 8px; text-align: center;">KAFILAH</th>';
+        $html .= '</tr>';
+        $html .= '</thead>';
+        $html .= '<tbody>';
+
+        if ($participants->isEmpty()) {
+            $html .= '<tr><td colspan="7" style="border: 1px solid #000; padding: 15px; text-align: center; font-style: italic;">Belum ada peserta yang terverifikasi pada event ini.</td></tr>';
+        } else {
+            $no = 1;
+            foreach ($participants as $ep) {
+                $noPeserta = substr($ep->participant_number, 0, 8);
+                $nama = $ep->participant?->full_name ?? '-';
+                
+                // Ambil string cabang asli
+                $cabangRaw = $ep->eventGroup?->branch_name ?? '-';
+                $golongan = $ep->eventGroup?->group_name ?? '-';
+                
+                // Filter: Jika ada teks di dalam kurung, ambil yang di dalam kurung saja
+                if (preg_match('/\((.*?)\)/', $cabangRaw, $matches)) {
+                    $cabangFinal = trim($matches[1]);
+                } else {
+                    $cabangFinal = trim($cabangRaw);
+                }
+                
+                $jk = '-';
+                if ($ep->participant?->gender === 'MALE') {
+                    $jk = 'Putra';
+                } elseif ($ep->participant?->gender === 'FEMALE') {
+                    $jk = 'Putri';
+                }
+                
+                $kafilah = $ep->contingent ?: '-';
+
+                $html .= '<tr>';
+                $html .= '<td style="border: 2px solid #000; padding: 6px 8px; text-align: center;">' . $no++ . '</td>';
+                $html .= '<td style="border: 2px solid #000; padding: 6px 8px; text-align: center;">' . e($noPeserta) . '</td>';
+                $html .= '<td style="border: 2px solid #000; padding: 6px 8px;">' . e(strtoupper($nama)) . '</td>';
+                $html .= '<td style="border: 2px solid #000; padding: 6px 8px; text-align: center;">' . e(ucwords(strtolower($cabangFinal))) . '</td>';
+                $html .= '<td style="border: 2px solid #000; padding: 6px 8px; text-align: center;">' . e(ucwords(strtolower($golongan))) . '</td>';
+                $html .= '<td style="border: 2px solid #000; padding: 6px 8px; text-align: center;">' . e($jk) . '</td>';
                 $html .= '<td style="border: 2px solid #000; padding: 6px 8px; text-align: center;">' . e($kafilah) . '</td>';
                 $html .= '</tr>';
             }

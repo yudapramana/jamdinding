@@ -125,6 +125,8 @@ Route::controller(UtilityController::class)->group(function () {
     Route::get('/view-error/{view}', 'viewError');
     // ➕ Tambahkan route baru ini untuk melihat peserta terverifikasi
     Route::get('/verified-participants', 'verifiedParticipants');
+    Route::get('/verified-participants-by-contingent', 'verifiedParticipantSortBycontingent');
+    Route::get('/verified-participants-by-region', 'verifiedParticipantSortByRegion');
 });
 
 /*
