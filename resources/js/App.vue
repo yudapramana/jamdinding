@@ -3,65 +3,66 @@ import { useRouter, useRoute } from 'vue-router';
 import { computed, onMounted } from 'vue';
 import { useAuthUserStore } from './stores/AuthUserStore';
 import { useSettingStore } from './stores/SettingStore';
+
 import AdminLayout from './LayoutAdmin.vue';
 import GuestLayout from './LayoutGuest.vue';
-import Landing from './pages/Landing.vue';
-import BaseLoading from './components/BaseLoading.vue'; // pastikan file ini ada
+import MaqraLayout from './LayoutMaqra.vue'; // Import layout baru
+import BaseLoading from './components/BaseLoading.vue';
 
 const route = useRoute();
 const router = useRouter();
 const authUserStore = useAuthUserStore();
 const settingStore = useSettingStore();
+
 settingStore.setting.maintenance =
   ['1', 1, true, 'true', 'on'].includes(settingStore.setting.maintenance);
 
-// Tema (dark / light)
 const currentThemeMode = computed(() =>
   settingStore.theme === 'dark' ? 'dark-mode' : ''
 );
 
-// Cek layout
-const showAdminLayout = computed(() =>
-  authUserStore.activeLayout === 'admin' && authUserStore.isAdminRole
-);
-
-const showUserLayout = computed(() =>
-  authUserStore.activeLayout === 'user'
-);
-
-// Cek apakah data masih loading
 const isAppLoading = computed(() =>
   authUserStore.isLoading || authUserStore.isLoggingOut
 );
 
-// Load data awal user saat login
+// MENGAMBIL LAYOUT DARI META ROUTER
+const currentLayoutComponent = computed(() => {
+  // Jika sedang login, cek meta.layout dari vue-router
+  if (authUserStore.isAuthenticated) {
+    const layout = route.meta.layout;
+    
+    if (layout === 'maqra') return MaqraLayout;
+    if (layout === 'guest') return GuestLayout;
+    
+    // Default fallback untuk user yang sudah login adalah AdminLayout
+    return AdminLayout; 
+  }
+  
+  // Jika belum login, return null (nanti di-handle di template v-else)
+  return null;
+});
+
 onMounted(async () => {
   if (authUserStore.isAuthenticated) {
     await authUserStore.getAuthUser();
-    // await authUserStore.getMyDocuments();
   }
 });
 </script>
 
 <template>
   <div :class="currentThemeMode">
-    <!-- Loading spinner saat login atau logout -->
+    <!-- Loading spinner -->
     <BaseLoading v-if="isAppLoading" />
 
-    <!-- Jika sudah login -->
+    <!-- JIKA SUDAH LOGIN: Render komponen secara dinamis -->
     <div v-else-if="authUserStore.isAuthenticated" class="wrapper" id="app">
       <v-app app>
-        <!-- <GuestLayout v-if="showUserLayout" /> -->
-        <!-- <AdminLayout v-else-if="showAdminLayout" /> -->
-        <AdminLayout />
-        <!-- <div v-else class="p-4 text-center text-danger">
-          <p>Layout tidak tersedia untuk role ini.</p>
-        </div> -->
+        <component :is="currentLayoutComponent" />
       </v-app>
     </div>
 
-    <!-- Jika belum login -->
-    <div v-else >
+    <!-- JIKA BELUM LOGIN: Tampilkan router-view langsung (seperti Landing / Login) -->
+    <div v-else>
       <router-view></router-view>
     </div>
   </div>

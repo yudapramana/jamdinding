@@ -1454,4 +1454,667 @@ class UtilityController extends Controller
     public function viewError($view){
         return view('errors.' . $view);
     }
+
+    /**
+     * Memasukkan data Dewan Hakim (Aman dari duplikat & mengosongkan panel member di awal)
+     */
+    public function seedDewanHakim()
+    {
+        // 1. Ambil event yang aktif (Atau default 1 jika belum ada)
+        $activeEvent = \App\Models\Event::first(); 
+        $eventId = $activeEvent ? $activeEvent->id : 1;
+        
+        $faker = \Faker\Factory::create('id_ID');
+
+        // Data JSON Majelis & Dewan Hakim
+        $dataMajelis = [
+            [
+                "id" => "I", "nama_majelis" => "Tilawah Dewasa dan Remaja",
+                "dewan_hakim" => [
+                    ["nomor" => 5, "nama" => "Amrizal Jamain, S.H.", "jabatan" => "Ketua Bidang"],
+                    ["nomor" => 6, "nama" => "Dr. H. Ahmad Kosasih, Μ.Α.", "jabatan" => "Hakim Anggota"],
+                    ["nomor" => 7, "nama" => "Dra. Hj. Yusni Ernawati", "jabatan" => "Hakim Anggota"],
+                    ["nomor" => 8, "nama" => "H. Iklanedi, S.Kom.", "jabatan" => "Hakim Anggota"],
+                    ["nomor" => 9, "nama" => "H. Refri, M.Pd.", "jabatan" => "Hakim Anggota"],
+                    ["nomor" => 10, "nama" => "Drs. Arjulis Imam Mulia", "jabatan" => "Hakim Anggota"],
+                    ["nomor" => 11, "nama" => "Hj. Nuralisasni, S.Pd.I.", "jabatan" => "Hakim Anggota"],
+                    ["nomor" => 12, "nama" => "Ikang Fauzi, S.Pd.I.", "jabatan" => "Hakim Anggota"]
+                ]
+            ],
+            [
+                "id" => "II", "nama_majelis" => "Tilawah Anak-Anak, TK dan Tuna Netra",
+                "dewan_hakim" => [
+                    ["nomor" => 13, "nama" => "H. Alfion, S.Ag.", "jabatan" => "Ketua Bidang"],
+                    ["nomor" => 14, "nama" => "Juliadi, S.H.I.", "jabatan" => "Hakim Anggota"],
+                    ["nomor" => 15, "nama" => "H. Firdaus", "jabatan" => "Hakim Anggota"],
+                    ["nomor" => 16, "nama" => "Zainal Munaf, S.Pd.", "jabatan" => "Hakim Anggota"],
+                    ["nomor" => 17, "nama" => "Jon Harmen, M.Α.", "jabatan" => "Hakim Anggota"],
+                    ["nomor" => 18, "nama" => "Sri Manengsih, S.Pd.I.", "jabatan" => "Hakim Anggota"]
+                ]
+            ],
+            [
+                "id" => "III", "nama_majelis" => "Hafiz 1 dan 5 Juz Non Tilawah 10Juz",
+                "dewan_hakim" => [
+                    ["nomor" => 19, "nama" => "Indra Hadi, S.M.I.Q.", "jabatan" => "Ketua Bidang"],
+                    ["nomor" => 20, "nama" => "H. DediAfdal, Lc., M.Ud.", "jabatan" => "Hakim Anggota"],
+                    ["nomor" => 21, "nama" => "Syahrial, S.IQ., S.Pd.I.", "jabatan" => "Hakim Anggota"]
+                ]
+            ],
+            [
+                "id" => "IV", "nama_majelis" => "Hafiz 1 dan 5 Juz Tilawah",
+                "dewan_hakim" => [
+                    ["nomor" => 22, "nama" => "Irsyad, S.M.I.Q.", "jabatan" => "Ketua Bidang"],
+                    ["nomor" => 23, "nama" => "Bambang HeriantoLc, .", "jabatan" => "Hakim Anggota"],
+                    ["nomor" => 24, "nama" => "Wilya Eka Putra, S.H.I.", "jabatan" => "Hakim Anggota"]
+                ]
+            ],
+            [
+                "id" => "V", "nama_majelis" => "Kitab Standar",
+                "dewan_hakim" => [
+                    ["nomor" => 25, "nama" => "Joni Efendi, Lc., M.Α.", "jabatan" => "Ketua Bidang"],
+                    ["nomor" => 26, "nama" => "Masril, M. Ag.", "jabatan" => "Hakim Anggota"],
+                    ["nomor" => 27, "nama" => "Ahmad Daroji, S.Ag., M.Pd.", "jabatan" => "Hakim Anggota"]
+                ]
+            ],
+            [
+                "id" => "VI", "nama_majelis" => "Tafsir",
+                "dewan_hakim" => [
+                    ["nomor" => 28, "nama" => "Prof. Dr. H. Rusdy AM, M.A.", "jabatan" => "Ketua Bidang"],
+                    ["nomor" => 29, "nama" => "Erna Yanti, M.A.", "jabatan" => "Hakim Anggota"],
+                    ["nomor" => 30, "nama" => "Syafriadi B, S.H.I.", "jabatan" => "Hakim Anggota"],
+                    ["nomor" => 31, "nama" => "Dr. Heri Surikno, Μ.Α.", "jabatan" => "Hakim Anggota"],
+                    ["nomor" => 32, "nama" => "Darwati, SMIQ", "jabatan" => "Hakim Anggota"],
+                    ["nomor" => 33, "nama" => "Dr.Halimah, M.A.", "jabatan" => "Hakim Anggota"]
+                ]
+            ],
+            [
+                "id" => "VII", "nama_majelis" => "Tartil Dasar, Menengah dan Umum",
+                "dewan_hakim" => [
+                    ["nomor" => 34, "nama" => "Dr. Yusran Lubis, S. Ag., M.Pd.", "jabatan" => "Ketua Bidang"],
+                    ["nomor" => 35, "nama" => "Yunani", "jabatan" => "Hakim Anggota"],
+                    ["nomor" => 36, "nama" => "Zaimal Elpetani", "jabatan" => "Hakim Anggota"],
+                    ["nomor" => 37, "nama" => "Nasrizal Rici", "jabatan" => "Hakim Anggota"],
+                    ["nomor" => 38, "nama" => "Jon Rusdi, S.Pd.", "jabatan" => "Hakim Anggota"],
+                    ["nomor" => 39, "nama" => "Ridwan, S.E.", "jabatan" => "Hakim Anggota"]
+                ]
+            ],
+            [
+                "id" => "VIII", "nama_majelis" => "Khutbah Jum'at dan Azan",
+                "dewan_hakim" => [
+                    ["nomor" => 40, "nama" => "Drs. Damri Tanjung, M.A.", "jabatan" => "Ketua Bidang"],
+                    ["nomor" => 41, "nama" => "Rahmi Zulia, S.H.", "jabatan" => "Hakim Anggota"],
+                    ["nomor" => 42, "nama" => "H. Sudirman, S.Ag.", "jabatan" => "Hakim Anggota"],
+                    ["nomor" => 43, "nama" => "Pen Andri, S.H.I.", "jabatan" => "Hakim Anggota"],
+                    ["nomor" => 44, "nama" => "Dodon Hardiman, M.A.", "jabatan" => "Hakim Anggota"],
+                    ["nomor" => 45, "nama" => "Makmur, S.Ag., M.Pd.", "jabatan" => "Hakim Anggota"]
+                ]
+            ],
+            [
+                "id" => "IX", "nama_majelis" => "Fahmil Qur'an",
+                "dewan_hakim" => [
+                    ["nomor" => 46, "nama" => "Muslim, M.Ag.", "jabatan" => "Ketua Bidang"],
+                    ["nomor" => 47, "nama" => "Johardi, S.Ag., M.A.", "jabatan" => "Hakim Anggota"],
+                    ["nomor" => 48, "nama" => "Dr. H. Depi Dasmal, M.A.", "jabatan" => "Hakim Anggota"],
+                    ["nomor" => 49, "nama" => "Amrina Rosyada, S.Th.I.", "jabatan" => "Hakim Anggota"]
+                ]
+            ],
+            [
+                "id" => "X", "nama_majelis" => "Syarhil Qur'an",
+                "dewan_hakim" => [
+                    ["nomor" => 50, "nama" => "Drs. H.Dasril Ilyas.", "jabatan" => "Ketua Bidang"],
+                    ["nomor" => 51, "nama" => "Rita Gamasari, S.Ag., M.A.", "jabatan" => "Hakim Anggota"],
+                    ["nomor" => 52, "nama" => "Zidni Ilman Nafian, M.A.", "jabatan" => "Hakim Anggota"],
+                    ["nomor" => 53, "nama" => "Endrizal, S.Ag., M.A.", "jabatan" => "Hakim Anggota"],
+                    ["nomor" => 54, "nama" => "Wawan Gunawan, S.Pd.", "jabatan" => "Hakim Anggota"],
+                    ["nomor" => 55, "nama" => "Nafnaldi, S.H.I.", "jabatan" => "Hakim Anggota"]
+                ]
+            ],
+            [
+                "id" => "XI", "nama_majelis" => "KTIQ dan KTIH",
+                "dewan_hakim" => [
+                    ["nomor" => 56, "nama" => "Dr. Faisal, M.Ag.", "jabatan" => "Ketua Bidang"],
+                    ["nomor" => 57, "nama" => "Dr. Rika Sasralina, M.A.", "jabatan" => "Hakim Anggota"],
+                    ["nomor" => 58, "nama" => "Nofri Yendra, S.H.I., Μ.Α.", "jabatan" => "Hakim Anggota"],
+                    ["nomor" => 59, "nama" => "Akhiyen Nuardi, M.Pd.", "jabatan" => "Hakim Anggota"],
+                    ["nomor" => 60, "nama" => "Suhardi Nasution, M.Pd.", "jabatan" => "Hakim Anggota"],
+                    ["nomor" => 61, "nama" => "Hengki Zar. S.IQ., M.Pd.", "jabatan" => "Hakim Anggota"]
+                ]
+            ],
+            [
+                "id" => "XII", "nama_majelis" => "Kaligrafi",
+                "dewan_hakim" => [
+                    ["nomor" => 62, "nama" => "Dr. Ade Setiawan", "jabatan" => "Ketua Bidang"],
+                    ["nomor" => 63, "nama" => "Dr. Ardi Satria, M.A.", "jabatan" => "Hakim Anggota"],
+                    ["nomor" => 64, "nama" => "Aliman, S.Pd.I.", "jabatan" => "Hakim Anggota"],
+                    ["nomor" => 65, "nama" => "Ali Mardona, A.Ma.", "jabatan" => "Hakim Anggota"]
+                ]
+            ]
+        ];
+
+        \Illuminate\Support\Facades\DB::beginTransaction();
+        try {
+            // Hapus semua isi dari event_judge_panel_members khusus untuk event yang aktif
+            // Ini untuk menghindari duplikasi saat di-run ulang dan memastikan data fresh
+            $activePanelIds = \Illuminate\Support\Facades\DB::table('event_judge_panels')
+                ->where('event_id', $eventId)
+                ->pluck('id');
+                
+            if ($activePanelIds->isNotEmpty()) {
+                \Illuminate\Support\Facades\DB::table('event_judge_panel_members')
+                    ->whereIn('event_judge_panel_id', $activePanelIds)
+                    ->delete();
+            }
+
+            $insertedJudges = 0;
+            $skippedJudges = 0;
+
+            foreach ($dataMajelis as $index => $majelis) {
+                // 1. Cari Event Judge Panel berdasarkan Kode
+                $panelCode = 'MJL-' . str_pad($index + 1, 2, '0', STR_PAD_LEFT);
+                
+                $existingPanel = \Illuminate\Support\Facades\DB::table('event_judge_panels')
+                    ->where('event_id', $eventId)
+                    ->where('code', $panelCode)
+                    ->first();
+
+                // Jika panel (majelis) tidak ditemukan, lewati majelis ini
+                if (!$existingPanel) {
+                    continue; 
+                }
+                
+                $panelId = $existingPanel->id;
+
+                foreach ($majelis['dewan_hakim'] as $order => $hakim) {
+                    
+                    // 2. Cek & Insert Master Judges (Berdasarkan Nama)
+                    $existingMasterJudge = \Illuminate\Support\Facades\DB::table('master_judges')
+                        ->where('full_name', $hakim['nama'])
+                        ->first();
+
+                    if (!$existingMasterJudge) {
+                        // Generate NIK yang pasti unik untuk dipakai di tabel users dan master_judges
+                        $randomNik = '1301' . $faker->unique()->numerify('############');
+
+                        // Buat Dummy User untuk referensi user_id
+                        $userId = \Illuminate\Support\Facades\DB::table('users')->insertGetId([
+                            'name'       => $hakim['nama'],
+                            'username'   => $randomNik, // Masukkan random NIK ke kolom username
+                            'email'      => 'hakim_' . uniqid() . '@mtq.test', 
+                            'password'   => bcrypt('password123'),
+                            'created_at' => now(),
+                            'updated_at' => now(),
+                        ]);
+
+                        $masterJudgeId = \Illuminate\Support\Facades\DB::table('master_judges')->insertGetId([
+                            'user_id'       => $userId,
+                            'full_name'     => $hakim['nama'],
+                            'nik'           => $randomNik, // Gunakan variabel yang sama dengan username
+                            'date_of_birth' => $faker->dateTimeBetween('-60 years', '-30 years')->format('Y-m-d'),
+                            'gender'        => $faker->randomElement(['MALE', 'FEMALE']),
+                            'education'     => 'SMA',
+                            'is_active'     => true,
+                            'created_at'    => now(),
+                            'updated_at'    => now(),
+                        ]);
+                        $insertedJudges++;
+                    } else {
+                        $masterJudgeId = $existingMasterJudge->id;
+                        $skippedJudges++;
+                    }
+
+                    // 3. Cek & Insert Event Judges (Berdasarkan event_id dan master_judge_id)
+                    $existingEventJudge = \Illuminate\Support\Facades\DB::table('event_judges')
+                        ->where('event_id', $eventId)
+                        ->where('master_judge_id', $masterJudgeId)
+                        ->first();
+
+                    if (!$existingEventJudge) {
+                        $judgeCode = 'MJH-' . str_pad($hakim['nomor'], 2, '0', STR_PAD_LEFT);
+                        $eventJudgeId = \Illuminate\Support\Facades\DB::table('event_judges')->insertGetId([
+                            'event_id'        => $eventId,
+                            'master_judge_id' => $masterJudgeId,
+                            'sequence'        => $hakim['nomor'],
+                            'judge_code'      => $judgeCode,
+                            'is_active'       => true,
+                            'created_at'      => now(),
+                            'updated_at'      => now(),
+                        ]);
+                    } else {
+                        $eventJudgeId = $existingEventJudge->id;
+                    }
+
+                    // 4. Insert ke event_judge_panel_members (Karena sudah dihapus di awal, langsung insert tanpa cek)
+                    $isChief = ($hakim['jabatan'] === 'Ketua Bidang'); // Set is_chief = true jika Ketua
+                    \Illuminate\Support\Facades\DB::table('event_judge_panel_members')->insert([
+                        'event_judge_panel_id' => $panelId,
+                        'event_judge_id'       => $eventJudgeId,
+                        'is_chief'             => $isChief,
+                        'order_number'         => $order + 1,
+                        'created_at'           => now(),
+                        'updated_at'           => now(),
+                    ]);
+                }
+            }
+
+            \Illuminate\Support\Facades\DB::commit();
+            return response()->json([
+                'success' => true,
+                'message' => 'Proses Seed Dewan Hakim selesai!',
+                'summary' => [
+                    'baru_ditambahkan' => $insertedJudges,
+                    'sudah_ada_dilewati' => $skippedJudges
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal melakukan seed data: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Memasukkan/Memperbarui 12 User Panitera dengan atribut lengkap dan menghubungkannya ke Majelis (MJL-01 s/d MJL-12).
+     */
+    public function seedPaniteraPanel()
+    {
+        // 1. Ambil Event Aktif
+        $event = \App\Models\Event::first(); 
+        $eventId = $event ? $event->id : 1;
+
+        // 2. Ambil Role Panitera
+        $paniteraRole = \App\Models\Role::where('slug', 'panitera')->orWhere('name', 'Panitera')->first();
+
+        // 3. Ambil acuan data wilayah dari panitera yang sudah ada (11 panitera sebelumnya) atau dari $event
+        $existingPanitera = \App\Models\User::where('role_id', $paniteraRole?->id)->first();
+        $provinceId = $existingPanitera?->province_id ?? $event?->province_id ?? null;
+        $regencyId  = $existingPanitera?->regency_id ?? $event?->regency_id ?? null;
+        $districtId = $existingPanitera?->district_id ?? $event?->district_id ?? null;
+
+        \Illuminate\Support\Facades\DB::beginTransaction();
+        try {
+            $userProcessed = 0;
+            $panelAssigned = 0;
+
+            for ($i = 1; $i <= 12; $i++) {
+                $suffix = str_pad($i, 2, '0', STR_PAD_LEFT);
+                $uname  = "panitera_{$suffix}";
+                $email  = "panitera{$suffix}@mtq.test";
+
+                // 4. Buat atau Update User dengan menyertakan seluruh struktur kolom yang dibutuhkan
+                $user = \App\Models\User::updateOrCreate(
+                    ['username' => $uname],
+                    [
+                        'name'        => "Panitera {$suffix}",
+                        'email'       => $email,
+                        'username'    => $uname,
+                        'password'    => \Illuminate\Support\Facades\Hash::make($uname),
+                        'avatar'      => null,
+                        'role_id'     => $paniteraRole?->id,
+                        'event_id'    => $eventId,
+                        'province_id' => $provinceId,
+                        'regency_id'  => $regencyId,
+                        'district_id' => $districtId,
+                        'village_id'  => null,
+                    ]
+                );
+                $userProcessed++;
+
+                // 5. Cari Majelis berdasarkan kode (MJL-01 s/d MJL-12)
+                $panelCode = "MJL-{$suffix}";
+                $panel = \App\Models\EventJudgePanel::where('event_id', $eventId)
+                    ->where('code', $panelCode)
+                    ->first();
+
+                // 6. Hubungkan Panitera ke Majelis menggunakan relasi Eloquent clerkAssignment()
+                if ($panel) {
+                    $user->clerkAssignment()->updateOrCreate(
+                        ['user_id' => $user->id],
+                        [
+                            'event_judge_panel_id' => $panel->id,
+                            'is_active'            => true,
+                            'notes'                => "Ditugaskan otomatis ke Majelis {$panelCode}",
+                        ]
+                    );
+                    $panelAssigned++;
+                }
+            }
+
+            \Illuminate\Support\Facades\DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Berhasil memproses 12 user panitera dan menghubungkannya dengan majelis.',
+                'summary' => [
+                    'panitera_diproses'          => $userProcessed,
+                    'panitera_terhubung_majelis' => $panelAssigned
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal memproses data: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Sinkronisasi Komponen Penilaian (Event Field Components)
+     * Memperbarui data yang sudah ada, menambah yang baru, dan HANYA menghapus data yang sudah usang/tidak relevan.
+     */
+    public function syncFieldComponents()
+    {
+        // 1. Dapatkan event yang aktif (Atau default 1)
+        $activeEvent = \App\Models\Event::first(); 
+        $eventId = $activeEvent ? $activeEvent->id : 1;
+
+        // 2. Data Komponen Penilaian (Hasil Konversi JSON ke Array PHP)
+        $komponenData = [
+            [
+                "cabang_golongan" => "Fahm Al Qur'an Beregu",
+                "komponen" => [
+                    ["urutan" => 1, "nama_komponen" => "Nilai Akhir", "bobot_persen" => 100, "max_nilai" => 100]
+                ]
+            ],
+            [
+                "cabang_golongan" => "Hafalan Al Qur'an 1 Juz + Tilawah",
+                "komponen" => [
+                    ["urutan" => 1, "nama_komponen" => "Tajwid", "bobot_persen" => 100, "max_nilai" => 25],
+                    ["urutan" => 2, "nama_komponen" => "Tahfizh", "bobot_persen" => 100, "max_nilai" => 50],
+                    ["urutan" => 3, "nama_komponen" => "Fashahah", "bobot_persen" => 100, "max_nilai" => 25]
+                ]
+            ],
+            [
+                "cabang_golongan" => "Hafalan Al Qur'an 1 Juz Non Tilawah",
+                "komponen" => [
+                    ["urutan" => 1, "nama_komponen" => "Tajwid", "bobot_persen" => 100, "max_nilai" => 25],
+                    ["urutan" => 2, "nama_komponen" => "Tahfizh", "bobot_persen" => 100, "max_nilai" => 50],
+                    ["urutan" => 3, "nama_komponen" => "Fashahah", "bobot_persen" => 100, "max_nilai" => 25]
+                ]
+            ],
+            [
+                "cabang_golongan" => "Hafalan Al Qur'an 10 Juz",
+                "komponen" => [
+                    ["urutan" => 1, "nama_komponen" => "Tajwid", "bobot_persen" => 100, "max_nilai" => 25],
+                    ["urutan" => 2, "nama_komponen" => "Tahfizh", "bobot_persen" => 100, "max_nilai" => 50],
+                    ["urutan" => 3, "nama_komponen" => "Fashahah", "bobot_persen" => 100, "max_nilai" => 25]
+                ]
+            ],
+            [
+                "cabang_golongan" => "Hafalan Al Qur'an 5 Juz + Tilawah",
+                "komponen" => [
+                    ["urutan" => 1, "nama_komponen" => "Tajwid", "bobot_persen" => 100, "max_nilai" => 25],
+                    ["urutan" => 2, "nama_komponen" => "Tahfizh", "bobot_persen" => 100, "max_nilai" => 50],
+                    ["urutan" => 3, "nama_komponen" => "Fashahah", "bobot_persen" => 100, "max_nilai" => 25]
+                ]
+            ],
+            [
+                "cabang_golongan" => "Hafalan Al Qur'an 5 Juz Non Tilawah",
+                "komponen" => [
+                    ["urutan" => 1, "nama_komponen" => "Tajwid", "bobot_persen" => 100, "max_nilai" => 25],
+                    ["urutan" => 2, "nama_komponen" => "Tahfizh", "bobot_persen" => 100, "max_nilai" => 50],
+                    ["urutan" => 3, "nama_komponen" => "Fashahah", "bobot_persen" => 100, "max_nilai" => 25]
+                ]
+            ],
+            [
+                "cabang_golongan" => "Karya Tulis Ilmiah Al Qur'an (KTIQ) Umum",
+                "komponen" => [
+                    ["urutan" => 1, "nama_komponen" => "Bobot Materi", "bobot_persen" => 100, "max_nilai" => 30],
+                    ["urutan" => 2, "nama_komponen" => "Kaedah dan Gaya Bahasa", "bobot_persen" => 100, "max_nilai" => 25],
+                    ["urutan" => 3, "nama_komponen" => "Logika dan Organisasi Pesan", "bobot_persen" => 100, "max_nilai" => 25],
+                    ["urutan" => 4, "nama_komponen" => "Prestasi", "bobot_persen" => 100, "max_nilai" => 20]
+                ]
+            ],
+            [
+                "cabang_golongan" => "Karya Tulis Ilmiah Hadits (KTIH) Umum",
+                "komponen" => [
+                    ["urutan" => 1, "nama_komponen" => "Bobot Materi", "bobot_persen" => 100, "max_nilai" => 30],
+                    ["urutan" => 2, "nama_komponen" => "Kaedah dan Gaya Bahasa", "bobot_persen" => 100, "max_nilai" => 25],
+                    ["urutan" => 3, "nama_komponen" => "Logika dan Organisasi Pesan", "bobot_persen" => 100, "max_nilai" => 25],
+                    ["urutan" => 4, "nama_komponen" => "Prestasi", "bobot_persen" => 100, "max_nilai" => 20]
+                ]
+            ],
+            [
+                "cabang_golongan" => "Khutbah Jum'at & Adzan Khatib + Mu'adzin",
+                "komponen" => [
+                    ["urutan" => 1, "nama_komponen" => "Materi / Isi", "bobot_persen" => 100, "max_nilai" => 40],
+                    ["urutan" => 2, "nama_komponen" => "Bahasa / Retorika", "bobot_persen" => 100, "max_nilai" => 30],
+                    ["urutan" => 3, "nama_komponen" => "Adzan", "bobot_persen" => 100, "max_nilai" => 30]
+                ]
+            ],
+            [
+                "cabang_golongan" => "Kitab Standar Umum",
+                "komponen" => [
+                    ["urutan" => 1, "nama_komponen" => "Qiraat", "bobot_persen" => 100, "max_nilai" => 40],
+                    ["urutan" => 2, "nama_komponen" => "Terjemahan dan Maksud", "bobot_persen" => 100, "max_nilai" => 30],
+                    ["urutan" => 3, "nama_komponen" => "Fashahah dan Adab", "bobot_persen" => 100, "max_nilai" => 30]
+                ]
+            ],
+            [
+                "cabang_golongan" => "Seni Baca Al Qur'an (Tilawah) Anak-anak",
+                "komponen" => [
+                    ["urutan" => 1, "nama_komponen" => "Tajwid", "bobot_persen" => 100, "max_nilai" => 30],
+                    ["urutan" => 2, "nama_komponen" => "Fashahah", "bobot_persen" => 100, "max_nilai" => 30],
+                    ["urutan" => 3, "nama_komponen" => "Suara", "bobot_persen" => 100, "max_nilai" => 15],
+                    ["urutan" => 4, "nama_komponen" => "Irama", "bobot_persen" => 100, "max_nilai" => 25]
+                ]
+            ],
+            [
+                "cabang_golongan" => "Seni Baca Al Qur'an (Tilawah) Cacat Netra",
+                "komponen" => [
+                    ["urutan" => 1, "nama_komponen" => "Tajwid", "bobot_persen" => 100, "max_nilai" => 30],
+                    ["urutan" => 2, "nama_komponen" => "Fashahah", "bobot_persen" => 100, "max_nilai" => 30],
+                    ["urutan" => 3, "nama_komponen" => "Suara", "bobot_persen" => 100, "max_nilai" => 15],
+                    ["urutan" => 4, "nama_komponen" => "Irama", "bobot_persen" => 100, "max_nilai" => 25]
+                ]
+            ],
+            [
+                "cabang_golongan" => "Seni Baca Al Qur'an (Tilawah) Dewasa",
+                "komponen" => [
+                    ["urutan" => 1, "nama_komponen" => "Tajwid", "bobot_persen" => 100, "max_nilai" => 30],
+                    ["urutan" => 2, "nama_komponen" => "Fashahah", "bobot_persen" => 100, "max_nilai" => 30],
+                    ["urutan" => 3, "nama_komponen" => "Suara", "bobot_persen" => 100, "max_nilai" => 15],
+                    ["urutan" => 4, "nama_komponen" => "Irama", "bobot_persen" => 100, "max_nilai" => 25]
+                ]
+            ],
+            [
+                "cabang_golongan" => "Seni Baca Al Qur'an (Tilawah) Remaja",
+                "komponen" => [
+                    ["urutan" => 1, "nama_komponen" => "Tajwid", "bobot_persen" => 100, "max_nilai" => 30],
+                    ["urutan" => 2, "nama_komponen" => "Fashahah", "bobot_persen" => 100, "max_nilai" => 30],
+                    ["urutan" => 3, "nama_komponen" => "Suara", "bobot_persen" => 100, "max_nilai" => 15],
+                    ["urutan" => 4, "nama_komponen" => "Irama", "bobot_persen" => 100, "max_nilai" => 25]
+                ]
+            ],
+            [
+                "cabang_golongan" => "Seni Baca Al Qur'an (Tilawah) Taman Kanak-Kanak",
+                "komponen" => [
+                    ["urutan" => 1, "nama_komponen" => "Tajwid", "bobot_persen" => 100, "max_nilai" => 30],
+                    ["urutan" => 2, "nama_komponen" => "Fashahah", "bobot_persen" => 100, "max_nilai" => 30],
+                    ["urutan" => 3, "nama_komponen" => "Do'a & Terjemah", "bobot_persen" => 100, "max_nilai" => 40]
+                ]
+            ],
+            [
+                "cabang_golongan" => "Seni Kaligrafi Al Qur'an Dekorasi",
+                "komponen" => [
+                    ["urutan" => 1, "nama_komponen" => "Kaidah", "bobot_persen" => 100, "max_nilai" => 35],
+                    ["urutan" => 2, "nama_komponen" => "Keindahan", "bobot_persen" => 100, "max_nilai" => 25],
+                    ["urutan" => 3, "nama_komponen" => "Keindahan Hiasan", "bobot_persen" => 100, "max_nilai" => 40]
+                ]
+            ],
+            [
+                "cabang_golongan" => "Seni Kaligrafi Al Qur'an Hiasan Mushaf",
+                "komponen" => [
+                    ["urutan" => 1, "nama_komponen" => "Kaidah", "bobot_persen" => 100, "max_nilai" => 35],
+                    ["urutan" => 2, "nama_komponen" => "Keindahan", "bobot_persen" => 100, "max_nilai" => 25],
+                    ["urutan" => 3, "nama_komponen" => "Keindahan Hiasan", "bobot_persen" => 100, "max_nilai" => 40]
+                ]
+            ],
+            [
+                "cabang_golongan" => "Seni Kaligrafi Al Qur'an Kontemporer",
+                "komponen" => [
+                    ["urutan" => 1, "nama_komponen" => "Kaidah", "bobot_persen" => 100, "max_nilai" => 35],
+                    ["urutan" => 2, "nama_komponen" => "Keindahan", "bobot_persen" => 100, "max_nilai" => 25],
+                    ["urutan" => 3, "nama_komponen" => "Keindahan Hiasan", "bobot_persen" => 100, "max_nilai" => 40]
+                ]
+            ],
+            [
+                "cabang_golongan" => "Seni Kaligrafi Al Qur'an Naskah",
+                "komponen" => [
+                    ["urutan" => 1, "nama_komponen" => "Kaidah", "bobot_persen" => 100, "max_nilai" => 60],
+                    ["urutan" => 2, "nama_komponen" => "Keindahan", "bobot_persen" => 100, "max_nilai" => 40]
+                ]
+            ],
+            [
+                "cabang_golongan" => "Syarhil Qur'an Beregu",
+                "komponen" => [
+                    ["urutan" => 1, "nama_komponen" => "Terjemah dan Materi", "bobot_persen" => 100, "max_nilai" => 40],
+                    ["urutan" => 2, "nama_komponen" => "Penghayatan dan Retorika", "bobot_persen" => 100, "max_nilai" => 30],
+                    ["urutan" => 3, "nama_komponen" => "Tilawah dan Adab", "bobot_persen" => 100, "max_nilai" => 30]
+                ]
+            ],
+            [
+                "cabang_golongan" => "Tafsir Al Qur'an Bahasa Arab",
+                "komponen" => [
+                    ["urutan" => 1, "nama_komponen" => "Mufrodat Ayat & Ta'bir", "bobot_persen" => 100, "max_nilai" => 40],
+                    ["urutan" => 2, "nama_komponen" => "Mufrodat & Munasabah Ayat", "bobot_persen" => 100, "max_nilai" => 30],
+                    ["urutan" => 3, "nama_komponen" => "Wawasan & Durus", "bobot_persen" => 100, "max_nilai" => 30]
+                ]
+            ],
+            [
+                "cabang_golongan" => "Tafsir Al Qur'an Bahasa Indonesia",
+                "komponen" => [
+                    ["urutan" => 1, "nama_komponen" => "Mufrodat Ayat & Ta'bir", "bobot_persen" => 100, "max_nilai" => 40],
+                    ["urutan" => 2, "nama_komponen" => "Mufrodat & Munasabah Ayat", "bobot_persen" => 100, "max_nilai" => 30],
+                    ["urutan" => 3, "nama_komponen" => "Wawasan & Durus", "bobot_persen" => 100, "max_nilai" => 30]
+                ]
+            ],
+            [
+                "cabang_golongan" => "Tafsir Al Qur'an Bahasa Inggris",
+                "komponen" => [
+                    ["urutan" => 1, "nama_komponen" => "Mufrodat Ayat & Ta'bir", "bobot_persen" => 100, "max_nilai" => 40],
+                    ["urutan" => 2, "nama_komponen" => "Mufrodat & Munasabah Ayat", "bobot_persen" => 100, "max_nilai" => 30],
+                    ["urutan" => 3, "nama_komponen" => "Wawasan & Durus", "bobot_persen" => 100, "max_nilai" => 30]
+                ]
+            ],
+            [
+                "cabang_golongan" => "Tartil Al Qur'an Umum",
+                "komponen" => [
+                    ["urutan" => 1, "nama_komponen" => "Tajwid", "bobot_persen" => 100, "max_nilai" => 40],
+                    ["urutan" => 2, "nama_komponen" => "Fashahah", "bobot_persen" => 100, "max_nilai" => 30],
+                    ["urutan" => 3, "nama_komponen" => "Irama dan Suara", "bobot_persen" => 100, "max_nilai" => 30]
+                ]
+            ],
+            [
+                "cabang_golongan" => "Tartil Al Qur'an Dasar",
+                "komponen" => [
+                    ["urutan" => 1, "nama_komponen" => "Tajwid", "bobot_persen" => 100, "max_nilai" => 40],
+                    ["urutan" => 2, "nama_komponen" => "Fashahah", "bobot_persen" => 100, "max_nilai" => 30],
+                    ["urutan" => 3, "nama_komponen" => "Irama dan Suara", "bobot_persen" => 100, "max_nilai" => 30]
+                ]
+            ],
+            [
+                "cabang_golongan" => "Tartil Al Qur'an Menengah",
+                "komponen" => [
+                    ["urutan" => 1, "nama_komponen" => "Tajwid", "bobot_persen" => 100, "max_nilai" => 40],
+                    ["urutan" => 2, "nama_komponen" => "Fashahah", "bobot_persen" => 100, "max_nilai" => 30],
+                    ["urutan" => 3, "nama_komponen" => "Irama dan Suara", "bobot_persen" => 100, "max_nilai" => 30]
+                ]
+            ]
+        ];
+
+        \Illuminate\Support\Facades\DB::beginTransaction();
+        try {
+            // 3. Ambil seluruh event_group_id yang aktif pada event saat ini
+            $eventGroupIds = \App\Models\EventGroup::where('event_id', $eventId)->pluck('id');
+            
+            $syncedGroups = 0;
+            $syncedComponents = 0;
+            $skippedGroups = [];
+            
+            // Array untuk melacak ID EventFieldComponent mana saja yang valid (terdapat di JSON ini)
+            $validComponentIds = [];
+
+            // 4. Looping Data Master dan Lakukan Sync (Tanpa Menghapus Awal)
+            foreach ($komponenData as $data) {
+                
+                // Cari Cabang Golongan dari tabel EventGroup berdasarkan full_name
+                $group = \App\Models\EventGroup::where('event_id', $eventId)
+                    ->where('full_name', $data['cabang_golongan'])
+                    ->first();
+
+                // Jika nama grup tidak ditemukan, catat agar ketahuan dan abaikan (skip) 
+                if (!$group) {
+                    $skippedGroups[] = $data['cabang_golongan'];
+                    continue;
+                }
+
+                $syncedGroups++;
+
+                // Iterasi komponen di dalam cabang golongan tersebut
+                foreach ($data['komponen'] as $komp) {
+                    
+                    // Cek apakah Master Nama Komponen ini sudah ada di tabel list_fields, jika tidak buat baru
+                    $listField = \App\Models\ListField::firstOrCreate(
+                        ['name' => $komp['nama_komponen']]
+                    );
+
+                    // Update atau Buat Komponen baru. Menggunakan kombinasi 'event_group_id' dan 'field_id'
+                    // sebagai key pencarian (unik) agar tidak terjadi duplikasi dan ID lama tetap dipertahankan.
+                    $eventFieldComponent = \App\Models\EventFieldComponent::updateOrCreate(
+                        [
+                            'event_group_id' => $group->id,
+                            'field_id'       => $listField->id,
+                        ],
+                        [
+                            'event_group_name' => $group->full_name,
+                            'field_name'       => $listField->name,
+                            'weight'           => $komp['bobot_persen'],
+                            'max_score'        => $komp['max_nilai'],
+                            'order_number'     => $komp['urutan'],
+                        ]
+                    );
+
+                    // Simpan ID yang ter-update/ter-create sebagai ID yang sah/valid
+                    $validComponentIds[] = $eventFieldComponent->id;
+                    $syncedComponents++;
+                }
+            }
+
+            // 5. Bersihkan data obsolete/usang
+            // Hapus HANYA komponen untuk event ini yang ID-nya TIDAK ADA dalam daftar valid/tersinkron
+            $deletedObsoleteCount = 0;
+            if ($eventGroupIds->isNotEmpty()) {
+                $deletedObsoleteCount = \App\Models\EventFieldComponent::whereIn('event_group_id', $eventGroupIds)
+                    ->whereNotIn('id', $validComponentIds)
+                    ->delete();
+            }
+
+            \Illuminate\Support\Facades\DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Berhasil melakukan sinkronisasi Master Komponen Penilaian tanpa merusak relasi existing.',
+                'summary' => [
+                    'event_id' => $eventId,
+                    'total_cabang_disinkron' => $syncedGroups,
+                    'total_komponen_diperbarui' => $syncedComponents,
+                    'total_komponen_usang_dihapus' => $deletedObsoleteCount,
+                    'cabang_tidak_ditemukan' => $skippedGroups
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal melakukan sinkronisasi data: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+    
 }

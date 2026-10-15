@@ -11,6 +11,15 @@ export default [
     component: () => import('./pages/auth/Login.vue'),
   },
   {
+    path: '/maqra-drawings',
+    name: 'maqra.drawings',
+    component: () => import('./pages/MaqraDrawing.vue'),
+    meta: { 
+      requiresAuth: true, 
+      layout: 'maqra' // Akan dibaca oleh App.vue untuk me-render LayoutMaqra
+    }
+  },
+  {
     path: '/reset-password',
     name: 'reset-password',
     component: () => import('./pages/auth/ResetPassword.vue') // sesuaikan path

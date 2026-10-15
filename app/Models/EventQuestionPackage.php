@@ -14,6 +14,7 @@ class EventQuestionPackage extends Model
         'package_number',
         'question_content',
         'is_available',
+        'round_id',
     ];
 
     protected $casts = [
@@ -24,5 +25,11 @@ class EventQuestionPackage extends Model
     public function eventGroup(): BelongsTo
     {
         return $this->belongsTo(EventGroup::class);
+    }
+
+    // TAMBAHAN RELASI
+    public function round(): BelongsTo
+    {
+        return $this->belongsTo(Round::class);
     }
 }

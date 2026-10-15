@@ -12,24 +12,16 @@ use PhpOffice\PhpSpreadsheet\IOFactory;
 
 class EventQuestionPackageController extends Controller
 {
-    /**
-     * Mengimpor paket soal dari file Excel/CSV.
-     *
-     * Struktur kolom (baris pertama = header):
-     *   A: Nomor Paket   (wajib, contoh: "Paket A")
-     *   B: Isi Soal      (wajib, 1 baris = 1 sub-soal)
-     *
-     * Baris dengan Nomor Paket yang sama digabung menjadi satu paket,
-     * urutan sub-soal mengikuti urutan baris di file.
-     */
     public function import(Request $request)
     {
         $request->validate([
             'event_group_id' => ['required', 'exists:event_groups,id'],
+            'round_id'       => ['required', 'integer', 'in:1,2,3', 'exists:rounds,id'], // Validasi 3 pilihan babak
             'file'           => ['required', 'file', 'mimes:xlsx,xls,csv', 'max:2048'],
         ]);
 
         $eventGroupId = $request->input('event_group_id');
+        $roundId = $request->input('round_id');
         $file = $request->file('file');
 
         $eventGroup = EventGroup::findOrFail($eventGroupId);
@@ -44,10 +36,10 @@ class EventQuestionPackageController extends Controller
             $rows = $spreadsheet->getActiveSheet()->toArray();
 
             $errors = [];
-            $packages = []; // [package_number => ['row' => int, 'items' => string[]]]
+            $packages = [];
 
             foreach ($rows as $index => $row) {
-                if ($index === 0) continue; // Skip header
+                if ($index === 0) continue; 
 
                 if (empty(array_filter($row, fn ($v) => $v !== null && trim((string) $v) !== ''))) continue;
 
@@ -71,9 +63,9 @@ class EventQuestionPackageController extends Controller
                 $packages[$packageNumber]['items'][] = $question;
             }
 
-            // Nomor paket yang sudah ada di golongan ini dilewati agar tidak ganda
             $existing = array_flip(
                 EventQuestionPackage::where('event_group_id', $eventGroupId)
+                    ->where('round_id', $roundId)
                     ->pluck('package_number')
                     ->all()
             );
@@ -81,16 +73,16 @@ class EventQuestionPackageController extends Controller
             $importedCount = 0;
 
             foreach ($packages as $packageNumber => $pkg) {
-                // Kunci array numerik ("1") otomatis menjadi int di PHP, kembalikan ke string
                 $packageNumber = (string) $packageNumber;
 
                 if (isset($existing[$packageNumber])) {
-                    $errors[] = "Baris {$pkg['row']}: Paket \"{$packageNumber}\" sudah ada di golongan ini, dilewati.";
+                    $errors[] = "Baris {$pkg['row']}: Paket \"{$packageNumber}\" sudah ada di babak ini, dilewati.";
                     continue;
                 }
 
                 EventQuestionPackage::create([
                     'event_group_id'   => $eventGroupId,
+                    'round_id'         => $roundId,
                     'package_number'   => $packageNumber,
                     'question_content' => $this->buildContent($pkg['items']),
                     'is_available'     => true,
@@ -114,20 +106,19 @@ class EventQuestionPackageController extends Controller
         } catch (\Exception $e) {
             Log::error('Error import Paket Soal: ' . $e->getMessage());
             return response()->json([
-                'message' => 'Gagal mengimpor file. Pastikan format file sesuai. Error: ' . $e->getMessage(),
+                'message' => 'Gagal mengimpor file. Error: ' . $e->getMessage(),
             ], 500);
         }
     }
 
-    /**
-     * Menampilkan daftar paket soal berdasarkan event_group_id
-     */
     public function index(Request $request)
     {
         $eventGroupId = $request->get('event_group_id');
-        if (!$eventGroupId) {
+        $roundId = $request->get('round_id');
+
+        if (!$eventGroupId || !$roundId) {
             return response()->json([
-                'message' => 'event_group_id is required.',
+                'message' => 'event_group_id dan round_id wajib diisi.',
             ], 422);
         }
 
@@ -135,13 +126,13 @@ class EventQuestionPackageController extends Controller
         $perPage = (int) ($request->get('per_page') ?? 10);
 
         $query = EventQuestionPackage::query()
-            ->where('event_group_id', $eventGroupId);
+            ->where('event_group_id', $eventGroupId)
+            ->where('round_id', $roundId);
 
         if ($search) {
             $query->where('package_number', 'like', "%{$search}%");
         }
 
-        // Urut natural: "Paket 2" tampil sebelum "Paket 10"
         $query->orderByRaw('LENGTH(package_number)')
               ->orderBy('package_number');
 
@@ -151,23 +142,22 @@ class EventQuestionPackageController extends Controller
         ]);
     }
 
-    /**
-     * Menyimpan paket soal baru
-     */
     public function store(Request $request)
     {
         $validated = $request->validate([
             'event_group_id'            => ['required', 'exists:event_groups,id'],
+            'round_id'                  => ['required', 'integer', 'in:1,2,3', 'exists:rounds,id'],
             'package_number'            => [
                 'required', 'string', 'max:50',
                 Rule::unique('event_question_packages', 'package_number')
-                    ->where('event_group_id', $request->input('event_group_id')),
+                    ->where('event_group_id', $request->input('event_group_id'))
+                    ->where('round_id', $request->input('round_id')),
             ],
             'question_content'          => ['required', 'array', 'min:1'],
             'question_content.*.question' => ['required', 'string'],
             'is_available'              => ['required', 'boolean'],
         ], [
-            'package_number.unique'              => 'Nomor paket sudah digunakan pada golongan ini.',
+            'package_number.unique'              => 'Nomor paket sudah digunakan pada golongan dan babak ini.',
             'question_content.required'          => 'Minimal harus ada satu sub-soal.',
             'question_content.*.question.required' => 'Isi sub-soal tidak boleh kosong.',
         ]);
@@ -191,26 +181,26 @@ class EventQuestionPackageController extends Controller
         ], 201);
     }
 
-    /**
-     * Memperbarui paket soal
-     */
     public function update(Request $request, EventQuestionPackage $eventQuestionPackage)
     {
         $groupId = $request->input('event_group_id', $eventQuestionPackage->event_group_id);
+        $roundId = $request->input('round_id', $eventQuestionPackage->round_id);
 
         $validated = $request->validate([
             'event_group_id'            => ['sometimes', 'required', 'exists:event_groups,id'],
+            'round_id'                  => ['sometimes', 'required', 'integer', 'in:1,2,3', 'exists:rounds,id'],
             'package_number'            => [
                 'required', 'string', 'max:50',
                 Rule::unique('event_question_packages', 'package_number')
                     ->where('event_group_id', $groupId)
+                    ->where('round_id', $roundId)
                     ->ignore($eventQuestionPackage->id),
             ],
             'question_content'          => ['required', 'array', 'min:1'],
             'question_content.*.question' => ['required', 'string'],
             'is_available'              => ['required', 'boolean'],
         ], [
-            'package_number.unique'              => 'Nomor paket sudah digunakan pada golongan ini.',
+            'package_number.unique'              => 'Nomor paket sudah digunakan pada golongan dan babak ini.',
             'question_content.required'          => 'Minimal harus ada satu sub-soal.',
             'question_content.*.question.required' => 'Isi sub-soal tidak boleh kosong.',
         ]);
@@ -227,28 +217,14 @@ class EventQuestionPackageController extends Controller
         ]);
     }
 
-    /**
-     * Menghapus paket soal
-     */
     public function destroy(EventQuestionPackage $eventQuestionPackage)
     {
-        // Opsional: cegah penghapusan jika paket sudah dicabut peserta
-        // $hasBeenDrawn = EventMaqraDrawing::where('event_question_package_id', $eventQuestionPackage->id)->exists();
-        // if ($hasBeenDrawn) {
-        //     return response()->json(['message' => 'Paket tidak bisa dihapus karena sudah dicabut oleh peserta.'], 422);
-        // }
-
         $eventQuestionPackage->delete();
-
         return response()->json([
             'message' => 'Paket soal berhasil dihapus.',
         ]);
     }
 
-    /**
-     * Susun ulang isi paket menjadi format JSON seragam:
-     * [ {"number": 1, "question": "..."}, {"number": 2, "question": "..."} ]
-     */
     private function buildContent(array $questions): array
     {
         $content = [];

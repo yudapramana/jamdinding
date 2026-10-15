@@ -129,6 +129,11 @@ Route::controller(UtilityController::class)->group(function () {
     Route::get('/verified-participants-by-region', 'verifiedParticipantSortByRegion');
     Route::get('/contingent-gender-recap', 'contingentGenderRecap');
     Route::get('/group-gender-recap', 'groupGenderRecap');
+    // ➕ Route Seed Dewan Hakim (Bisa dipanggil berulang, aman dari duplikat)
+    Route::get('/seed-dewan-hakim', 'seedDewanHakim');
+    Route::get('/seed-panitera-panel', 'seedPaniteraPanel');
+    // ➕ Route Sync Komponen Penilaian Cabang Lomba
+    Route::get('/sync-field-components', 'syncFieldComponents');
 });
 
 /*

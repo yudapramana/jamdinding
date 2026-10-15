@@ -21,6 +21,7 @@ class EventMaqra extends Model
         'juz',
         'page',
         'is_available',
+        'round_id',
     ];
 
     protected $casts = [
@@ -32,11 +33,14 @@ class EventMaqra extends Model
         'is_available' => 'boolean',
     ];
 
-    /**
-     * Relasi ke EventGroup
-     */
     public function eventGroup(): BelongsTo
     {
         return $this->belongsTo(EventGroup::class);
+    }
+
+    // TAMBAHAN RELASI
+    public function round(): BelongsTo
+    {
+        return $this->belongsTo(Round::class);
     }
 }

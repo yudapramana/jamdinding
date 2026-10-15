@@ -91,6 +91,10 @@ Route::middleware(['auth:sanctum']) // kalau belum pakai sanctum, boleh dihapus 
     ->prefix('v1')
     ->group(function () {
 
+        Route::get('/event-maqra-drawings/participants', [App\Http\Controllers\API\V1\EventMaqraDrawingController::class, 'getParticipants']);
+        Route::get('/event-maqra-drawings/available-items', [App\Http\Controllers\API\V1\EventMaqraDrawingController::class, 'getAvailableItems']);
+        Route::post('/event-maqra-drawings/draw', [App\Http\Controllers\API\V1\EventMaqraDrawingController::class, 'storeDraw']);
+
         // Endpoint untuk mengambil daftar majelis berdasarkan parameter ?event_id=X
         Route::get('event-judge-panels', [EventJudgePanelController::class, 'allPanels']);
 
