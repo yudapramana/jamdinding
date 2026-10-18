@@ -198,7 +198,7 @@ class UtilityController extends Controller
         } else {
             $no = 1;
             foreach ($participants as $ep) {
-                $noPeserta = substr($ep->participant_number, 0, 8);
+                $noPeserta = preg_replace('/\.[^.]*$/', '', $ep?->participant_number ?? '');
                 $nama = $ep->participant?->full_name ?? '-';
                 
                 // Ambil string cabang asli
@@ -315,7 +315,7 @@ class UtilityController extends Controller
         } else {
             $no = 1;
             foreach ($participants as $ep) {
-                $noPeserta = substr($ep->participant_number, 0, 8);
+                $noPeserta = preg_replace('/\.[^.]*$/', '', $ep?->participant_number ?? '');
                 $nama = $ep->participant?->full_name ?? '-';
                 
                 // Ambil string cabang asli
@@ -509,7 +509,7 @@ class UtilityController extends Controller
         } else {
             $no = 1;
             foreach ($participants as $ep) {
-                $noPeserta = substr($ep->participant_number, 0, 8);
+                $noPeserta = preg_replace('/\.[^.]*$/', '', $ep?->participant_number ?? '');
                 $nama = $ep->participant?->full_name ?? '-';
                 
                 // Ambil string cabang asli
