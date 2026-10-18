@@ -1323,6 +1323,7 @@ class UtilityController extends Controller
         $counts = \App\Models\EventParticipant::query()
             ->select('event_branch_id', 'event_group_id', 'event_category_id', \DB::raw('count(*) as total'))
             ->where('event_id', $eventId)
+            ->where('registration_status', 'verified')
             ->groupBy('event_branch_id', 'event_group_id', 'event_category_id')
             ->get();
 
