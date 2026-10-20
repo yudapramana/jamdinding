@@ -55,6 +55,7 @@
                 <label>Jenis Kokarde <span class="text-danger">*</span></label>
                 <select v-model="printType" class="form-control">
                   <option value="participant">Peserta</option>
+                  <option value="group">Peserta (Berdasarkan Golongan / Cabang)</option>
                   <option value="role">Panitia / Role</option>
                   <option value="verification">Verifikasi Foto per Golongan (A4, 1 Peserta/Halaman)</option>
                 </select>
@@ -118,7 +119,8 @@
             </div>
 
             <!-- PILIH CABANG/GOLONGAN -->
-            <div v-if="printType === 'verification'" class="col-md-6">
+            <!-- ➕ Tampilkan dropdown ini untuk Print Group dan Print Verification -->
+            <div v-if="printType === 'verification' || printType === 'group'" class="col-md-6">
               <div class="form-group">
                 <label>Golongan / Cabang <span class="text-danger">*</span></label>
                 <select
@@ -135,7 +137,6 @@
                     {{ g.full_name || g.name || g.group_name || ('Gol #' + g.id) }}
                   </option>
                 </select>
-
                 <small v-if="masterDataStore.eventGroups.length === 0" class="text-muted">
                   Data golongan belum tersedia
                 </small>
@@ -182,11 +183,12 @@ const fetchBranches = async () => {
 
 const eventGroupId = ref('')
 
+// Update Can Export
 const canExport = computed(() => {
   if (!eventId.value || isExporting.value) return false
   if (printType.value === 'participant') return !!regionId.value
   if (printType.value === 'role') return !!roleId.value
-  if (printType.value === 'verification') return !!eventGroupId.value
+  if (printType.value === 'verification' || printType.value === 'group') return !!eventGroupId.value
   return false
 })
 
@@ -252,16 +254,16 @@ const fetchRoles = async () => {
  ====================== */
 const exportPdf = () => {
   if (!eventId.value) { Swal.fire('Event belum dipilih', '', 'warning'); return }
-  if (printType.value === 'participant' && !regionId.value) { Swal.fire('Kontingen belum dipilih', '', 'warning'); return }
-  if (printType.value === 'role' && !roleId.value) { Swal.fire('Role belum dipilih', '', 'warning'); return }
-  if (printType.value === 'verification' && !eventGroupId.value) { Swal.fire('Golongan belum dipilih', '', 'warning'); return }
-
+  
   let url = ''
 
   if (printType.value === 'participant') {
     url = `/api/v1/event-kokarde/export/pdf?event_id=${eventId.value}&type=participant&region_id=${regionId.value}`
   } else if (printType.value === 'role') {
     url = `/api/v1/event-kokarde/export/pdf?event_id=${eventId.value}&type=role&role_id=${roleId.value}`
+  } else if (printType.value === 'group') {
+    // ➕ URL Ekspor Berdasarkan Group
+    url = `/api/v1/event-kokarde/export/pdf?event_id=${eventId.value}&type=group&event_group_id=${eventGroupId.value}`
   } else if (printType.value === 'verification') {
     url = `/api/v1/event-kokarde/export/verification-pdf?event_id=${eventId.value}&event_group_id=${eventGroupId.value}`
   }

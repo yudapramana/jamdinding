@@ -173,7 +173,7 @@ const handleChangePassword = () => {
                                             <label for="inputName" class="col-sm-2 col-form-label">Name</label>
                                             <div class="col-sm-10">
                                                 <input v-model="authUserStore.user.name" type="text" class="form-control"
-                                                    id="inputName" placeholder="Name">
+                                                    id="inputName" placeholder="Name" readonly>
                                                 <span class="text-danger text-sm" v-if="errors && errors.name">
                                                     {{ errors.name[0] }}
                                                 </span>

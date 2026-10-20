@@ -94,6 +94,12 @@ Route::middleware(['auth:sanctum']) // kalau belum pakai sanctum, boleh dihapus 
         Route::get('/event-maqra-drawings/participants', [App\Http\Controllers\API\V1\EventMaqraDrawingController::class, 'getParticipants']);
         Route::get('/event-maqra-drawings/available-items', [App\Http\Controllers\API\V1\EventMaqraDrawingController::class, 'getAvailableItems']);
         Route::post('/event-maqra-drawings/draw', [App\Http\Controllers\API\V1\EventMaqraDrawingController::class, 'storeDraw']);
+        Route::post('event-maqra-drawings/toggle-status', [App\Http\Controllers\API\V1\EventMaqraDrawingController::class, 'toggleDrawingStatus']);
+
+        // Route Khusus Pencabutan oleh Kafilah
+        Route::get('/kafilah/maqra-drawings/participants', [App\Http\Controllers\API\V1\KafilahMaqraDrawingController::class, 'getParticipants']);
+        Route::get('/kafilah/maqra-drawings/available-items', [App\Http\Controllers\API\V1\KafilahMaqraDrawingController::class, 'getAvailableItems']);
+        Route::post('/kafilah/maqra-drawings/draw', [App\Http\Controllers\API\V1\KafilahMaqraDrawingController::class, 'storeDraw']);
 
         // Endpoint untuk mengambil daftar majelis berdasarkan parameter ?event_id=X
         Route::get('event-judge-panels', [EventJudgePanelController::class, 'allPanels']);
@@ -211,6 +217,9 @@ Route::middleware(['auth:sanctum']) // kalau belum pakai sanctum, boleh dihapus 
         Route::post('event-groups/generate-from-template', [EventGroupController::class, 'generateFromTemplate']); // Generate dari master_groups
         // Route::put('/event-groups/{id}/assign-location', [EventGroupLocationController::class, 'assign']);
         Route::put('/event-groups/{eventGroup}/assign-judge-panel', [EventGroupController::class, 'assignJudgePanel']);
+
+        // ➕ TAMBAHAN ROUTE UNTUK TOGGLE STATUS CABUT MAQRA
+        Route::patch('/event-groups/{eventGroup}/toggle-maqra-drawing', [EventGroupController::class, 'toggleMaqraDrawing']);
 
         Route::get('/event-groups/{eventGroup}/judge-components', [EventGroupJudgeComponentController::class, 'index']);
         Route::post('/event-groups/{eventGroup}/judge-components', [EventGroupJudgeComponentController::class, 'store']);

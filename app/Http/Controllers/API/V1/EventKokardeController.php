@@ -18,14 +18,14 @@ use Barryvdh\DomPDF\Facade\Pdf;
 class EventKokardeController extends Controller
 {
     /**
-     * EXPORT KOKARDE PDF PER KONTINGEN
+     * EXPORT KOKARDE PDF (KONTINGEN / ROLE / GOLONGAN)
      */
     public function exportPdf(Request $request)
     {
-
+        // ➕ Tambahkan 'group' ke validasi in:
         $request->validate([
             'event_id' => 'required|exists:events,id',
-            'type'     => 'required|in:participant,role',
+            'type'     => 'required|in:participant,role,group',
         ]);
 
         $event = Event::findOrFail($request->event_id);
@@ -40,7 +40,6 @@ class EventKokardeController extends Controller
                 'region_id' => 'required',
             ]);
 
-            /* === Resolve region & kolom participant === */
             switch ($event->event_level) {
                 case 'national':
                     $regionModel = Province::class;
@@ -79,7 +78,7 @@ class EventKokardeController extends Controller
                 ->get();
 
             if ($rows->isEmpty()) {
-                return 'Tidak ada peserta siap cetak kokarde';
+                return 'Tidak ada peserta siap cetak kokarde pada kontingen ini.';
             }
 
             return view('pdf.kokarde-mass', [
@@ -95,7 +94,6 @@ class EventKokardeController extends Controller
          * =========================================
          */
         if ($request->type === 'role') {
-
             $request->validate([
                 'role_id' => 'required|exists:roles,id',
             ]);
@@ -108,15 +106,50 @@ class EventKokardeController extends Controller
                 ->get();
 
             if ($rows->isEmpty()) {
-                return 'Tidak ada panitia untuk role tersebut';
+                return 'Tidak ada panitia untuk role tersebut.';
             }
-
 
             return view('pdf.kokarde-mass', [
                 'event' => $event,
                 'rows'  => $rows,
                 'mode'  => 'role',
                 'role'  => $role,
+            ]);
+        }
+
+        /**
+         * =========================================
+         * MODE 3️⃣ : PESERTA PER GOLONGAN
+         * =========================================
+         */
+        if ($request->type === 'group') {
+            $request->validate([
+                'event_group_id' => 'required|exists:event_groups,id',
+            ]);
+
+            $group = EventGroup::findOrFail($request->event_group_id);
+
+            $rows = EventParticipant::query()
+                ->with(['participant','event','eventBranch','eventGroup','eventCategory'])
+                ->where('event_id', $event->id)
+                ->where('event_group_id', $group->id)
+                ->where('registration_status', 'verified')
+                ->whereNotNull('event_category_id')
+                ->whereHas('participant', fn ($q) =>
+                    $q->whereNotNull('photo_url')
+                )
+                ->orderByRaw('participant_number IS NULL, participant_number')
+                ->get();
+
+            if ($rows->isEmpty()) {
+                return 'Tidak ada peserta siap cetak kokarde pada golongan ini.';
+            }
+
+            // Kita reuse view 'participant' karena layout kokarde peserta 100% sama
+            return view('pdf.kokarde-mass', [
+                'event' => $event,
+                'rows'  => $rows,
+                'mode'  => 'participant',
             ]);
         }
     }
@@ -127,14 +160,13 @@ class EventKokardeController extends Controller
      */
     public function exportVerificationPdf(Request $request)
     {
+        // ... (Kode untuk exportVerificationPdf tetap sama 100%)
         $request->validate([
             'event_id'       => 'required|exists:events,id',
             'event_group_id' => 'required|exists:event_groups,id',
         ]);
 
         $event = Event::findOrFail($request->event_id);
-        
-        // Ambil data event group untuk mengecek atribut is_team
         $group = EventGroup::findOrFail($request->event_group_id);
 
         $rows = EventParticipant::query()
@@ -150,9 +182,7 @@ class EventKokardeController extends Controller
             return 'Tidak ada peserta pada golongan tersebut';
         }
 
-        // === LOGIKA UNTUK CABANG BEREGU (TEAM) ===
         if ($group->is_team) {
-            // Kelompokkan peserta berdasarkan Kategori (event_category_id) dan Wilayah (contingent)
             $groupedRows = $rows->groupBy(function ($item) {
                 return $item->event_category_id . '_' . ($item->contingent ?? 'non-contingent');
             });
@@ -164,7 +194,6 @@ class EventKokardeController extends Controller
             ]);
         }
 
-        // === LOGIKA UNTUK CABANG INDIVIDU (DEFAULT) ===
         return view('pdf.verifikasi-golongan', [
             'event' => $event,
             'group' => $group, 

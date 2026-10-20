@@ -44,36 +44,43 @@ class EventGroupController extends Controller
         ]);
     }
 
-
-
     public function index(Request $request)
     {
-        $status    = $request->get('status', 'active'); // 👈 DEFAULT active
-        $eventId = $request->get('event_id');
+        $status    = $request->get('status', 'active'); 
+        $eventId   = $request->get('event_id');
+        
         if (!$eventId) {
-            return response()->json([
-                'message' => 'event_id is required.',
-            ], 422);
+            return response()->json(['message' => 'event_id is required.'], 422);
         }
 
         $search     = $request->get('search');
         $perPage    = (int) ($request->get('per_page') ?? 10);
-        $branchId   = $request->get('branch_id');        // optional filter
-        $simple     = $request->boolean('simple');       // simple list
-        $withFields = $request->boolean('with_fields');  // include fieldComponents
-        $fromCrud   = $request->boolean('from_crud');    // 👈 PENENTU MODE
+        $branchId   = $request->get('branch_id');        
+        $simple     = $request->boolean('simple');       
+        $withFields = $request->boolean('with_fields');  
+        $fromCrud   = $request->boolean('from_crud');    
+        $hasMaqra   = $request->get('has_maqra', 'all');
 
-        $query = EventGroup::query()
-            ->where('event_id', $eventId);
+        $query = EventGroup::query()->where('event_id', $eventId);
 
-        /**
-         * FILTER STATUS
-         * - non CRUD → default hanya ACTIVE
-         * - CRUD:
-         *   - status=active → active
-         *   - status=inactive → inactive
-         *   - status=all / null → semua
-         */
+        // ➕ AMBIL DATA USER DAN CEK ROLE
+        $user = $request->user();
+        $roleSlug = $user ? strtolower(optional($user->role)->slug ?? optional($user->role)->name ?? '') : '';
+
+        // ➕ FILTER KHUSUS PANITERA
+        if (str_contains($roleSlug, 'panitera')) {
+            // Ambil ID Majelis dari tabel event_judge_panel_clerks miliknya
+            $panelId = optional($user->clerkAssignment)->event_judge_panel_id;
+            
+            if ($panelId) {
+                // Saring query golongan berdasarkan majelis tersebut
+                $query->where('event_judge_panel_id', $panelId);
+            } else {
+                // Jika panitera belum ditugaskan ke majelis manapun, pastikan query mengembalikan data kosong
+                $query->whereNull('id');
+            }
+        }
+
         if (!$fromCrud) {
             $query->where('status', 'active');
         } else {
@@ -82,25 +89,25 @@ class EventGroupController extends Controller
             } elseif ($status === 'inactive') {
                 $query->where('status', 'inactive');
             }
-            // status=all → tidak difilter
         }
 
-
-        // filter optional by branch
         if ($branchId) {
             $query->where('branch_id', $branchId);
         }
 
-        // search
+        // ➕ Filter khusus berdasarkan has_maqra_drawing
+        if ($hasMaqra !== 'all') {
+            $query->where('has_maqra_drawing', $hasMaqra === '1' || $hasMaqra === 'true');
+        }
+
         if ($search) {
             $query->where(function ($q) use ($search) {
                 $q->where('branch_name', 'like', "%{$search}%")
-                ->orWhere('group_name', 'like', "%{$search}%")
-                ->orWhere('full_name', 'like', "%{$search}%");
+                  ->orWhere('group_name', 'like', "%{$search}%")
+                  ->orWhere('full_name', 'like', "%{$search}%");
             });
         }
 
-        // relasi komponen (dipakai di fetchGroupsWithComponents: with_fields=1)
         if ($withFields) {
             $query->with([
                 'fieldComponents' => function ($q) {
@@ -109,46 +116,126 @@ class EventGroupController extends Controller
             ]);
         }
 
-        // urutan default
         $query->orderByRaw('COALESCE(order_number, 9999)')
-            ->orderBy('branch_name')
-            ->orderBy('group_name');
+              ->orderBy('branch_name')
+              ->orderBy('group_name');
 
-        /**
-         * SIMPLE MODE
-         * dipakai oleh dropdown / selector
-         */
         if ($simple) {
             $data = $query->get([
-                'id',
-                'event_id',
-                'branch_id',
-                'branch_name',
-                'group_name',
-                'full_name',
-                'max_age',
-                'is_team',
-                'order_number',
-                'status',
-                'has_maqra_drawing',
+                'id', 'event_id', 'branch_id', 'branch_name', 'group_name', 'full_name',
+                'max_age', 'is_team', 'order_number', 'status', 'has_maqra_drawing', 'is_maqra_drawing_open', 'event_judge_panel_id'
             ]);
-
-            return response()->json([
-                'success' => true,
-                'data'    => $data,
-            ]);
+            return response()->json(['success' => true, 'data' => $data]);
         }
 
-        /**
-         * DEFAULT: PAGINATED
-         */
         $data = $query->paginate($perPage);
 
-        return response()->json([
-            'success' => true,
-            'data'    => $data,
-        ]);
+        return response()->json(['success' => true, 'data' => $data]);
     }
+
+    // public function index(Request $request)
+    // {
+    //     $status    = $request->get('status', 'active'); // 👈 DEFAULT active
+    //     $eventId = $request->get('event_id');
+    //     if (!$eventId) {
+    //         return response()->json([
+    //             'message' => 'event_id is required.',
+    //         ], 422);
+    //     }
+
+    //     $search     = $request->get('search');
+    //     $perPage    = (int) ($request->get('per_page') ?? 10);
+    //     $branchId   = $request->get('branch_id');        // optional filter
+    //     $simple     = $request->boolean('simple');       // simple list
+    //     $withFields = $request->boolean('with_fields');  // include fieldComponents
+    //     $fromCrud   = $request->boolean('from_crud');    // 👈 PENENTU MODE
+
+    //     $query = EventGroup::query()
+    //         ->where('event_id', $eventId);
+
+    //     /**
+    //      * FILTER STATUS
+    //      * - non CRUD → default hanya ACTIVE
+    //      * - CRUD:
+    //      *   - status=active → active
+    //      *   - status=inactive → inactive
+    //      *   - status=all / null → semua
+    //      */
+    //     if (!$fromCrud) {
+    //         $query->where('status', 'active');
+    //     } else {
+    //         if ($status === 'active') {
+    //             $query->where('status', 'active');
+    //         } elseif ($status === 'inactive') {
+    //             $query->where('status', 'inactive');
+    //         }
+    //         // status=all → tidak difilter
+    //     }
+
+
+    //     // filter optional by branch
+    //     if ($branchId) {
+    //         $query->where('branch_id', $branchId);
+    //     }
+
+    //     // search
+    //     if ($search) {
+    //         $query->where(function ($q) use ($search) {
+    //             $q->where('branch_name', 'like', "%{$search}%")
+    //             ->orWhere('group_name', 'like', "%{$search}%")
+    //             ->orWhere('full_name', 'like', "%{$search}%");
+    //         });
+    //     }
+
+    //     // relasi komponen (dipakai di fetchGroupsWithComponents: with_fields=1)
+    //     if ($withFields) {
+    //         $query->with([
+    //             'fieldComponents' => function ($q) {
+    //                 $q->orderByRaw('COALESCE(order_number, 9999)');
+    //             }
+    //         ]);
+    //     }
+
+    //     // urutan default
+    //     $query->orderByRaw('COALESCE(order_number, 9999)')
+    //         ->orderBy('branch_name')
+    //         ->orderBy('group_name');
+
+    //     /**
+    //      * SIMPLE MODE
+    //      * dipakai oleh dropdown / selector
+    //      */
+    //     if ($simple) {
+    //         $data = $query->get([
+    //             'id',
+    //             'event_id',
+    //             'branch_id',
+    //             'branch_name',
+    //             'group_name',
+    //             'full_name',
+    //             'max_age',
+    //             'is_team',
+    //             'order_number',
+    //             'status',
+    //             'has_maqra_drawing',
+    //         ]);
+
+    //         return response()->json([
+    //             'success' => true,
+    //             'data'    => $data,
+    //         ]);
+    //     }
+
+    //     /**
+    //      * DEFAULT: PAGINATED
+    //      */
+    //     $data = $query->paginate($perPage);
+
+    //     return response()->json([
+    //         'success' => true,
+    //         'data'    => $data,
+    //     ]);
+    // }
 
 
 

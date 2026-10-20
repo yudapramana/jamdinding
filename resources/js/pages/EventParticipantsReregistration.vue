@@ -85,6 +85,18 @@
                 </option>
               </select>
 
+              <!-- 🔄 TOMBOL REFRESH -->
+              <button
+                type="button"
+                class="btn btn-outline-secondary btn-sm"
+                title="Muat ulang data"
+                :disabled="isLoading"
+                @click="fetchItems(meta.current_page || 1)"
+              >
+                <i class="fas fa-sync-alt" :class="{ 'fa-spin': isLoading }"></i>
+                <span class="ml-1 d-none d-sm-inline">Refresh</span>
+              </button>
+
             </div>
 
             <!-- RIGHT: SEARCH -->
@@ -474,7 +486,7 @@ const canShowRegionFilter = computed(() => {
 })
 
 const filters = ref({
-  reregistration_status: '',
+  reregistration_status: 'not_yet',
   event_group_id: '',
   event_region_id: '', // ➕ Filter wilayah baru
 })
@@ -521,12 +533,16 @@ const canDrawNumber = (item) => {
   const verified = ['verified', 'diterima', 'accepted']
     .includes((item?.reregistration_status || '').toLowerCase())
 
-  const noNumber =
-    !item?.participant_number ||
-    item.participant_number === '' ||
-    item.participant_number === '-'
+  // Pastikan sudah punya nomor dada
+  const hasBaseNumber = 
+    item?.participant_number && 
+    item.participant_number !== '' && 
+    item.participant_number !== '-'
 
-  return verified && noNumber
+  // Pastikan belum punya urutan tampil (belum pernah draw)
+  const noSequenceYet = item.branch_sequence === null || item.branch_sequence === undefined || item.branch_sequence === ''
+
+  return verified && hasBaseNumber && noSequenceYet
 }
 
 const fetchEventMasterData = async () => {

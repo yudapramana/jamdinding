@@ -20,6 +20,15 @@ export default [
     }
   },
   {
+    path: '/kafilah/maqra-drawings',
+    name: 'kafilah.maqra.drawings',
+    component: () => import('./pages/KafilahMaqraDrawing.vue'),
+    meta: { 
+      requiresAuth: true, 
+      layout: 'maqra' // Atau layout kafilah yang sesuai
+    }
+  },
+  {
     path: '/reset-password',
     name: 'reset-password',
     component: () => import('./pages/auth/ResetPassword.vue') // sesuaikan path

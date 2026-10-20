@@ -3,105 +3,134 @@
 
 <head>
     <meta charset="UTF-8">
-    <title>Kokarde Peserta</title>
+    <title>Kokarde Peserta A6</title>
+
+    <!-- Memuat Font Kaligrafi/Islami dari Google Fonts
+         (Segoe UI dihapus dari URL karena bukan font Google; family yang tidak valid
+          bisa membuat seluruh request font gagal, termasuk Amiri) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@700&family=Reem+Kufi:wght@600;700&display=swap" rel="stylesheet">
 
     <style>
         @page {
-            size: A5;
+            size: 105mm 148mm;
             margin: 0;
         }
 
         * {
             -webkit-print-color-adjust: exact;
             print-color-adjust: exact;
+            box-sizing: border-box;
         }
 
+        html,
         body {
             margin: 0;
             padding: 0;
-            font-family: Arial, Helvetica, sans-serif;
+            width: 105mm;
+            /* tinggi sengaja tidak dikunci: tinggi tetap diatur oleh .sheet */
         }
 
-        /* =========================
-           SHEET — UKURAN A5 FIXED
-        ========================= */
+        body {
+            font-family: 'Segoe UI', Arial, Helvetica, sans-serif;
+            background: #fff;
+        }
+
         .sheet {
-            width: 148mm;
-            height: 210mm;
-            padding: 10mm;
-            box-sizing: border-box;
+            width: 105mm;
+            /* sedikit di bawah 148mm: pembulatan piksel browser membuat tinggi tepat 148mm
+               melewati batas halaman dan memunculkan halaman kosong */
+            height: 147.5mm;
+            padding: 5mm;
             overflow: hidden;
             background-image: url('{{ asset('images/bg-kokarde.png') }}');
             background-size: cover;
+            background-position: center;
             background-repeat: no-repeat;
+            break-inside: avoid;
+            page-break-inside: avoid;
+        }
+
+        /* Pindah halaman hanya SEBELUM kokarde berikutnya (bukan sesudah setiap kokarde),
+           sehingga tidak ada halaman kosong di antara maupun di akhir */
+        .sheet~.sheet {
+            break-before: page;
+            page-break-before: always;
         }
 
         .kokarde {
             width: 100%;
-            height: 190mm;
-            /* 210mm - (10mm*2 padding) */
+            height: 100%;
             display: flex;
             flex-direction: column;
-            justify-content: space-between;
+            align-items: center;
             position: relative;
             z-index: 1;
-            overflow: hidden;
         }
 
-        /* ================= HEADER ================= */
-        .header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .header img {
-            height: 72px;
+        /* ================= HEADER (BIG & TIGHT) ================= */
+        .header-container {
+            width: 100%;
+            text-align: center;
+            margin-top: 17mm;
+            margin-bottom: 0px;
         }
 
         .event-title {
-            text-align: center;
-            font-size: 45px;
-            font-weight: 800;
+            font-family: 'Amiri', 'Reem Kufi', serif;
+            font-size: 30px;
+            /* sebelumnya 26px */
+            font-weight: 700;
             text-transform: uppercase;
-            line-height: 1.15;
-            margin: -48px 0 8px;
-            letter-spacing: 3px;
+            letter-spacing: 1px;
+            margin: 0;
+            color: #064e3b;
+            line-height: 0.95;
         }
 
         .event-subtitle {
-            text-align: center;
-            font-size: 21px;
-            font-weight: 600;
-            margin-top: -15px;
-            margin-bottom: 10px;
-            letter-spacing: -0.5px;
+            font-size: 13px;
+            /* sebelumnya 11.5px */
+            font-weight: 800;
+            margin-top: -3px;
+            letter-spacing: 0.3px;
+            color: #1f2937;
+            line-height: 1.1;
         }
 
         .event-platform {
-            text-align: center;
-            font-size: 11px;
-            font-weight: 600;
-            margin-top: -9px;
-            margin-bottom: 10px;
+            font-size: 7.5px;
+            /* sebelumnya 6.5px */
+            font-weight: 700;
             text-transform: uppercase;
-            letter-spacing: -0.5px;
+            letter-spacing: 0.2px;
+            color: #4b5563;
+            margin-top: 1px;
         }
 
-        /* ================= FOTO ================= */
-        .photo-box {
+        /* ================= BODY / KONTEN UTAMA ================= */
+        .main-content {
             display: flex;
+            flex-direction: column;
+            align-items: center;
+            flex-grow: 1;
+            width: 100%;
             justify-content: center;
-            margin: 14px 0;
+            margin-top: -3mm;
+            /* sebelumnya -8mm; disesuaikan karena elemen lebih besar */
         }
 
         .photo-frame {
-            width: 4cm;
-            height: 5cm;
-            border: 2px solid #000;
-            padding: 3px;
+            width: 30mm;
+            /* sebelumnya 24mm */
+            height: 40mm;
+            /* sebelumnya 32mm */
+            border: 2px solid #111;
+            padding: 2px;
             background: #fff;
-            box-sizing: border-box;
+            margin-bottom: 2.5mm;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
         }
 
         .photo-frame img {
@@ -110,72 +139,115 @@
             object-fit: cover;
         }
 
-        /* ================= NAMA ================= */
-        .name {
-            text-align: center;
-            font-size: 22px;
+        .participant-number {
+            font-size: 29px;
+            /* sebelumnya 24px */
             font-weight: 900;
-            text-transform: uppercase;
-            margin: 10px 0;
-        }
-
-        /* ================= STATUS ================= */
-        .status {
-            background: #000;
-            color: #fff;
-            text-align: center;
-            font-size: 16px;
-            font-weight: 800;
-            letter-spacing: 2px;
-            padding: 10px 0;
-            margin: 18px 0;
-        }
-
-        /* ================= CABANG + GOLONGAN ================= */
-        .category {
-            text-align: center;
-            font-size: 15px;
-            font-weight: 900;
-            text-transform: uppercase;
-            line-height: 1.3;
-            margin-top: 6px;
-        }
-
-        /* ================= KONTINGEN ================= */
-        .contingent {
-            text-align: center;
-            font-size: 17px;
-            font-weight: 900;
+            color: #d32f2f;
             letter-spacing: 1px;
-            margin-top: 4px;
-            text-transform: uppercase;
+            line-height: 1;
+            margin-bottom: 2px;
         }
 
-        /* ================= FOOTER QR ================= */
-        .footer {
-            padding-top: 13px;
+        /* Area nama: tinggi minimal 2 baris supaya nama panjang punya ruang
+           dan posisi elemen di bawahnya tidak bergeser-geser antar peserta */
+        .name-wrap {
+            width: 96%;
+            min-height: 2.35em;
+            font-size: 15px;
+            /* sebelumnya 13px */
             display: flex;
-            justify-content: center;
             align-items: center;
-            z-index: 1;
+            justify-content: center;
+            margin-bottom: 3px;
         }
 
-        .qr-wrapper {
+        .name {
+            width: 100%;
+            font-size: 1em;
+            font-weight: 900;
+            text-transform: uppercase;
+            text-align: center;
+            line-height: 1.15;
+            color: #000;
+            padding: 0 1mm;
+            overflow-wrap: anywhere;
+            text-wrap: balance;
+            /* pecah baris lebih seimbang */
+        }
+
+        /* Nama panjang: font otomatis dikecilkan sedikit agar tetap muat 2 baris */
+        .name-wrap.name-sm {
+            font-size: 13.5px;
+        }
+
+        .name-wrap.name-xs {
+            font-size: 12px;
+        }
+
+        /* ================= STATUS BANNER ================= */
+        .status-banner {
+            background: #064e3b;
+            color: #fff;
+            width: 72%;
+            text-align: center;
+            font-size: 11px;
+            /* sebelumnya 9.5px */
+            font-weight: 900;
+            letter-spacing: 2.5px;
+            padding: 3px 0;
+            border-radius: 4px;
+            margin: 2px 0 5px 0;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+        }
+
+        /* ================= INFO LOMBA ================= */
+        .category-badge {
+            background: #f3f4f6;
+            border: 1px solid #d1d5db;
+            color: #1f2937;
+            font-size: 9.5px;
+            /* sebelumnya 8.5px */
+            font-weight: 800;
+            text-transform: uppercase;
+            padding: 3px 11px;
+            border-radius: 10px;
+            text-align: center;
+            letter-spacing: 0.3px;
+            line-height: 1.2;
+            max-width: 92%;
+        }
+
+        /* ================= FOOTER ================= */
+        .footer {
+            margin-top: auto;
+            margin-bottom: 6mm;
             text-align: center;
         }
 
         .qr-label {
-            font-size: 9px;
-            font-weight: 700;
-            letter-spacing: 1px;
-            margin-bottom: 4px;
-            text-transform: uppercase;
-            color: #eee;
+            font-size: 7px;
+            /* sebelumnya 6px */
+            font-weight: 800;
+            letter-spacing: 0.5px;
+            margin-bottom: 2px;
+            color: #4b5563;
         }
 
         .qr svg {
-            width: 90px;
-            height: 90px;
+            width: 48px;
+            /* sebelumnya 42px */
+            height: 48px;
+        }
+
+        @media print {
+
+            html,
+            body {
+                width: 105mm;
+                height: auto;
+                overflow: visible;
+            }
         }
     </style>
 </head>
@@ -185,56 +257,49 @@
     <section class="sheet">
         <div class="kokarde">
 
-            <!-- ================= HEADER ================= -->
-            <div>
-                <div class="header">
-                    <img src="{{ asset('images/logo-pemda.png') }}" alt="Logo Pemda">
-                    <img src="{{ asset('images/logo-kemenag.png') }}" alt="Logo Kemenag">
-                </div>
+            @php
+                $fullName = $ep->participant->full_name ?? '';
+                $nameLen = mb_strlen($fullName);
+                $nameClass = $nameLen > 38 ? 'name-xs' : ($nameLen > 26 ? 'name-sm' : '');
+            @endphp
 
-                <div class="event-title">
-                    MTQN XLII
-                </div>
-                <div class="event-subtitle">
-                    {{ strtoupper($event?->event_location ?? '-') }}
-                </div>
-                <div class="event-platform">
-                    Musabaqah Tilawatil Qur’an Berbasis Digital
-                </div>
+            <!-- HEADER -->
+            <div class="header-container">
+                <div class="event-title">MTQN XLII</div>
+                <div class="event-subtitle">{{ strtoupper($event?->event_location ?? '-') }}</div>
+                <div class="event-platform">Musabaqah Tilawatil Qur’an Berbasis Digital</div>
             </div>
 
-            <!-- ================= BODY ================= -->
-            <div>
-                <div class="photo-box">
-                    <div class="photo-frame">
-                        <img src="{{ $ep->participant->photo_url }}" alt="Foto Peserta">
-                    </div>
+            <!-- KONTEN IDENTITAS -->
+            <div class="main-content">
+
+                <div class="photo-frame">
+                    <img src="{{ $ep->participant->photo_url }}" alt="Foto Peserta">
                 </div>
 
-                <div class="name">
-                    {{ $ep->participant->full_name }}
+                <!-- Nomor Dada -->
+                <div class="participant-number">
+                    {{ $ep->participant_number ?? '-' }}
                 </div>
 
-                <div class="status">
-                    PESERTA
+                <div class="name-wrap {{ $nameClass }}">
+                    <div class="name">{{ $fullName }}</div>
                 </div>
 
-                <div class="category">
+                <!-- STATUS PESERTA -->
+                <div class="status-banner">PESERTA</div>
+
+                <div class="category-badge">
                     {{ $ep->eventGroup?->full_name ?? '' }}
                 </div>
 
-                <div class="contingent">
-                    {{ $ep->contingent ?? '-' }}
-                </div>
             </div>
 
-            <!-- ================= FOOTER ================= -->
+            <!-- FOOTER QR CODE -->
             <div class="footer">
-                <div class="qr-wrapper">
-                    <div class="qr-label">SCAN UNTUK AKSES</div>
-                    <div class="qr">
-                        {!! QrCode::margin(1)->size(90)->generate(route('public.participant.show', $ep)) !!}
-                    </div>
+                <div class="qr-label">SCAN UNTUK AKSES</div>
+                <div class="qr">
+                    {!! QrCode::margin(1)->size(48)->generate(route('public.participant.show', $ep)) !!}
                 </div>
             </div>
 

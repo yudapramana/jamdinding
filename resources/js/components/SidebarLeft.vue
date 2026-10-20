@@ -550,12 +550,12 @@ watch(
 
             <ul class="nav nav-treeview" v-show="openMenu.judgesEvent">
                 <li class="nav-item">
-                  <router-link :to="{ name: 'admin.event.judge.index' }" class="nav-link" :class="{ active: isNameActive('admin.event.judge.index') }">
+                  <router-link :to="{ name: 'admin.event.judge.index' }" class="nav-link" :class="{ active: isNameActive('admin.event.judge.index') }" v-if="authUserStore.can('manage.event.judges.users')">
                     <i class="far fa-circle nav-icon"></i><p>Hakim Event</p>
                   </router-link>
                 </li>
                 <li class="nav-item">
-                  <router-link :to="{ name: 'admin.event.judge.panels' }" class="nav-link" :class="{ active: isNameActive('admin.event.judge.panels') }">
+                  <router-link :to="{ name: 'admin.event.judge.panels' }" class="nav-link" :class="{ active: isNameActive('admin.event.judge.panels') }" v-if="authUserStore.can('manage.event.judges.panels')">
                     <i class="far fa-circle nav-icon"></i><p>Majelis Hakim</p>
                   </router-link>
                 </li>

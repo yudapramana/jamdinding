@@ -110,13 +110,25 @@ class EventParticipantReRegistrationController extends Controller
                 // ➕ FILTER WILAYAH
                 ->whereHas('participants.participant', $regionFilter)
                 
-                // 🔎 FILTER DAFTAR ULANG
-                ->when($status, fn ($q) =>
-                    $q->whereHas('participants', fn ($p) =>
-                        $p->where('reregistration_status', $status)
-                        ->where('registration_status', 'verified') // ✅ PENTING
-                    )
-                )
+                // 🔎 FILTER DAFTAR ULANG & NOMOR TAMPIL
+                ->when($status, function ($q) use ($status) {
+                    if ($status === 'not_yet') {
+                        $q->whereHas('participants', fn ($p) =>
+                            $p->whereIn('reregistration_status', ['not_yet', 'verified'])
+                              ->where('registration_status', 'verified')
+                        )->whereNull('branch_sequence');
+                    } elseif ($status === 'verified') {
+                        $q->whereHas('participants', fn ($p) =>
+                            $p->where('reregistration_status', 'verified')
+                              ->where('registration_status', 'verified')
+                        )->whereNotNull('branch_sequence');
+                    } else {
+                        $q->whereHas('participants', fn ($p) =>
+                            $p->where('reregistration_status', $status)
+                              ->where('registration_status', 'verified')
+                        );
+                    }
+                })
 
                 // 🔎 SEARCH
                 ->when($search, fn ($q) =>
@@ -177,9 +189,18 @@ class EventParticipantReRegistrationController extends Controller
                 // ➕ FILTER WILAYAH
                 ->whereHas('participant', $regionFilter)
 
-                ->when($status, fn ($q) =>
-                    $q->where('reregistration_status', $status)
-                )
+                // 🔎 FILTER DAFTAR ULANG & NOMOR TAMPIL
+                ->when($status, function ($q) use ($status) {
+                    if ($status === 'not_yet') {
+                        $q->whereIn('reregistration_status', ['not_yet', 'verified'])
+                          ->whereNull('branch_sequence');
+                    } elseif ($status === 'verified') {
+                        $q->where('reregistration_status', 'verified')
+                          ->whereNotNull('branch_sequence');
+                    } else {
+                        $q->where('reregistration_status', $status);
+                    }
+                })
                 ->when($search, fn ($q) =>
                     $q->whereHas('participant', fn ($p) =>
                         $p->where('full_name', 'like', "%{$search}%")
@@ -205,14 +226,56 @@ class EventParticipantReRegistrationController extends Controller
 
         /**
          * =========================
-         * 📦 PAGINATE
+         * 📦 SORTING & PAGINATE
          * =========================
          */
+        
+        // Array Urutan Kontingen Kecamatan
+        $districts = [
+            "IV Jurai", 
+            "Bayang", 
+            "IV Nagari Bayang Utara", 
+            "Batang Kapas", 
+            "Koto XI Tarusan", 
+            "Sutera", 
+            "Lengayang", 
+            "Ranah Pesisir", 
+            "Linggo Sari Baganti", 
+            "Airpura", 
+            "Pancung Soal", 
+            "Basa Ampek Balai Tapan", 
+            "Ranah Ampek Hulu Tapan", 
+            "Lunang", 
+            "Silaut"
+        ];
+
+        // Buat map pencarian index berbasis huruf kecil untuk menghindari masalah case-sensitive
+        $districtOrder = array_flip(array_map('strtolower', $districts));
+
+        $sortedItems = $items->sort(function ($a, $b) use ($districtOrder) {
+            // Ambil nama contingent dan ubah ke huruf kecil
+            $contingentA = strtolower(trim($a['contingent'] ?? ''));
+            $contingentB = strtolower(trim($b['contingent'] ?? ''));
+
+            // Cari urutannya di array, jika tidak ada taruh di urutan paling akhir (999)
+            $orderA = $districtOrder[$contingentA] ?? 999;
+            $orderB = $districtOrder[$contingentB] ?? 999;
+
+            // Jika kontingen sama (berada di wilayah yang sama), urutkan berdasarkan participant_number
+            if ($orderA === $orderB) {
+                $numA = $a['participant_number'] ?? '';
+                $numB = $b['participant_number'] ?? '';
+                
+                // strnatcasecmp otomatis mengurutkan angka di dalam string dengan benar (contoh: 2 lebih dulu dari 10)
+                return strnatcasecmp($numA, $numB);
+            }
+
+            // Urutkan berdasarkan index di array $districts
+            return $orderA <=> $orderB;
+        })->values();
+
         return response()->json(
-            paginateCollection(
-                $items->sortBy('display_name', SORT_NATURAL | SORT_FLAG_CASE)->values(),
-                $perPage
-            )
+            paginateCollection($sortedItems, $perPage)
         );
     }
 
@@ -233,8 +296,11 @@ class EventParticipantReRegistrationController extends Controller
             'branch_sequence' => 'required|integer|min:1|max:99',
         ]);
 
-        if ($eventParticipant->participant_number) {
-            return response()->json(['message' => 'Nomor sudah dikunci.'], 422);
+        // ❌ Cek apakah Nomor Tampil (branch_sequence) sudah pernah dikunci
+        if ($eventParticipant->branch_sequence !== null) {
+            return response()->json([
+                'message' => 'Nomor urut tampil sudah dikunci sebelumnya.'
+            ], 422);
         }
 
         // Cek duplikasi nomor undian (branch_sequence)
@@ -331,10 +397,10 @@ class EventParticipantReRegistrationController extends Controller
             'eventBranch.branch',
         ]);
 
-        // ❌ Sudah punya nomor
-        if ($eventParticipant->participant_number) {
+        // ❌ Cek jika Nomor Tampil sudah pernah ditetapkan
+        if ($eventParticipant->branch_sequence !== null) {
             return response()->json([
-                'message' => 'Nomor peserta sudah ditetapkan.'
+                'message' => 'Nomor urut tampil peserta sudah ditetapkan dan tidak bisa diundi ulang.'
             ], 422);
         }
 

@@ -12,18 +12,43 @@ use Illuminate\Validation\Rule;
 
 class EventCompetitionController extends Controller
 {
-    public function meta(Event $event)
+    public function meta(Request $request, Event $event)
     {
         $rounds = Round::query()
             ->orderByRaw('COALESCE(order_number, 999999) asc')
             ->orderBy('id')
-            ->get(['id','name','order_number']);
+            ->get(['id', 'name', 'order_number']);
 
-        $groups = EventGroup::query()
-            ->where('event_id', $event->id)
+        $groupsQuery = EventGroup::query()
+            ->where('event_id', $event->id);
+
+        // ➕ AMBIL DATA USER DAN CEK ROLE
+        $user = $request->user();
+        $roleSlug = $user ? strtolower(optional($user->role)->slug ?? optional($user->role)->name ?? '') : '';
+
+        // ➕ FILTER KHUSUS PANITERA
+        if (str_contains($roleSlug, 'panitera')) {
+            // Ambil ID Majelis dari tabel event_judge_panel_clerks miliknya
+            $panelId = optional($user->clerkAssignment)->event_judge_panel_id;
+            
+            if ($panelId) {
+                // Saring query golongan berdasarkan majelis tersebut
+                $groupsQuery->where('event_judge_panel_id', $panelId);
+            } else {
+                // Jika panitera belum ditugaskan ke majelis manapun, kembalikan data kosong
+                $groupsQuery->whereNull('id');
+            }
+        }
+
+        // Eksekusi query dengan pengurutan dan ambil kolom yang dibutuhkan
+        // (Ditambahkan 'event_judge_panel_id' di array get agar frontend bisa memanfaatkannya jika perlu)
+        $groups = $groupsQuery
             ->orderByRaw('COALESCE(order_number, 999999) asc')
             ->orderBy('id')
-            ->get(['id','event_id','branch_id','group_id','branch_name','group_name','full_name','order_number','status','is_team']);
+            ->get([
+                'id', 'event_id', 'branch_id', 'group_id', 'branch_name', 
+                'group_name', 'full_name', 'order_number', 'status', 'is_team', 'event_judge_panel_id'
+            ]);
 
         return response()->json([
             'rounds' => $rounds,
@@ -35,11 +60,17 @@ class EventCompetitionController extends Controller
     {
         $search = trim((string) $request->get('search', ''));
 
+        // ➕ AMBIL DATA USER DAN CEK ROLE DI LUAR LOOP
+        $user = $request->user();
+        $roleSlug = $user ? strtolower(optional($user->role)->slug ?? optional($user->role)->name ?? '') : '';
+        $isPanitera = str_contains($roleSlug, 'panitera');
+        $panelId = $isPanitera ? optional($user->clerkAssignment)->event_judge_panel_id : null;
+
         $rounds = Round::query()
             ->orderByRaw('COALESCE(order_number, 999999) asc')
             ->orderBy('id')
             ->get(['id','name','order_number'])
-            ->map(function ($r) use ($event, $search) {
+            ->map(function ($r) use ($event, $search, $isPanitera, $panelId) {
 
                 $q = EventCompetition::query()
                     ->from('event_competitions')
@@ -50,6 +81,17 @@ class EventCompetitionController extends Controller
                     ->with(['eventGroup:id,full_name,branch_name,group_name,order_number'])
                     ->orderByRaw('COALESCE(eg.order_number, 999999) asc')
                     ->orderBy('event_competitions.id', 'desc');
+
+                // ➕ FILTER KHUSUS PANITERA PADA EVENT COMPETITION
+                if ($isPanitera) {
+                    if ($panelId) {
+                        // Saring kompetisi (yang terhubung dengan eg/event_groups) berdasarkan majelis tersebut
+                        $q->where('eg.event_judge_panel_id', $panelId);
+                    } else {
+                        // Jika panitera belum ditugaskan ke majelis manapun, pastikan query mengembalikan data kosong
+                        $q->whereNull('event_competitions.id');
+                    }
+                }
 
                 if ($search !== '') {
                     $q->where(function ($qq) use ($search) {
@@ -97,6 +139,73 @@ class EventCompetitionController extends Controller
 
         return response()->json(['rounds' => $rounds]);
     }
+    
+    // public function tree(Request $request, Event $event)
+    // {
+    //     $search = trim((string) $request->get('search', ''));
+
+    //     $rounds = Round::query()
+    //         ->orderByRaw('COALESCE(order_number, 999999) asc')
+    //         ->orderBy('id')
+    //         ->get(['id','name','order_number'])
+    //         ->map(function ($r) use ($event, $search) {
+
+    //             $q = EventCompetition::query()
+    //                 ->from('event_competitions')
+    //                 ->where('event_competitions.event_id', $event->id)
+    //                 ->where('event_competitions.round_id', $r->id)
+    //                 ->leftJoin('event_groups as eg', 'eg.id', '=', 'event_competitions.event_group_id')
+    //                 ->select('event_competitions.*')
+    //                 ->with(['eventGroup:id,full_name,branch_name,group_name,order_number'])
+    //                 ->orderByRaw('COALESCE(eg.order_number, 999999) asc')
+    //                 ->orderBy('event_competitions.id', 'desc');
+
+    //             if ($search !== '') {
+    //                 $q->where(function ($qq) use ($search) {
+    //                     $qq->where('event_competitions.full_name', 'like', "%{$search}%")
+    //                     ->orWhere('event_competitions.venue', 'like', "%{$search}%");
+    //                 });
+    //             }
+
+    //             $comps = $q->get([
+    //                 'event_competitions.id',
+    //                 'event_competitions.event_id',
+    //                 'event_competitions.event_group_id',
+    //                 'event_competitions.round_id',
+    //                 'event_competitions.full_name',
+    //                 'event_competitions.status',
+    //                 'event_competitions.is_team',
+    //                 'event_competitions.scheduled_at',
+    //                 'event_competitions.venue',
+    //             ]);
+
+    //             return [
+    //                 'id' => $r->id,
+    //                 'name' => $r->name,
+    //                 'competitions' => $comps->map(function ($c) {
+    //                     return [
+    //                         'id' => $c->id,
+    //                         'full_name' => $c->full_name,
+    //                         'status' => $c->status,
+    //                         'is_team' => (bool) $c->is_team,
+    //                         'scheduled_at' => optional($c->scheduled_at)->toISOString(),
+    //                         'venue' => $c->venue,
+    //                         'event_group' => $c->eventGroup ? [
+    //                             'id' => $c->eventGroup->id,
+    //                             'full_name' => $c->eventGroup->full_name,
+    //                             'branch_name' => $c->eventGroup->branch_name,
+    //                             'group_name' => $c->eventGroup->group_name,
+    //                             'order_number' => $c->eventGroup->order_number,
+    //                         ] : null,
+    //                         'event_group_id' => $c->event_group_id,
+    //                         'round_id' => $c->round_id,
+    //                     ];
+    //                 })->values(),
+    //             ];
+    //         });
+
+    //     return response()->json(['rounds' => $rounds]);
+    // }
 
     public function store(Request $request, Event $event)
     {

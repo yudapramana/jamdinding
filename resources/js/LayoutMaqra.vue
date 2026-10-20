@@ -1,7 +1,7 @@
 <script setup>
 import { useRouter, useRoute } from 'vue-router';
 import { ref, onMounted, computed } from 'vue';
-import AppNavbar from './components/AppNavbar.vue';
+import AppNavbar from './components/AppNavbarMaqra.vue';
 import AppFooter from './components/AppFooter.vue';
 import { useAuthUserStore } from './stores/AuthUserStore.js';
 import { useSettingStore } from './stores/SettingStore.js';

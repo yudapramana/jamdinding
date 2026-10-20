@@ -33,10 +33,24 @@
                 title="Cabang / Golongan"
               >
                 <option value="">-- Pilih Golongan --</option>
-                <option v-for="group in eventGroups" :key="group.id" :value="group.id">
+                <!-- PERUBAHAN DI SINI: Gunakan availableEventGroups -->
+                <option v-for="group in availableEventGroups" :key="group.id" :value="group.id">
                   {{ group.full_name }}
                 </option>
               </select>
+
+              <!-- KONTROL ADMIN: BUKA / TUTUP PENCABUTAN -->
+              <button
+                v-if="isPrivilegedAdmin && selectedGroupId"
+                type="button"
+                class="btn btn-sm font-weight-bold px-3 ml-2"
+                :class="isDrawingOpen ? 'btn-success' : 'btn-danger'"
+                :disabled="isToggling || isLoading"
+                @click="toggleDrawingAccess"
+              >
+                <i class="fas" :class="isDrawingOpen ? 'fa-lock-open' : 'fa-lock'"></i>
+                {{ isDrawingOpen ? 'Akses Terbuka' : 'Akses Tertutup' }}
+              </button>
 
               <!-- FILTER BABAK: Disesuaikan dengan 3 Opsi -->
               <select 
@@ -123,8 +137,15 @@
                       <span class="badge badge-light border">{{ p.contingent || '-' }}</span>
                     </td>
                     <td class="text-center">
-                      <button class="btn btn-success btn-xs px-2" @click="openDrawModal(p)">
-                        <i class="fas fa-random mr-1"></i> Cabut
+                      <button 
+                        class="btn btn-xs px-2 font-weight-bold" 
+                        :class="isDrawingOpen ? 'btn-success' : 'btn-secondary'"
+                        @click="openDrawModal(p)"
+                        :disabled="!isDrawingOpen"
+                        :title="!isDrawingOpen ? 'Pencabutan sedang ditutup oleh Admin' : 'Cabut Maqra'"
+                      >
+                        <i class="fas" :class="isDrawingOpen ? 'fa-random' : 'fa-lock'"></i> 
+                        {{ isDrawingOpen ? 'Cabut' : 'Ditutup' }}
                       </button>
                     </td>
                   </tr>
@@ -299,14 +320,44 @@ import axios from 'axios'
 import Swal from 'sweetalert2'
 import { useMasterDataStore } from '../stores/MasterDataStore'
 import { useDebounceFn } from '@vueuse/core'
+import { useAuthUserStore } from '../stores/AuthUserStore'
 
 const masterStore = useMasterDataStore()
+const authUserStore = useAuthUserStore()
+const currentUser = computed(() => authUserStore.user || {})
 
 // State Data Filter & Loading
 const isLoading = ref(false)
 const selectedGroupId = ref('')
 const selectedRoundId = ref('1')
-const eventGroups = computed(() => masterStore.eventGroups)
+// --- STATE FILTER CABANG DINAMIS (TERMASUK ROLE PANITERA) ---
+const availableEventGroups = computed(() => {
+  const roleName = currentUser.value?.role?.name?.toLowerCase() || ''
+  let baseGroups = []
+
+  // 1. Jika rolenya adalah Panitera, ambil cabang sesuai tugas Majelisnya
+  if (roleName.includes('panitera')) {
+    const assignment = currentUser.value?.clerk_assignment || currentUser.value?.clerkAssignment
+
+    if (assignment?.event_judge_panel?.event_groups) {
+      baseGroups = assignment.event_judge_panel.event_groups
+    } else if (assignment?.event_judge_panel_id) {
+      // Fallback: Filter dari data master jika relasi nested tidak ada
+      baseGroups = (masterStore.eventGroups || []).filter(
+        (g) => g.event_judge_panel_id === assignment.event_judge_panel_id
+      )
+    }
+  } 
+  // 2. Jika bukan Panitera (Admin/Superadmin), tampilkan semua
+  else {
+    baseGroups = masterStore.eventGroups || []
+  }
+
+  // 3. Wajib: Hanya kembalikan golongan yang memiliki fitur pencabutan maqra aktif
+  return baseGroups.filter(group => 
+    group.has_maqra_drawing === true || group.has_maqra_drawing === 1
+  )
+})
 
 // State Data Peserta
 const pendingParticipants = ref([])
@@ -356,6 +407,17 @@ const debouncedLoadData = useDebounceFn(() => {
   loadData()
 }, 300)
 
+// Tambahkan state baru untuk menyimpan status gerbang
+const isDrawingOpen = ref(false)
+const isToggling = ref(false)
+
+// Cek apakah user adalah admin (Sesuaikan dengan auth user store Anda)
+const isPrivilegedAdmin = computed(() => {
+  const roleName = currentUser.value?.role?.name || ''
+  return ['SUPERADMIN', 'ADMIN_EVENT'].includes(roleName)
+})
+
+// Modifikasi loadData untuk menangkap 'is_drawing_open'
 const loadData = async () => {
   if (!selectedGroupId.value || !selectedRoundId.value) return
   
@@ -364,13 +426,41 @@ const loadData = async () => {
     const res = await axios.get('/api/v1/event-maqra-drawings/participants', {
       params: { event_group_id: selectedGroupId.value, round_id: selectedRoundId.value }
     })
+    isDrawingOpen.value = res.data.is_drawing_open // Tangkap status gerbang
     pendingParticipants.value = res.data.pending
     historyParticipants.value = res.data.history
   } catch (error) {
-    console.error(error)
     Swal.fire('Gagal', 'Terjadi kesalahan saat mengambil data antrean.', 'error')
   } finally {
     isLoading.value = false
+  }
+}
+
+// Method baru untuk Admin menekan toggle Buka/Tutup
+const toggleDrawingAccess = async () => {
+  if (!selectedGroupId.value) return;
+  isToggling.value = true
+  
+  const targetStatus = !isDrawingOpen.value
+  
+  try {
+    const res = await axios.post('/api/v1/event-maqra-drawings/toggle-status', {
+      event_group_id: selectedGroupId.value,
+      is_open: targetStatus
+    })
+    
+    isDrawingOpen.value = targetStatus
+    Swal.fire({
+      icon: 'success',
+      title: 'Sukses',
+      text: res.data.message,
+      timer: 1500,
+      showConfirmButton: false
+    })
+  } catch (error) {
+    Swal.fire('Gagal', 'Tidak dapat mengubah status akses.', 'error')
+  } finally {
+    isToggling.value = false
   }
 }
 

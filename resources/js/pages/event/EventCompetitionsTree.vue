@@ -4,7 +4,7 @@
     <div class="container-fluid">
       <div class="d-flex justify-content-between align-items-center">
         <div>
-          <h1 class="mb-1">Kompetisi Event</h1>
+          <h1 class="mb-1">Kompetisi Event Tree</h1>
           <p class="mb-0 text-muted text-sm">
             Mengelola daftar kompetisi per babak (Round) dalam event aktif.
           </p>

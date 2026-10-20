@@ -8,7 +8,7 @@
           <p class="mb-0 text-muted text-sm">Pengelolaan majelis hakim berdasarkan skema event</p>
         </div>
 
-        <div class="btn-group btn-group-sm">
+        <div class="btn-group btn-group-sm" v-if="isSuperAdmin">
           <button
             class="btn btn-sm btn-primary"
             :disabled="!eventId"
@@ -70,7 +70,7 @@
               <tr>
                 <th width="50">#</th>
                 <th>Nama Majelis</th>
-                <th>Lokasi</th>
+                <th v-if="isSuperAdmin">Lokasi</th>
                 <th>Hakim</th>
                 <th width="80" class="text-center">Status</th>
                 <th width="120" class="text-center">Aksi</th>
@@ -96,7 +96,7 @@
                   <div class="text-xs text-muted">{{ p.code || '-' }}</div>
                 </td>
 
-                <td>
+                <td v-if="isSuperAdmin">
                   <select
                     class="form-control form-control-sm"
                     :value="p.event_location_id"
@@ -356,6 +356,11 @@ const locations = ref([])
 const perPage = ref(25)
 const search = ref('')
 
+// ➕ CEK ROLE SUPERADMIN
+const isSuperAdmin = computed(() => {
+  const roleName = authStore.user?.role?.name || ''
+  return roleName === 'SUPERADMIN'
+})
 
 const assignLocation = async (panelId, locationId) => {
   try {

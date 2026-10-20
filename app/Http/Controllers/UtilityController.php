@@ -1719,6 +1719,9 @@ class UtilityController extends Controller
     /**
      * Memasukkan/Memperbarui 12 User Panitera dengan atribut lengkap dan menghubungkannya ke Majelis (MJL-01 s/d MJL-12).
      */
+    /**
+     * Memasukkan/Memperbarui User Panitera dengan atribut lengkap dan menghubungkannya ke Majelis (MJL-01 s/d MJL-12).
+     */
     public function seedPaniteraPanel()
     {
         // 1. Ambil Event Aktif
@@ -1728,58 +1731,119 @@ class UtilityController extends Controller
         // 2. Ambil Role Panitera
         $paniteraRole = \App\Models\Role::where('slug', 'panitera')->orWhere('name', 'Panitera')->first();
 
-        // 3. Ambil acuan data wilayah dari panitera yang sudah ada (11 panitera sebelumnya) atau dari $event
-        $existingPanitera = \App\Models\User::where('role_id', $paniteraRole?->id)->first();
-        $provinceId = $existingPanitera?->province_id ?? $event?->province_id ?? null;
-        $regencyId  = $existingPanitera?->regency_id ?? $event?->regency_id ?? null;
-        $districtId = $existingPanitera?->district_id ?? $event?->district_id ?? null;
+        if (!$paniteraRole) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Role Panitera tidak ditemukan di database.'
+            ], 404);
+        }
+
+        // 3. Ambil data panitera yang sudah ada sebelumnya
+        $existingPaniteras = \App\Models\User::where('role_id', $paniteraRole->id)
+            ->orderBy('id', 'asc')
+            ->get();
+
+        // 4. Ambil acuan data wilayah dari panitera pertama atau dari data event
+        $referenceUser = $existingPaniteras->first();
+        $provinceId = $referenceUser?->province_id ?? $event?->province_id ?? null;
+        $regencyId  = $referenceUser?->regency_id ?? $event?->regency_id ?? null;
+        $districtId = $referenceUser?->district_id ?? $event?->district_id ?? null;
+
+        // 5. Data JSON Panitera
+        $dataPanitera = [
+            ["majelis" => 1, "panitera" => [["nama" => "Koko Nurhadiyanto, S.AP"], ["nama" => "Eva Sri, S.Pd.I"]]],
+            ["majelis" => 2, "panitera" => [["nama" => "Masrizal, S.Ag, M.Pd"], ["nama" => "Kiki Disetri, S. PdI"]]],
+            ["majelis" => 3, "panitera" => [["nama" => "Liswarti, S.Th I"], ["nama" => "Sri Mulyani, SH"]]],
+            ["majelis" => 4, "panitera" => [["nama" => "Heru Syafri,A.Ma"], ["nama" => "Marseharti, S.Ag"]]],
+            ["majelis" => 5, "panitera" => [["nama" => "Sarifah Aini, S.Th I"], ["nama" => "Ramadhanera Puteri M, SE"]]],
+            ["majelis" => 6, "panitera" => [["nama" => "Gustiwarni, S.Ag"], ["nama" => "Azka Juanda, S.Pd"]]],
+            ["majelis" => 7, "panitera" => [["nama" => "Dedi Gustiawan, S.Pd."], ["nama" => "M. Fatih Alfaris, S.Si"]]],
+            ["majelis" => 8, "panitera" => [["nama" => "Richo Hardiatno, S.Pd"], ["nama" => "Fauzhi Abdhilah, S. Kom"]]],
+            ["majelis" => 9, "panitera" => [["nama" => "Afrinozayenti, S.AP"], ["nama" => "Anna Yoladevika, SH"]]],
+            ["majelis" => 10, "panitera" => [["nama" => "Yunefri, S.Kom"], ["nama" => "Ermaningsih"]]],
+            ["majelis" => 11, "panitera" => [["nama" => "Upik Mike, S.AP"], ["nama" => "Nigel Rodesta, S.Kom"]]],
+            ["majelis" => 12, "panitera" => [["nama" => "Usri, S.Ag, MA"], ["nama" => "Muhammad Luthfi"]]]
+        ];
 
         \Illuminate\Support\Facades\DB::beginTransaction();
         try {
             $userProcessed = 0;
             $panelAssigned = 0;
+            $userIndex = 0;
 
-            for ($i = 1; $i <= 12; $i++) {
-                $suffix = str_pad($i, 2, '0', STR_PAD_LEFT);
-                $uname  = "panitera_{$suffix}";
-                $email  = "panitera{$suffix}@mtq.test";
-
-                // 4. Buat atau Update User dengan menyertakan seluruh struktur kolom yang dibutuhkan
-                $user = \App\Models\User::updateOrCreate(
-                    ['username' => $uname],
-                    [
-                        'name'        => "Panitera {$suffix}",
-                        'email'       => $email,
-                        'username'    => $uname,
-                        'password'    => \Illuminate\Support\Facades\Hash::make($uname),
-                        'avatar'      => null,
-                        'role_id'     => $paniteraRole?->id,
-                        'event_id'    => $eventId,
-                        'province_id' => $provinceId,
-                        'regency_id'  => $regencyId,
-                        'district_id' => $districtId,
-                        'village_id'  => null,
-                    ]
-                );
-                $userProcessed++;
-
-                // 5. Cari Majelis berdasarkan kode (MJL-01 s/d MJL-12)
-                $panelCode = "MJL-{$suffix}";
+            foreach ($dataPanitera as $majelisData) {
+                $panelCode = 'MJL-' . str_pad($majelisData['majelis'], 2, '0', STR_PAD_LEFT);
                 $panel = \App\Models\EventJudgePanel::where('event_id', $eventId)
                     ->where('code', $panelCode)
                     ->first();
 
-                // 6. Hubungkan Panitera ke Majelis menggunakan relasi Eloquent clerkAssignment()
-                if ($panel) {
-                    $user->clerkAssignment()->updateOrCreate(
-                        ['user_id' => $user->id],
-                        [
-                            'event_judge_panel_id' => $panel->id,
-                            'is_active'            => true,
-                            'notes'                => "Ditugaskan otomatis ke Majelis {$panelCode}",
-                        ]
-                    );
-                    $panelAssigned++;
+                foreach ($majelisData['panitera'] as $panitera) {
+                    $rawName = $panitera['nama'];
+
+                    // Buat Username: Ambil kata pertama yang bukan gelar, lowercase
+                    $cleanName = preg_replace('/[^a-zA-Z\s]/', '', explode(',', $rawName)[0]);
+                    $firstWord = trim(explode(' ', trim($cleanName))[0]);
+                    $baseUsername = strtolower($firstWord);
+                    
+                    $username = $baseUsername;
+                    $counter = 1;
+
+                    // --- JIKA DATA PANITERA SUDAH ADA DI DB (UPDATE) ---
+                    if (isset($existingPaniteras[$userIndex])) {
+                        $user = $existingPaniteras[$userIndex];
+                        
+                        // Pastikan username unik
+                        while (\App\Models\User::where('username', $username)->where('id', '!=', $user->id)->exists()) {
+                            $username = $baseUsername . $counter;
+                            $counter++;
+                        }
+
+                        $user->update([
+                            'name'     => $rawName,
+                            'username' => $username,
+                            'password' => \Illuminate\Support\Facades\Hash::make($username),
+                        ]);
+                    } 
+                    // --- JIKA KURANG, BUAT PANITERA BARU (CREATE) ---
+                    else {
+                        // Pastikan username unik
+                        while (\App\Models\User::where('username', $username)->exists()) {
+                            $username = $baseUsername . $counter;
+                            $counter++;
+                        }
+
+                        $email = "panitera" . ($userIndex + 1) . "@mtqnpesisirselatan.com";
+
+                        $user = \App\Models\User::create([
+                            'name'        => $rawName,
+                            'email'       => $email,
+                            'username'    => $username,
+                            'password'    => \Illuminate\Support\Facades\Hash::make($username),
+                            'avatar'      => null,
+                            'role_id'     => $paniteraRole->id,
+                            'event_id'    => $eventId,
+                            'province_id' => $provinceId,
+                            'regency_id'  => $regencyId,
+                            'district_id' => $districtId,
+                            'village_id'  => null,
+                        ]);
+                    }
+
+                    $userProcessed++;
+                    $userIndex++;
+
+                    // 6. Hubungkan Panitera ke Majelis (MJL-01 s/d MJL-12)
+                    if ($panel) {
+                        $user->clerkAssignment()->updateOrCreate(
+                            ['user_id' => $user->id],
+                            [
+                                'event_judge_panel_id' => $panel->id,
+                                'is_active'            => true,
+                                'notes'                => "Ditugaskan otomatis ke Majelis {$panelCode}",
+                            ]
+                        );
+                        $panelAssigned++;
+                    }
                 }
             }
 
@@ -1787,7 +1851,7 @@ class UtilityController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'Berhasil memproses 12 user panitera dan menghubungkannya dengan majelis.',
+                'message' => 'Berhasil memproses ' . $userProcessed . ' user panitera dan menugaskannya ke majelis.',
                 'summary' => [
                     'panitera_diproses'          => $userProcessed,
                     'panitera_terhubung_majelis' => $panelAssigned

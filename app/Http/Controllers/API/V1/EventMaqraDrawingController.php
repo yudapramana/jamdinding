@@ -107,6 +107,7 @@ class EventMaqraDrawingController extends Controller
         ]);
 
         return response()->json([
+            'is_drawing_open' => (bool) $group->is_maqra_drawing_open, // Kirim status gerbang
             'pending' => $sortedResult->where('drawing_status', 'pending')->values(),
             'history' => $sortedResult->where('drawing_status', '!=', 'pending')->values(),
         ]);
@@ -147,9 +148,49 @@ class EventMaqraDrawingController extends Controller
             'disable_item' => 'required|boolean'
         ]);
 
+        $groupId = null;
+        if ($request->is_team) {
+            $groupId = \App\Models\EventTeam::find($request->event_participant_id)->event_group_id ?? null;
+        } else {
+            $groupId = \App\Models\EventParticipant::find($request->event_participant_id)->event_group_id ?? null;
+        }
+
+        $group = EventGroup::find($groupId);
+        if (!$group || !$group->is_maqra_drawing_open) {
+            return response()->json(['message' => 'Pencabutan Maqra untuk golongan ini sedang ditutup.'], 403);
+        }
+
         DB::beginTransaction();
         try {
-            // 1. Simpan Transaksi Draw
+            // 1. PENGAMAN RACE CONDITION: Lock & Validasi ketersediaan Maqra
+            if ($request->event_maqra_id) {
+                $maqra = EventMaqra::where('id', $request->event_maqra_id)
+                    ->lockForUpdate()
+                    ->first();
+
+                if (!$maqra || !$maqra->is_available) {
+                    DB::rollBack();
+                    return response()->json([
+                        'message' => 'Maqra tersebut sudah dicabut oleh peserta lain sesaat lalu. Silakan pilih maqra yang lain.'
+                    ], 422);
+                }
+            }
+
+            // 2. PENGAMAN RACE CONDITION: Lock & Validasi ketersediaan Paket Soal
+            if ($request->event_question_package_id) {
+                $package = EventQuestionPackage::where('id', $request->event_question_package_id)
+                    ->lockForUpdate()
+                    ->first();
+
+                if (!$package || !$package->is_available) {
+                    DB::rollBack();
+                    return response()->json([
+                        'message' => 'Paket soal tersebut sudah dipilih oleh peserta lain sesaat lalu. Silakan pilih paket lain.'
+                    ], 422);
+                }
+            }
+
+            // 3. Simpan Transaksi Draw
             $dataDraw = [
                 'round_id' => $request->round_id,
                 'exam_type' => $request->exam_type,
@@ -168,7 +209,7 @@ class EventMaqraDrawingController extends Controller
 
             $draw = EventMaqraDrawing::create($dataDraw);
 
-            // 2. Nonaktifkan item jika dipilih
+            // 4. Nonaktifkan item jika dipilih
             if ($request->disable_item) {
                 if ($request->event_maqra_id) {
                     EventMaqra::where('id', $request->event_maqra_id)->update(['is_available' => false]);
@@ -184,5 +225,26 @@ class EventMaqraDrawingController extends Controller
             DB::rollBack();
             return response()->json(['message' => 'Gagal menyimpan undian', 'error' => $e->getMessage()], 500);
         }
+    }
+
+    // 3. Tambahkan Method Baru Khusus Admin untuk Mengubah Status
+    public function toggleDrawingStatus(Request $request)
+    {
+        $request->validate([
+            'event_group_id' => 'required|exists:event_groups,id',
+            'is_open' => 'required|boolean'
+        ]);
+
+        // Opsional: Pastikan hanya SUPERADMIN / ADMIN_EVENT yang bisa mengakses ini
+        // if (!in_array(auth()->user()->role->name, ['SUPERADMIN', 'ADMIN_EVENT'])) abort(403);
+
+        $group = EventGroup::find($request->event_group_id);
+        $group->is_maqra_drawing_open = $request->is_open;
+        $group->save();
+
+        return response()->json([
+            'success' => true, 
+            'message' => $request->is_open ? 'Pencabutan Maqra Dibuka' : 'Pencabutan Maqra Ditutup'
+        ]);
     }
 }

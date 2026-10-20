@@ -10,7 +10,7 @@
           </p>
         </div>
 
-        <div class="d-flex flex-column flex-sm-row gap-2">
+        <div class="d-flex flex-column flex-sm-row gap-2" v-if="isSuperAdmin">
           <button
             class="btn btn-outline-secondary btn-sm mr-sm-2 mb-2 mb-sm-0"
             @click="generateFromTemplate"
@@ -477,6 +477,11 @@ import Swal from 'sweetalert2'
 import { useAuthUserStore } from '../../stores/AuthUserStore'
 
 const authUserStore = useAuthUserStore()
+// ➕ CEK ROLE SUPERADMIN
+const isSuperAdmin = computed(() => {
+  const roleName = authUserStore.user?.role?.name || ''
+  return roleName === 'SUPERADMIN'
+})
 
 // event aktif
 const eventData = computed(() => authUserStore.eventData || null)

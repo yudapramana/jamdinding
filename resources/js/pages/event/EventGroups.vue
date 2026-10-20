@@ -19,7 +19,7 @@
           </p>
         </div>
 
-        <div class="d-flex flex-column flex-sm-row gap-2">
+        <div class="d-flex flex-column flex-sm-row gap-2" v-if="isSuperAdmin">
           <button
             class="btn btn-outline-secondary btn-sm mr-sm-2 mb-2 mb-sm-0"
             @click="generateFromTemplate"
@@ -71,6 +71,13 @@
                 <option value="inactive">Nonaktif</option>
                 <option value="all">Semua</option>
               </select>
+
+              <!-- ➕ FILTER BARU: HAS MAQRA DRAWING -->
+              <select v-model="maqraFilter" class="form-control form-control-sm w-auto border-info">
+                <option value="all">Semua Status Maqra</option>
+                <option value="1">Sistem Maqra Aktif</option>
+                <option value="0">Tanpa Maqra</option>
+              </select>
             </div>
 
             <!-- RIGHT: search -->
@@ -93,7 +100,8 @@
                 <th>Golongan</th> -->
                 <th class="text-center">Code</th>
                 <th>Nama Lengkap</th>
-                <th>Majelis Hakim</th>
+                <th v-if="isSuperAdmin">Majelis Hakim</th>
+                <th v-if="isSuperAdmin" style="width: 120px;" class="text-center">Cabut Maqra?</th>
                 <th style="width: 120px;" class="text-center">Maks. Umur</th>
                 <th style="width: 90px;" class="text-center">Status</th>
                 <th style="width: 80px;" class="text-center">Tim?</th>
@@ -152,7 +160,8 @@
                 </td>
 
 
-                <td>
+                <!-- ➕ DATA MAJELIS HAKIM HANYA UNTUK SUPERADMIN -->
+                <td v-if="isSuperAdmin">
                   <select
                     class="form-control form-control-sm"
                     :value="item.event_judge_panel_id"
@@ -160,14 +169,34 @@
                     :disabled="item.status == 'inactive'"
                   >
                     <option value="">— Belum Ditentukan —</option>
-                    <option
-                      v-for="p in judgePanels"
-                      :key="p.id"
-                      :value="p.id"
-                    >
+                    <option v-for="p in judgePanels" :key="p.id" :value="p.id">
                       {{ p.code ? p.code + ' - ' : '' }}{{ p.name }}
                     </option>
                   </select>
+                </td>
+
+                <!-- ➕ KOLOM CABUT MAQRA & TOGGLE AKSES -->
+                <td v-if="isSuperAdmin" class="text-center">
+                  <template v-if="item.has_maqra_drawing">
+                    <span class="badge badge-primary mb-1 d-block">Sistem Aktif</span>
+                    <div class="custom-control custom-switch custom-switch-md" title="Buka/Tutup Gerbang Pencabutan Maqra">
+                      <input 
+                        type="checkbox" 
+                        class="custom-control-input" 
+                        :id="'maqraToggle' + item.id"
+                        :checked="item.is_maqra_drawing_open"
+                        @change="toggleMaqraStatus(item)"
+                      >
+                      <label class="custom-control-label" :for="'maqraToggle' + item.id" style="cursor:pointer;">
+                        <small class="font-weight-bold" :class="item.is_maqra_drawing_open ? 'text-success' : 'text-danger'">
+                           {{ item.is_maqra_drawing_open ? 'Terbuka' : 'Ditutup' }}
+                        </small>
+                      </label>
+                    </div>
+                  </template>
+                  <template v-else>
+                    <span class="text-muted">-</span>
+                  </template>
                 </td>
 
                 <td class="text-center">{{ formatMaxAge(item.max_age) }}</td>
@@ -190,7 +219,7 @@
                 <td class="text-center">{{ item.order_number ?? '-' }}</td>
                 <td class="text-center">
                     <div class="btn-group btn-group-sm">
-                        <button
+                        <button v-if="isSuperAdmin"
                         class="btn btn-info"
                         title="Kelola Kategori untuk Golongan ini"
                         @click="goToEventCategories(item)"
@@ -198,7 +227,7 @@
                         <i class="fas fa-venus-mars"></i>
                         </button>
 
-                        <button
+                        <button v-if="isSuperAdmin"
                         class="btn btn-warning"
                         @click="openEditModal(item)"
                         >
@@ -710,6 +739,12 @@ const refreshMasterGroups = async () => {
 const route = useRoute()   // 👈
 const router = useRouter() // 👈
 
+// ➕ CEK ROLE SUPERADMIN
+const isSuperAdmin = computed(() => {
+  const roleName = authUserStore.user?.role?.name || ''
+  return roleName === 'SUPERADMIN'
+})
+
 const selectedBranchId = computed(() => {
   const raw = route.query.branch_id
   return raw ? Number(raw) : null
@@ -763,6 +798,30 @@ const assignJudgePanel = async (eventGroupId, panelId) => {
   }
 }
 
+// ➕ METHOD TOGGLE MAQRA STATUS
+const toggleMaqraStatus = async (item) => {
+  try {
+    const res = await axios.patch(`/api/v1/event-groups/${item.id}/toggle-maqra-drawing`)
+    // Update local state agar tidak perlu reload seluruh tabel
+    item.is_maqra_drawing_open = res.data.data.is_maqra_drawing_open
+    
+    Toast.fire({
+      icon: 'success',
+      title: res.data.message
+    })
+    
+    // Opsional: Perbarui master data di background agar dashboard lain ter-update
+    refreshMasterGroups()
+  } catch (e) {
+    Toast.fire({
+      icon: 'error',
+      title: 'Gagal mengubah status.'
+    })
+    // Kembalikan switch jika gagal
+    item.is_maqra_drawing_open = !item.is_maqra_drawing_open
+  }
+}
+
 // event aktif dari store
 const eventData = computed(() => authUserStore.eventData || null)
 const eventId = computed(() => eventData.value?.id || null)
@@ -771,6 +830,7 @@ const items = ref([])
 const branches = ref([])
 const groups = ref([])
 const statusFilter = ref('active') // 'active' | 'inactive' | 'all'
+const maqraFilter = ref('all') // ➕ Filter Maqra
 
 const search = ref('')
 const perPage = ref(50)
@@ -840,6 +900,7 @@ const fetchItems = async (page = 1) => {
         event_id: eventId.value,
         branch_id: selectedBranchId.value || undefined, // 👈 filter optional
         status: statusFilter.value, // 👈 TAMBAH INI
+        has_maqra: maqraFilter.value, // ➕ Kirim filter ke backend
         page,
         per_page: perPage.value,
         search: search.value,
@@ -1127,39 +1188,17 @@ const saveComponentJudges = () => {
 
 
 
-watch(
-  () => statusFilter.value,
-  () => {
+// Watchers
+watch(() => statusFilter.value, () => fetchItems(1))
+watch(() => maqraFilter.value, () => fetchItems(1)) // ➕ Trigger saat filter Maqra berubah
+watch(() => search.value, useDebounceFn(() => fetchItems(1), 400))
+watch(() => perPage.value, () => fetchItems(1))
+watch(() => eventId.value, (val) => {
+  if (val) {
     fetchItems(1)
+    fetchJudgePanels()
   }
-)
-
-
-
-// search debounce
-watch(
-  () => search.value,
-  useDebounceFn(() => fetchItems(1), 400)
-)
-
-// perPage change
-watch(
-  () => perPage.value,
-  () => {
-    fetchItems(1)
-  }
-)
-
-// kalau eventData baru ter-set setelah halaman ini dibuka, auto load data
-watch(
-  () => eventId.value,
-  (val) => {
-    if (val) {
-      fetchItems(1)
-      fetchJudgePanels()
-    }
-  }
-)
+})
 
 onMounted(() => {
   fetchBranchesAndGroups()
@@ -1175,3 +1214,20 @@ onMounted(() => {
   }
 })
 </script>
+
+<style scoped>
+/* Opsional: Membuat switch toggle sedikit lebih lebar jika diinginkan */
+.custom-switch-md .custom-control-label::before {
+    height: 1.25rem;
+    width: 2.25rem;
+    border-radius: 2rem;
+}
+.custom-switch-md .custom-control-label::after {
+    width: 1rem;
+    height: 1rem;
+    border-radius: 50%;
+}
+.custom-switch-md .custom-control-input:checked ~ .custom-control-label::after {
+    transform: translateX(1rem);
+}
+</style>
