@@ -254,9 +254,9 @@
             <div class="main-content">
 
                 <div class="photo-frame">
-                    {{-- @if ($user?->avatar)
+                    @if ($user->avatar)
                         <img src="{{ $user->avatar }}" alt="Foto">
-                    @endif --}}
+                    @endif
                 </div>
 
                 <div class="name-wrap {{ $nameClass }}">
