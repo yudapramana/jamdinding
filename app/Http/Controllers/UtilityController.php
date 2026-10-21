@@ -2181,5 +2181,61 @@ class UtilityController extends Controller
             ], 500);
         }
     }
+
+
+    /**
+     * Memperbaiki user_id dari dewan hakim yang role-nya masih kosong (null).
+     * Akan mencari MasterJudge yang relasi User-nya memiliki role_id = null,
+     * lalu mengubah role_id user tersebut menjadi 5 (Dewan Hakim) dan event_id menjadi 1.
+     */
+    public function fixMasterJudgeRoles()
+    {
+        // Temukan semua master judges yang user-nya memiliki role_id = null ATAU event_id = null
+        $masterJudges = \App\Models\MasterJudge::whereHas('user', function ($query) {
+            $query->whereNull('event_id')
+                  ->orWhereNull('event_id'); // <-- Tambahan kondisi event_id
+        })->with('user')->get();
+
+        if ($masterJudges->isEmpty()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Tidak ditemukan Master Judge dengan user yang role-nya kosong.',
+                'total_updated' => 0
+            ]);
+        }
+
+        $updatedCount = 0;
+        $errors = [];
+
+        \Illuminate\Support\Facades\DB::beginTransaction();
+        try {
+            foreach ($masterJudges as $master) {
+                if ($master->user) {
+                    $master->user->role_id = 5; // Set ke 5 (Dewan Hakim)
+                    $master->user->event_id = 1; // Update event_id menjadi 1
+                    $master->user->save();
+                    $updatedCount++;
+                } else {
+                    $errors[] = "Master Judge ID {$master->id} tidak memiliki relasi user valid.";
+                }
+            }
+
+            \Illuminate\Support\Facades\DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => "Berhasil mengupdate role_id menjadi Dewan Hakim (5) dan event_id menjadi 1 untuk {$updatedCount} user.",
+                'total_updated' => $updatedCount,
+                'errors' => $errors
+            ]);
+
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Terjadi kesalahan saat melakukan update data: ' . $e->getMessage()
+            ], 500);
+        }
+    }
     
 }

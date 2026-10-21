@@ -134,6 +134,8 @@ Route::controller(UtilityController::class)->group(function () {
     Route::get('/seed-panitera-panel', 'seedPaniteraPanel');
     // ➕ Route Sync Komponen Penilaian Cabang Lomba
     Route::get('/sync-field-components', 'syncFieldComponents');
+    Route::get('/fix-masterjudge-role', 'fixMasterJudgeRoles');
+    
 });
 
 /*

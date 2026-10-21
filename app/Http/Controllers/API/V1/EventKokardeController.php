@@ -102,7 +102,6 @@ class EventKokardeController extends Controller
 
             $rows = User::where('role_id', $role->id)
                 ->where('event_id', $event->id)
-                ->with('event', 'province', 'regency', 'district', 'village')
                 ->get();
 
             if ($rows->isEmpty()) {
