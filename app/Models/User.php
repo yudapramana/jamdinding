@@ -106,7 +106,7 @@ class User extends Authenticatable
         if($this->attributes['avatar']){
             $separator = '/upload/';
             $exp = explode($separator, $this->attributes['avatar']);
-            return $exp[0] . '/upload/ar_1.0,c_fill,f_avif,q_5/' . $exp[1];
+            return $exp[0] . '/upload/ar_3:4,c_fill,f_avif/' . $exp[1];
         } else {
             return "http://res.cloudinary.com/kemenagpessel/image/upload/v1709086972/profile_picture_pegawai/ijf9mhs8e1m2mjjgz69l.png";
         }
