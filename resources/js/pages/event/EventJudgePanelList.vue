@@ -258,7 +258,7 @@
           <div class="modal-body">
 
             <!-- SEARCH -->
-            <div class="form-group">
+            <div class="form-group" v-if="isSuperAdmin">
               <label class="text-sm text-muted mb-1">Cari Hakim</label>
               <input
                 v-model="membersModal.search"
@@ -286,7 +286,7 @@
               </div>
             </div>
 
-            <hr>
+            <hr v-if="isSuperAdmin">
 
             <!-- SELECTED -->
             <div v-if="membersModal.selected.length === 0" class="text-muted text-sm">
@@ -298,7 +298,7 @@
                 <tr>
                   <th>Dewan Hakim</th>
                   <th width="120" class="text-center">Ketua</th>
-                  <th width="80" class="text-center">Aksi</th>
+                  <th width="80" class="text-center" v-if="isSuperAdmin">Aksi</th>
                 </tr>
               </thead>
               <tbody>
@@ -312,7 +312,7 @@
                       @change="setChief(j.event_judge_id)"
                     >
                   </td>
-                  <td class="text-center">
+                  <td class="text-center" v-if="isSuperAdmin">
                     <button
                       class="btn btn-xs btn-outline-danger"
                       @click="removeJudge(j.event_judge_id)"

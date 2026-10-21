@@ -83,14 +83,37 @@ class EventJudgePanelController extends Controller
     /**
      * List panel + anggota
      */
+    /**
+     * List panel + anggota
+     */
     public function index(Request $request, Event $event)
     {
+        $user = $request->user();
+        $roleSlug = $user ? strtolower(optional($user->role)->slug ?? optional($user->role)->name ?? '') : '';
+        $isPanitera = str_contains($roleSlug, 'panitera');
+        
+        // Ambil ID Panel/Majelis jika user adalah Panitera
+        $paniteraPanelId = null;
+        if ($isPanitera) {
+            $paniteraPanelId = optional($user->clerkAssignment)->event_judge_panel_id;
+        }
+
         // SIMPLE MODE (untuk dropdown)
         if ($request->boolean('simple')) {
+            $simpleQuery = EventJudgePanel::where('event_id', $event->id)
+                ->where('is_active', true);
+            
+            // Filter panitera untuk dropdown
+            if ($isPanitera) {
+                if ($paniteraPanelId) {
+                    $simpleQuery->where('id', $paniteraPanelId);
+                } else {
+                    $simpleQuery->whereNull('id'); // Pastikan kosong jika belum di-assign
+                }
+            }
+                
             return response()->json([
-                'data' => EventJudgePanel::where('event_id', $event->id)
-                    ->where('is_active', true)
-                    ->orderBy('name')
+                'data' => $simpleQuery->orderBy('name')
                     ->get(['id', 'code', 'name', 'event_location_id'])
             ]);
         }
@@ -98,8 +121,19 @@ class EventJudgePanelController extends Controller
         $perPage = (int) $request->get('per_page', 10);
         $search  = $request->get('search');
 
-        $panels = EventJudgePanel::query()
-            ->where('event_id', $event->id)
+        $panelsQuery = EventJudgePanel::query()
+            ->where('event_id', $event->id);
+
+        // Filter khusus panitera pada tabel utama
+        if ($isPanitera) {
+            if ($paniteraPanelId) {
+                $panelsQuery->where('id', $paniteraPanelId);
+            } else {
+                $panelsQuery->whereNull('id'); // Pastikan kosong jika belum di-assign
+            }
+        }
+
+        $panels = $panelsQuery
             ->when($search, function ($q) use ($search) {
                 $q->where(function ($qq) use ($search) {
                     $qq->where('name', 'like', "%{$search}%")
@@ -123,7 +157,7 @@ class EventJudgePanelController extends Controller
                 'total'        => $panels->total(),
                 'from'         => $panels->firstItem(),
                 'to'           => $panels->lastItem(),
-                'last_page'    => $panels->lastPage(), // ✅ INI KUNCI
+                'last_page'    => $panels->lastPage(),
             ]
         ]);
     }

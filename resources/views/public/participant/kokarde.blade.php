@@ -5,22 +5,23 @@
     <meta charset="UTF-8">
     <title>Kokarde Peserta A6</title>
 
-    <!-- Memuat Font Kaligrafi/Islami dari Google Fonts
-         (Segoe UI dihapus dari URL karena bukan font Google; family yang tidak valid
-          bisa membuat seluruh request font gagal, termasuk Amiri) -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@700&family=Reem+Kufi:wght@600;700&display=swap" rel="stylesheet">
 
     <style>
+        /* ================= SETUP KERTAS A6 ================= */
         @page {
             size: 105mm 148mm;
-            margin: 0;
+            /* Kunci ukuran kertas A6 */
+            margin: 0mm;
+            /* Hilangkan margin default browser */
         }
 
         * {
-            -webkit-print-color-adjust: exact;
-            print-color-adjust: exact;
+            -webkit-print-color-adjust: exact !important;
+            /* Paksa print background */
+            print-color-adjust: exact !important;
             box-sizing: border-box;
         }
 
@@ -29,19 +30,14 @@
             margin: 0;
             padding: 0;
             width: 105mm;
-            /* tinggi sengaja tidak dikunci: tinggi tetap diatur oleh .sheet */
-        }
-
-        body {
-            font-family: 'Segoe UI', Arial, Helvetica, sans-serif;
             background: #fff;
+            font-family: 'Segoe UI', Arial, Helvetica, sans-serif;
         }
 
         .sheet {
             width: 105mm;
-            /* sedikit di bawah 148mm: pembulatan piksel browser membuat tinggi tepat 148mm
-               melewati batas halaman dan memunculkan halaman kosong */
             height: 147.5mm;
+            /* Sedikit di bawah 148mm untuk mencegah halaman kosong ekstra di browser */
             padding: 5mm;
             overflow: hidden;
             background-image: url('{{ asset('images/bg-kokarde.png') }}');
@@ -52,8 +48,7 @@
             page-break-inside: avoid;
         }
 
-        /* Pindah halaman hanya SEBELUM kokarde berikutnya (bukan sesudah setiap kokarde),
-           sehingga tidak ada halaman kosong di antara maupun di akhir */
+        /* Hanya page-break sebelum elemen berikutnya */
         .sheet~.sheet {
             break-before: page;
             page-break-before: always;
@@ -69,18 +64,18 @@
             z-index: 1;
         }
 
-        /* ================= HEADER (BIG & TIGHT) ================= */
+        /* ================= HEADER ================= */
         .header-container {
             width: 100%;
             text-align: center;
-            margin-top: 17mm;
+            margin-top: 13mm;
+            /* Dinaikkan ke atas selayang */
             margin-bottom: 0px;
         }
 
         .event-title {
             font-family: 'Amiri', 'Reem Kufi', serif;
             font-size: 30px;
-            /* sebelumnya 26px */
             font-weight: 700;
             text-transform: uppercase;
             letter-spacing: 1px;
@@ -91,7 +86,6 @@
 
         .event-subtitle {
             font-size: 13px;
-            /* sebelumnya 11.5px */
             font-weight: 800;
             margin-top: -3px;
             letter-spacing: 0.3px;
@@ -101,7 +95,6 @@
 
         .event-platform {
             font-size: 7.5px;
-            /* sebelumnya 6.5px */
             font-weight: 700;
             text-transform: uppercase;
             letter-spacing: 0.2px;
@@ -118,14 +111,11 @@
             width: 100%;
             justify-content: center;
             margin-top: -3mm;
-            /* sebelumnya -8mm; disesuaikan karena elemen lebih besar */
         }
 
         .photo-frame {
-            width: 30mm;
-            /* sebelumnya 24mm */
-            height: 40mm;
-            /* sebelumnya 32mm */
+            width: 33mm;
+            height: 44mm;
             border: 2px solid #111;
             padding: 2px;
             background: #fff;
@@ -141,7 +131,6 @@
 
         .participant-number {
             font-size: 29px;
-            /* sebelumnya 24px */
             font-weight: 900;
             color: #d32f2f;
             letter-spacing: 1px;
@@ -149,13 +138,10 @@
             margin-bottom: 2px;
         }
 
-        /* Area nama: tinggi minimal 2 baris supaya nama panjang punya ruang
-           dan posisi elemen di bawahnya tidak bergeser-geser antar peserta */
         .name-wrap {
             width: 96%;
             min-height: 2.35em;
             font-size: 15px;
-            /* sebelumnya 13px */
             display: flex;
             align-items: center;
             justify-content: center;
@@ -173,10 +159,8 @@
             padding: 0 1mm;
             overflow-wrap: anywhere;
             text-wrap: balance;
-            /* pecah baris lebih seimbang */
         }
 
-        /* Nama panjang: font otomatis dikecilkan sedikit agar tetap muat 2 baris */
         .name-wrap.name-sm {
             font-size: 13.5px;
         }
@@ -192,7 +176,6 @@
             width: 72%;
             text-align: center;
             font-size: 11px;
-            /* sebelumnya 9.5px */
             font-weight: 900;
             letter-spacing: 2.5px;
             padding: 3px 0;
@@ -207,7 +190,6 @@
             border: 1px solid #d1d5db;
             color: #1f2937;
             font-size: 9.5px;
-            /* sebelumnya 8.5px */
             font-weight: 800;
             text-transform: uppercase;
             padding: 3px 11px;
@@ -221,13 +203,12 @@
         /* ================= FOOTER ================= */
         .footer {
             margin-top: auto;
-            margin-bottom: 6mm;
+            margin-bottom: 5mm;
             text-align: center;
         }
 
         .qr-label {
             font-size: 7px;
-            /* sebelumnya 6px */
             font-weight: 800;
             letter-spacing: 0.5px;
             margin-bottom: 2px;
@@ -235,18 +216,34 @@
         }
 
         .qr svg {
-            width: 48px;
-            /* sebelumnya 42px */
-            height: 48px;
+            width: 63px;
+            height: 63px;
         }
 
+        /* ================= MEDIA PRINT RULES ================= */
         @media print {
 
             html,
             body {
                 width: 105mm;
-                height: auto;
-                overflow: visible;
+                height: 148mm;
+                margin: 0;
+                padding: 0;
+            }
+
+            .sheet {
+                width: 105mm;
+                height: 148mm;
+                /* Paskan tepat di 148mm saat diprint */
+                margin: 0;
+                box-shadow: none;
+                /* Hilangkan bayangan saat cetak agar bersih */
+            }
+
+            .photo-frame,
+            .status-banner {
+                box-shadow: none !important;
+                /* Mencegah shadow bocor jadi tinta kotor */
             }
         }
     </style>
@@ -299,7 +296,8 @@
             <div class="footer">
                 <div class="qr-label">SCAN UNTUK AKSES</div>
                 <div class="qr">
-                    {!! QrCode::margin(1)->size(48)->generate(route('public.participant.show', $ep)) !!}
+                    <!-- Ukuran disinkronkan ke 63 untuk ketajaman sempurna -->
+                    {!! QrCode::margin(1)->size(63)->generate(route('public.participant.show', $ep)) !!}
                 </div>
             </div>
 

@@ -3,23 +3,36 @@
 
 <head>
     <meta charset="UTF-8">
-    <title>Kokarde Panitia</title>
+    <title>Kokarde Panitia A6</title>
+
+    <!-- Memuat Font Kaligrafi/Islami dari Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@700&family=Reem+Kufi:wght@600;700&display=swap" rel="stylesheet">
 
     <style>
+        /* Mengatur ukuran halaman cetak browser secara otomatis ke A6 */
         @page {
-            size: A5;
+            size: 105mm 148mm;
             margin: 0;
         }
 
         * {
             -webkit-print-color-adjust: exact;
             print-color-adjust: exact;
+            box-sizing: border-box;
         }
 
+        html,
         body {
             margin: 0;
             padding: 0;
-            font-family: Arial, Helvetica, sans-serif;
+            width: 105mm;
+        }
+
+        body {
+            font-family: 'Segoe UI', Arial, Helvetica, sans-serif;
+            background: #fff;
         }
 
         :root {
@@ -31,88 +44,93 @@
         }
 
         .sheet {
-            width: 148mm;
-            height: 210mm;
-            padding: 10mm;
-            box-sizing: border-box;
+            width: 105mm;
+            /* Tinggi 147.5mm mencegah halaman kosong ekstra saat print ke PDF */
+            height: 147.5mm;
+            padding: 5mm;
             overflow: hidden;
             background-image: url('{{ asset('images/bg-kokarde.png') }}');
             background-size: cover;
+            background-position: center;
             background-repeat: no-repeat;
+            break-inside: avoid;
+            page-break-inside: avoid;
+        }
+
+        .sheet~.sheet {
+            break-before: page;
+            page-break-before: always;
         }
 
         .kokarde {
             width: 100%;
-            height: 190mm;
+            height: 100%;
             display: flex;
             flex-direction: column;
-            justify-content: space-between;
+            align-items: center;
             position: relative;
             z-index: 1;
-            overflow: hidden;
         }
 
-        /* ================= HEADER ================= */
-        .header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .header img {
-            height: 72px;
+        /* ================= HEADER COMPACT & KALIGRAFI ================= */
+        .header-container {
+            width: 100%;
+            text-align: center;
+            margin-top: 17mm;
+            /* Memberi ruang untuk logo di background */
+            margin-bottom: 0px;
         }
 
         .event-title {
-            text-align: center;
-            font-size: 45px;
-            font-weight: 800;
+            font-family: 'Amiri', 'Reem Kufi', serif;
+            font-size: 30px;
+            font-weight: 700;
             text-transform: uppercase;
-            line-height: 1.15;
-            margin: -48px 0 8px;
-            letter-spacing: 3px;
+            letter-spacing: 1px;
+            margin: 0;
+            color: #064e3b;
+            line-height: 0.95;
         }
 
         .event-subtitle {
-            text-align: center;
-            font-size: 21px;
-            font-weight: 600;
-            margin-top: -15px;
-            margin-bottom: 10px;
-            letter-spacing: -0.5px;
+            font-size: 13px;
+            font-weight: 800;
+            margin-top: -3px;
+            letter-spacing: 0.3px;
+            color: #1f2937;
+            line-height: 1.1;
         }
 
         .event-platform {
-            text-align: center;
-            font-size: 11px;
-            font-weight: 600;
-            margin-top: -9px;
-            margin-bottom: 10px;
+            font-size: 7.5px;
+            font-weight: 700;
             text-transform: uppercase;
-            letter-spacing: -0.5px;
+            letter-spacing: 0.2px;
+            color: #4b5563;
+            margin-top: 1px;
         }
 
-        /* ================= BODY ================= */
-        .name {
-            text-align: center;
-            font-size: 26px;
-            font-weight: 900;
-            text-transform: uppercase;
-            margin: 12px 0 20px;
-        }
-
-        .photo-box {
+        /* ================= BODY / KONTEN UTAMA ================= */
+        .main-content {
             display: flex;
+            flex-direction: column;
+            align-items: center;
+            flex-grow: 1;
+            width: 100%;
             justify-content: center;
-            margin: 14px 0;
+            margin-top: -3mm;
         }
 
         .photo-frame {
-            width: 4cm;
-            height: 5cm;
-            border: 2px solid #000;
-            padding: 3px;
-            box-sizing: border-box;
+            width: 33mm;
+            height: 44mm;
+            border: 2px solid #111;
+            padding: 2px;
+            background: #fff;
+            margin-bottom: 3.5mm;
+            background: transparent;
+            /* Diubah agar tembus pandang */
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
         }
 
         .photo-frame img {
@@ -121,42 +139,82 @@
             object-fit: cover;
         }
 
-        .status {
+        /* Area nama dengan fleksibilitas 2 baris */
+        .name-wrap {
+            width: 96%;
+            min-height: 2.35em;
+            font-size: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 3px;
+        }
+
+        .name {
+            width: 100%;
+            font-size: 1em;
+            font-weight: 900;
+            text-transform: uppercase;
+            text-align: center;
+            line-height: 1.15;
+            color: #000;
+            padding: 0 1mm;
+            overflow-wrap: anywhere;
+            text-wrap: balance;
+        }
+
+        .name-wrap.name-sm {
+            font-size: 13.5px;
+        }
+
+        .name-wrap.name-xs {
+            font-size: 12px;
+        }
+
+        /* ================= STATUS BANNER ROLE ================= */
+        .status-banner {
             color: #fff;
+            width: 72%;
             text-align: center;
-            font-size: 16px;
-            font-weight: 800;
-            letter-spacing: 2px;
-            padding: 10px 0;
-            margin: 18px 0;
+            font-size: 11px;
+            font-weight: 900;
+            letter-spacing: 2.5px;
+            padding: 3px 0;
+            border-radius: 4px;
+            margin: 2px 0 5px 0;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
         }
 
-        .role-name {
-            text-align: center;
-            font-size: 18px;
-            font-weight: 800;
-            letter-spacing: 2px;
-            text-transform: uppercase;
-            margin-top: 14px;
-        }
-
+        /* ================= INFO KONTINGEN ================= */
         .contingent {
-            text-align: center;
-            font-size: 17px;
-            font-weight: 700;
-            letter-spacing: 1px;
-            margin-top: 8px;
+            font-size: 11px;
+            font-weight: 800;
             text-transform: uppercase;
+            color: #222;
+            margin-top: 2px;
+            letter-spacing: 0.5px;
         }
 
         /* ================= FOOTER ================= */
         .footer {
-            padding-top: 23px;
+            margin-top: auto;
+            margin-bottom: 8mm;
             text-align: center;
-            font-size: 11px;
-            font-weight: 600;
-            color: #fff;
+            font-size: 8px;
+            font-weight: 700;
+            color: #4b5563;
             text-transform: uppercase;
+            line-height: 1.3;
+        }
+
+        @media print {
+
+            html,
+            body {
+                width: 105mm;
+                height: auto;
+                overflow: visible;
+            }
         }
     </style>
 </head>
@@ -173,6 +231,11 @@
     ];
 
     $roleClass = $roleClassMap[$roleSlug] ?? 'role-panitera';
+
+    // Logika ukuran font nama
+    $fullName = $user?->name ?? '-';
+    $nameLen = mb_strlen($fullName);
+    $nameClass = $nameLen > 38 ? 'name-xs' : ($nameLen > 26 ? 'name-sm' : '');
 @endphp
 
 <body>
@@ -180,37 +243,28 @@
     <section class="sheet">
         <div class="kokarde">
 
-            <!-- ================= HEADER ================= -->
-            <div>
-                <div class="header">
-                    <img src="{{ asset('images/logo-pemda.png') }}" alt="Logo Pemda">
-                    <img src="{{ asset('images/logo-kemenag.png') }}" alt="Logo Kemenag">
-                </div>
-
-                <div class="event-title">
-                    MTQN XLI
-                </div>
-
-                <div class="event-subtitle">
-                    {{ strtoupper($event?->event_location ?? '-') }}
-                </div>
-
-                <div class="event-platform">
-                    Musabaqah Tilawatil Qur’an Berbasis Digital
-                </div>
+            <!-- HEADER -->
+            <div class="header-container">
+                <div class="event-title">MTQN XLII</div>
+                <div class="event-subtitle">{{ strtoupper($event?->event_location ?? '-') }}</div>
+                <div class="event-platform">Musabaqah Tilawatil Qur’an Berbasis Digital</div>
             </div>
 
-            <!-- ================= BODY ================= -->
-            <div>
-                <div class="photo-box">
-                    <div class="photo-frame"></div>
+            <!-- KONTEN IDENTITAS -->
+            <div class="main-content">
+
+                <div class="photo-frame">
+                    {{-- @if ($user?->avatar)
+                        <img src="{{ $user->avatar }}" alt="Foto">
+                    @endif --}}
                 </div>
 
-                <div class="name">
-                    {{ $user?->name ?? '-' }}
+                <div class="name-wrap {{ $nameClass }}">
+                    <div class="name">{{ $fullName }}</div>
                 </div>
 
-                <div class="status" style="background: var(--{{ $roleClass }});">
+                <!-- ROLE STATUS -->
+                <div class="status-banner" style="background: var(--{{ $roleClass }});">
                     {{ strtoupper(str_replace('_', ' ', $user?->role?->name ?? '-')) }}
                 </div>
 
@@ -231,9 +285,9 @@
                 @endif
             </div>
 
-            <!-- ================= FOOTER ================= -->
+            <!-- FOOTER -->
             <div class="footer">
-                {{ $event?->event_name }} {{ $event?->event_year }} <br>
+                {{ $event?->event_name ?? 'MTQ' }} {{ $event?->event_year ?? date('Y') }} <br>
                 Kementerian Agama Republik Indonesia
             </div>
 
