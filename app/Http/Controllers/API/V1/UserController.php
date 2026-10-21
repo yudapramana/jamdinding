@@ -33,6 +33,7 @@ class UserController extends Controller
                 'username',
                 'role_id',
                 'event_id',
+                'avatar',
             ])
             ->with([
                 'role:id,name',
