@@ -7,6 +7,27 @@ import Swal from 'sweetalert2';
 import { useRouter } from 'vue-router'; 
 
 const screenDisplayStore = useScreenDisplayStore();
+const image_cloud_id = ref('');
+const widget = window.cloudinary.createUploadWidget(
+    {
+        cloud_name: "kemenagpessel",
+        upload_preset: "profile_picture_pegawai"
+    },
+    (error, result) => {
+        if (!error && result && result.event === 'success') {
+            console.log('Done Uploading...', result.info);
+            image_cloud_id.value = result.info.secure_url;
+        }
+
+        if (!error && result && result.event == 'close') {
+            handleFileChange();
+        }
+    }
+)
+
+function openUploadWidget() {
+    widget.open();
+}
 const authUserStore = useAuthUserStore();
 const router = useRouter(); 
 
@@ -114,6 +135,26 @@ const handleChangePassword = () => {
             isChangingPassword.value = false;
         });
 };
+
+const handleFileChange = (event) => {
+    // const file = event.target.files[0];
+    // authUserStore.user.avatar = URL.createObjectURL(file);
+
+    // const formData = new FormData();
+    // formData.append('profile_picture', image_cloud_id);
+
+    if (image_cloud_id.value != '') {
+        axios.post('/api/upload-profile-image', {
+            profile_picture: image_cloud_id.value
+        })
+            .then((response) => {
+                authUserStore.getAuthUser();
+                toastr.success('Image uploaded successfully!');
+            });
+    } else {
+        toastr.error('Image failed to upload!');
+    }
+};
 </script>
 
 <template>
@@ -137,7 +178,30 @@ const handleChangePassword = () => {
         <div class="container-fluid">
             <div class="row" style="margin-bottom: 100px;">
 
-                <div class="col-md-12">
+                <div class="col-md-3">
+                    <div class="card card-primary card-outline">
+                        <div class="card-body box-profile">
+                            <div class="text-center">
+                                <!-- <input @change="handleFileChange" ref="fileInput" type="file" class="d-none"> -->
+                                <img @click="openUploadWidget" class="profile-user-img img-circle"
+                                    :src="authUserStore.user?.avatar" alt="User profile picture">
+                                <!-- <input @change="handleFileChange" ref="fileInput" type="hidden" class="d-none"> -->
+                                <!-- <img @click="openUploadWidget" class="profile-user-img img-circle" :src="authUserStore.user.avatar" alt="User profile picture"> -->
+                                <!-- profile_picture_pegawai/hhmk4hzeqytpoehlne2a -->
+                                <!-- <CloudImage @click="openUploadWidget" :image-name="authUserStore.user.avatar" /> -->
+
+                            </div>
+
+                            <h3 class="profile-username text-center">{{ authUserStore.user.name }}</h3>
+
+
+
+                            <p class="text-muted text-center">{{ authUserStore.user.role.name }}</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-9">
                     
                     <!-- 👇 TAMBAHAN: Warning Alert -->
                     <div class="alert alert-warning alert-dismissible fade show" role="alert">

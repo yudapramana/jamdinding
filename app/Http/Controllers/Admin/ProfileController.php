@@ -32,6 +32,24 @@ class ProfileController extends Controller
         return response()->json(['message' => 'Profile updated successfully!']);
     }
 
+    public function uploadImage(Request $request)
+    {
+
+        if ($request->has('profile_picture')) {
+            // $previousPath = $request->user()->getRawOriginal('avatar');
+
+            // $link = Storage::put('/photos', $request->file('profile_picture'));
+
+            // $request->user()->update(['avatar' => $link]);
+
+            // Storage::delete($previousPath);
+
+            $request->user()->update(['avatar' => $request->profile_picture]);
+
+            return response()->json(['message' => 'Profile picture uploaded successfully!']);
+        }
+    }
+
     public function changePassword(Request $request, UpdateUserPassword $updater)
     {
         // 1. Ambil user dari request (Sanctum/Auth)
