@@ -143,6 +143,20 @@ Route::controller(UtilityController::class)->group(function () {
 | Authenticated Routes
 |--------------------------------------------------------------------------
 */
+
+// Secure Documents (Dokumen Peserta)
+Route::get('/secure/documents/{uuid}/{filename?}', [PublicDocController::class, 'stream'])
+    ->where([
+        'uuid'     => '[0-9a-fA-F]{8}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{12}(\.[a-zA-Z0-9]+)?',
+        'filename' => '.*',
+    ])
+    ->name('secure.docs.stream');
+
+// 2. Catch-all untuk menangani double slash, parameter kosong, atau format salah di bawah /secure/documents/
+Route::get('/secure/documents/{any?}', [PublicDocController::class, 'invalidFormat'])
+    ->where('any', '.*');
+
+    
 Route::middleware('auth')->group(function () {
     
     // Auto Verval
@@ -157,17 +171,17 @@ Route::middleware('auth')->group(function () {
         Route::get('/show-pending-documents', 'showPendingDocuments');
     });
 
-    // Secure Documents (Dokumen Peserta)
-    Route::get('/secure/documents/{uuid}/{filename?}', [PublicDocController::class, 'stream'])
-        ->where([
-            'uuid'     => '[0-9a-fA-F]{8}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{12}(\.[a-zA-Z0-9]+)?',
-            'filename' => '.*',
-        ])
-        ->name('secure.docs.stream');
+    // // Secure Documents (Dokumen Peserta)
+    // Route::get('/secure/documents/{uuid}/{filename?}', [PublicDocController::class, 'stream'])
+    //     ->where([
+    //         'uuid'     => '[0-9a-fA-F]{8}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{12}(\.[a-zA-Z0-9]+)?',
+    //         'filename' => '.*',
+    //     ])
+    //     ->name('secure.docs.stream');
 
-    // 2. Catch-all untuk menangani double slash, parameter kosong, atau format salah di bawah /secure/documents/
-    Route::get('/secure/documents/{any?}', [PublicDocController::class, 'invalidFormat'])
-        ->where('any', '.*');
+    // // 2. Catch-all untuk menangani double slash, parameter kosong, atau format salah di bawah /secure/documents/
+    // Route::get('/secure/documents/{any?}', [PublicDocController::class, 'invalidFormat'])
+    //     ->where('any', '.*');
 
     // Secure Mandates
     Route::get('/secure/mandates/{event}/{filename}', [MandateDocController::class, 'stream'])
