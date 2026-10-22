@@ -27,14 +27,6 @@
             </span>
           </div>
         </div>
-
-        <button
-          class="btn btn-sm btn-outline-secondary"
-          :disabled="isLoadingMeta"
-          @click="reloadAll"
-        >
-          <i class="fas fa-sync mr-1"></i> Refresh
-        </button>
       </div>
     </div>
   </section>
@@ -44,13 +36,13 @@
     <div class="container-fluid">
 
       <!-- ============ SELECTOR ============ -->
-      <div class="card">
-        <div class="card-header">
+      <div class="card shadow-sm">
+        <div class="card-header bg-white">
           <div class="form-row">
 
             <!-- KOMPETISI -->
             <div class="form-group col-md-6 mb-2">
-              <label class="text-sm mb-1">Kompetisi *</label>
+              <label class="text-sm mb-1">Kompetisi <span class="text-danger">*</span></label>
               <select
                 v-model="selectedCompetitionId"
                 class="form-control form-control-sm"
@@ -76,7 +68,7 @@
             <!-- PESERTA / TIM -->
             <div class="form-group col-md-6 mb-2">
               <label class="text-sm mb-1">
-                {{ isTeam ? 'Tim' : 'Peserta' }} *
+                {{ isTeam ? 'Tim' : 'Peserta' }} <span class="text-danger">*</span>
               </label>
 
               <select
@@ -116,175 +108,201 @@
 
       <!-- ============ FORM PENILAIAN ============ -->
       <div
-        class="card mt-3"
+        class="card mt-3 shadow-sm"
         v-if="selectedCompetitionId && selectedEventParticipantId"
       >
-        <div class="card-header d-flex justify-content-between align-items-center py-2">
-          <strong class="text-sm">
-            {{ formData?.competition?.full_name || 'Form Penilaian' }}
-          </strong>
+        <div class="card-header bg-white py-3">
+          <div class="d-flex flex-wrap justify-content-between align-items-center w-100">
+            
+            <!-- Bagian Kiri: Judul dan Badge -->
+            <div class="d-flex align-items-center flex-wrap">
+              <strong class="text-md mr-2 mb-1 mb-sm-0">
+                {{ formData?.competition?.full_name || 'Form Penilaian' }}
+              </strong>
+              <span
+                class="badge"
+                :class="{
+                  'badge-primary': scoringStatus === 'new',
+                  'badge-secondary': scoringStatus === 'draft',
+                  'badge-success': scoringStatus === 'submitted',
+                  'badge-dark': scoringStatus === 'locked',
+                }"
+              >
+                STATUS: {{ scoringStatus.toUpperCase() }}
+              </span>
+            </div>
 
-          <span
-            class="badge ml-2"
-            :class="{
-              'badge-secondary': scoringStatus === 'draft',
-              'badge-success': scoringStatus === 'submitted',
-              'badge-dark': scoringStatus === 'locked',
-            }"
-          >
-            {{ scoringStatus.toUpperCase() }}
-          </span>
-
-
-          <button
-            class="btn btn-xs btn-outline-primary"
-            :disabled="isLoadingForm"
-            @click="loadForm"
-          >
-            <i class="fas fa-sync"></i>
-          </button>
+            <!-- Bagian Kanan: Tombol -->
+            <button
+              class="btn btn-sm btn-outline-primary mt-2 mt-sm-0"
+              :disabled="isLoadingForm"
+              @click="loadForm"
+            >
+              <i class="fas fa-sync mr-1"></i> Reload Form
+            </button>
+            
+          </div>
         </div>
 
-        <div v-if="isLoadingForm" class="card-body text-center py-3">
-          <i class="fas fa-spinner fa-spin mr-1"></i> Memuat form...
+        <div v-if="isLoadingForm" class="card-body text-center py-4">
+          <i class="fas fa-spinner fa-spin mr-2"></i> Memuat form penilaian...
         </div>
 
         <div
           v-else-if="judges.length && components.length"
-          class="card-body p-0 table-responsive"
+          class="card-body p-0"
         >
-          <table class="table table-bordered table-sm table-compact mb-0">
-            <thead class="thead-light">
-              <!-- BARIS HEADER ATAS -->
-              <tr>
-                <th class="py-1"></th>
-                <th
-                  :colspan="judges.length"
-                  class="text-center py-1 text-sm font-weight-bold"
-                >
-                  Majelis Dewan Hakim ({{ allJudgeInitials }})
-                </th>
-              </tr>
-
-              <!-- BARIS HEADER NAMA HAKIM -->
-              <tr>
-                <th style="min-width:240px" class="py-1">Komponen</th>
-                <th
-                  v-for="j in judges"
-                  :key="j.id"
-                  class="text-center py-1"
-                  style="min-width:70px"
-                >
-                  <div class="font-weight-bold text-sm">
-                    {{ judgeInitials(j.name) }}
-                  </div>
-                </th>
-              </tr>
-            </thead>
-
-
-            <tbody>
-              <tr
-                v-for="c in components"
-                :key="c.id"
-                :class="{ 'table-warning': !isComponentRangeValid(c) }"
+          <!-- KETERANGAN INITIAL HAKIM -->
+          <div class="px-3 pt-3 pb-2 bg-light border-bottom">
+            <span class="text-sm font-weight-bold d-block mb-2 text-muted">
+              <i class="fas fa-users mr-1"></i> Keterangan Majelis Hakim:
+            </span>
+            <div class="d-flex flex-wrap">
+              <div 
+                v-for="j in judges" 
+                :key="'legend-'+j.id" 
+                class="mr-3 mb-2 px-2 py-1 bg-white border rounded text-sm shadow-sm"
               >
+                <strong class="text-primary">{{ judgeInitials(j.name) }}</strong> &nbsp;—&nbsp; <span class="text-muted">{{ j.name }}</span>
+              </div>
+            </div>
+          </div>
 
-                <td class="py-1">
-                  <strong class="text-sm">{{ c.field_name }}</strong>
-                  <div class="text-muted text-xs">
-                    Max {{ c.max_score }} • {{ c.weight }}%
-                  </div>
-                </td>
+          <!-- TABEL SCORING -->
+          <div class="table-responsive">
+            <table class="table table-bordered table-hover table-sm table-compact mb-0">
+              <thead class="thead-light">
+                <!-- BARIS HEADER ATAS -->
+                <tr>
+                  <th class="py-2 align-middle border-bottom-0"></th>
+                  <th
+                    :colspan="judges.length"
+                    class="text-center py-2 text-sm font-weight-bold border-bottom-0"
+                  >
+                    Penilaian Dewan Hakim
+                  </th>
+                </tr>
 
-                <td
-                  v-for="j in judges"
-                  :key="j.id"
-                  class="text-center py-1"
-                >
-                  <template v-if="canJudge(j.id, c)">
-                    <input
-                      type="number"
-                      class="form-control form-control-xs text-center mx-auto"
-                      style="width:60px"
-                      min="0"
-                      :max="c.max_score"
-                      v-model.number="rowsMap[j.id][c.id].score"
-                      @input="onScoreInput(j.id, c)"
-                      :disabled="scoringStatus !== 'draft'"
-
-                    />
-                    <div class="text-muted text-xxs mt-1">
-                      W: {{ weightedScore(j.id, c.id) }}
+                <!-- BARIS HEADER NAMA HAKIM -->
+                <tr>
+                  <th style="min-width:260px" class="py-2 align-middle">Komponen Penilaian</th>
+                  <th
+                    v-for="j in judges"
+                    :key="j.id"
+                    class="text-center py-2 align-middle"
+                    style="min-width:85px; width: 85px;"
+                  >
+                    <div class="font-weight-bold text-sm text-primary">
+                      {{ judgeInitials(j.name) }}
                     </div>
-                  </template>
+                  </th>
+                </tr>
+              </thead>
 
-                  <template v-else>
-                    <span class="badge badge-light border badge-xs">
-                      –
-                    </span>
-                  </template>
-                </td>
-              </tr>
-
-              <tr class="bg-light">
-                <td class="text-right font-weight-bold py-1 text-sm">
-                  TOTAL
-                </td>
-                <td
-                  v-for="j in judges"
-                  :key="j.id"
-                  class="text-center py-1"
+              <tbody>
+                <tr
+                  v-for="c in components"
+                  :key="c.id"
+                  :class="{ 'table-warning': !isComponentRangeValid(c) }"
                 >
-                  <span class="badge badge-primary badge-sm">
-                    {{ totalByJudge(j.id) }}
-                  </span>
-                </td>
-              </tr>
-            </tbody>
-          </table>
+                  <td class="py-2 align-middle">
+                    <strong class="text-sm d-block">{{ c.field_name }}</strong>
+                    <div class="text-muted text-xs mt-1">
+                      Nilai Maksimal: <strong>{{ c.max_score }}</strong> &bull; Bobot: <strong>{{ c.weight }}%</strong>
+                    </div>
+                  </td>
+
+                  <td
+                    v-for="j in judges"
+                    :key="j.id"
+                    class="text-center py-2 align-middle"
+                  >
+                    <template v-if="canJudge(j.id, c)">
+                      <!-- Input Aktif saat status 'new' atau 'draft' -->
+                      <input
+                        type="number"
+                        class="form-control text-center mx-auto scoring-input"
+                        min="0"
+                        :max="c.max_score"
+                        v-model.number="rowsMap[j.id][c.id].score"
+                        @input="onScoreInput(j.id, c)"
+                        :disabled="scoringStatus !== 'draft' && scoringStatus !== 'new'"
+                      />
+                      <div class="text-muted text-xxs mt-1 font-weight-bold">
+                        W: {{ weightedScore(j.id, c.id) }}
+                      </div>
+                    </template>
+
+                    <template v-else>
+                      <span class="badge badge-light border badge-xs text-muted">
+                        TIDAK MENILAI
+                      </span>
+                    </template>
+                  </td>
+                </tr>
+
+                <tr class="bg-light">
+                  <td class="text-right font-weight-bold py-2 align-middle text-sm">
+                    TOTAL KESELURUHAN
+                  </td>
+                  <td
+                    v-for="j in judges"
+                    :key="j.id"
+                    class="text-center py-2 align-middle"
+                  >
+                    <span class="badge badge-primary badge-sm px-2 py-1 shadow-sm" style="font-size: 14px;">
+                      {{ totalByJudge(j.id) }}
+                    </span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </div>
 
-        <div class="card-footer py-2 text-right">
+        <div class="card-footer bg-white py-3 text-right border-top">
           <div
             v-if="!isAllRangeValid"
-            class="alert alert-warning py-1 px-2 mb-2 text-sm"
+            class="alert alert-warning py-2 px-3 mb-3 text-sm text-left shadow-sm"
+            style="border-radius: 6px;"
           >
+            <i class="fas fa-exclamation-triangle mr-1"></i>
             Selisih nilai antar hakim pada satu komponen tidak boleh lebih dari
             <strong>{{ RANGE_LIMIT }}</strong> poin.
           </div>
 
-
+          <!-- Muncul saat NEW atau DRAFT -->
           <button
-            v-if="scoringStatus === 'draft'"
-            class="btn btn-sm btn-primary"
+            v-if="scoringStatus === 'new' || scoringStatus === 'draft'"
+            class="btn btn-outline-primary mr-2"
             :disabled="isSaving || !isAllRangeValid"
             @click="saveDraft"
           >
             <i v-if="isSaving" class="fas fa-spinner fa-spin mr-1"></i>
+            <i v-else class="fas fa-save mr-1"></i>
             Simpan Draft
           </button>
 
-
+          <!-- Hanya Muncul saat sudah menjadi DRAFT -->
           <button
             v-if="scoringStatus === 'draft'"
-            class="btn btn-sm btn-success mr-2"
+            class="btn btn-success"
             :disabled="isSaving || !isAllRangeValid"
             @click="submitScore"
           >
             <i class="fas fa-paper-plane mr-1"></i>
-            Submit
+            Submit Permanen
           </button>
-
         </div>
       </div>
 
-
       <div
         v-else
-        class="alert alert-info mt-3"
+        class="alert alert-info mt-3 shadow-sm text-center py-4"
+        style="border-radius: 8px;"
       >
-        Pilih <strong>kompetisi</strong> dan <strong>peserta/tim</strong> untuk mulai input nilai.
+        <i class="fas fa-hand-pointer fa-2x mb-2 d-block text-lightblue"></i>
+        Silakan pilih <strong>kompetisi</strong> dan <strong>peserta/tim</strong> di atas untuk mulai melakukan input nilai.
       </div>
 
     </div>
@@ -292,7 +310,8 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch, onMounted, nextTick } from 'vue'
+import { useRoute } from 'vue-router'
 import axios from 'axios'
 import Swal from 'sweetalert2'
 import { useAuthUserStore } from '../../stores/AuthUserStore'
@@ -333,16 +352,15 @@ const isAllRangeValid = computed(() =>
 )
 
 
-
-
 /* ================= STATE ================= */
 const authUserStore = useAuthUserStore()
+const route = useRoute()
 const eventId = computed(() => authUserStore.eventData?.id)
 
 const selectedCompetitionId = ref('')
 const selectedEventParticipantId = ref('')
 
-const competitionsByRound = ref([])
+const competitionsByRound = computed(() => authUserStore.eventCompetitionsTree)
 const participants = ref([])
 const competitionInfo = ref(null)
 
@@ -353,9 +371,7 @@ const isLoadingMeta = ref(false)
 const isLoadingParticipants = ref(false)
 const isLoadingForm = ref(false)
 const isSaving = ref(false)
-const scoringStatus = ref('draft') 
-// 'draft' | 'submitted' | 'locked'
-
+const scoringStatus = ref('new') 
 
 /* ================= COMPUTED ================= */
 const isTeam = computed(() => competitionInfo.value?.event_group?.is_team)
@@ -364,12 +380,9 @@ const components = computed(() => formData.value?.components || [])
 
 /* ================= PARTICIPANT GROUPING ================= */
 const optionLabel = (p) => {
-  // TEAM MODE (kalau nanti ada)
   if (isTeam.value) {
     return p.team_name || p.contingent || 'Tim'
   }
-
-  // INDIVIDU
   const number = p.participant?.participant_number || '-'
   const name = p.participant?.full_name || '-'
   const nik = p.participant?.nik || ''
@@ -381,19 +394,19 @@ const optionLabel = (p) => {
 
 const judgeInitials = (name = '') => {
   if (!name) return ''
+  
   return name
     .trim()
-    .split(/\s+/)
-    .slice(0, 2)
-    .map(w => w[0].toUpperCase())
-    .join('')
+    .split(/\s+/) // Pecah berdasarkan spasi
+    .filter(w => !w.includes('.')) // Buang semua kata yang memiliki tanda titik (gelar)
+    .slice(0, 2) // Ambil 2 kata pertama yang tersisa
+    .map(w => w[0].toUpperCase()) // Ambil huruf pertama dan jadikan huruf kapital
+    .join('') // Gabungkan
 }
 
 const allJudgeInitials = computed(() =>
   judges.value.map(j => judgeInitials(j.name)).join(', ')
 )
-
-
 
 const participantOptions = computed(() => {
   const list = participants.value || []
@@ -429,7 +442,6 @@ const participantOptions = computed(() => {
     cont.items.push(p)
   }
 
-  // convert map → array
   return Array.from(catMap.values()).map((c) => ({
     id: c.id,
     name: c.name,
@@ -441,17 +453,12 @@ const participantOptions = computed(() => {
 
 /* ================= HELPERS ================= */
 const canJudge = (judgeId, component) => {
-  // BY_PANEL → semua hakim menilai semua komponen
   if (formData.value?.event_group?.judge_assignment_mode === 'BY_PANEL') {
     return true
   }
-
-  // BY_COMPONENT → cek assignment
   if (!component.assigned_judge_ids) return false
-
   return component.assigned_judge_ids.includes(judgeId)
 }
-
 
 const weightedScore = (judgeId, componentId) => {
   const c = components.value.find(x => x.id === componentId)
@@ -471,9 +478,13 @@ const totalByJudge = (judgeId) => {
 /* ================= API ================= */
 const fetchMeta = async () => {
   isLoadingMeta.value = true
-  const { data } = await axios.get(`/api/v1/events/${eventId.value}/competitions/tree`)
-  competitionsByRound.value = data.rounds || []
+  await authUserStore.fetchEventCompetitionsTree(eventId.value)
   isLoadingMeta.value = false
+
+  await nextTick()
+  if (route.params.id) {
+    selectedCompetitionId.value = String(route.params.id)
+  }
 }
 
 const fetchCompetitionInfo = async () => {
@@ -503,26 +514,21 @@ const loadForm = async () => {
   )
 
   formData.value = data
-  // Ambil status dari salah satu scoresheet (semua hakim harus sama)
+  // Jika database mereturn status dari sheet, gunakan itu. 
+  // Jika belum ada/kosong, set menjadi 'new'
   const firstSheet = data.scoresheets?.[0]
-  scoringStatus.value = firstSheet?.status || 'draft'
+  scoringStatus.value = firstSheet?.status || 'new'
 
   const sheets = data.scoresheets || []
-
-  // ===============================
-  // Build rowsMap with hydration
-  // ===============================
   const map = {}
 
   for (const j of judges.value) {
     const sheet = sheets.find(s => s.event_judge_id === j.id)
     const items = sheet?.items || []
-
     map[j.id] = {}
 
     for (const c of components.value) {
       const item = items.find(i => i.event_field_component_id === c.id)
-
       map[j.id][c.id] = {
         score: item ? Number(item.score) : 0,
       }
@@ -553,7 +559,7 @@ const saveDraft = async () => {
   )
 
   Swal.fire('Berhasil', 'Draft tersimpan', 'success')
-  scoringStatus.value = 'draft'
+  scoringStatus.value = 'draft' // Ubah status UI menjadi draft
   isSaving.value = false
 }
 
@@ -579,7 +585,6 @@ const submitScore = async () => {
   )
 
   scoringStatus.value = 'submitted'
-
   Swal.fire('Berhasil', 'Nilai berhasil disubmit', 'success')
   isSaving.value = false
 }
@@ -587,13 +592,18 @@ const submitScore = async () => {
 
 /* ================= WATCH ================= */
 watch(selectedCompetitionId, async (v) => {
-  selectedEventParticipantId.value = ''
+  selectedEventParticipantId.value = '' 
   competitionInfo.value = null
   participants.value = []
   formData.value = null
   if (!v) return
   await fetchCompetitionInfo()
   await fetchParticipants()
+
+  await nextTick()
+  if (route.query.event_participant_id) {
+    selectedEventParticipantId.value = String(route.query.event_participant_id)
+  }
 })
 
 watch(selectedEventParticipantId, async (v) => {
@@ -610,31 +620,48 @@ onMounted(fetchMeta)
 
 .table-compact th,
 .table-compact td {
-  padding: 0.3rem;
+  padding: 0.5rem 0.4rem; /* Padding diperbesar agar tidak terlalu sesak */
 }
 
-.form-control-xs {
-  height: 26px;
-  padding: 2px 4px;
-  font-size: 0.75rem;
+/* =========================================
+   STYLE INPUT ANGKA YANG BERSIH & RAPI
+========================================== */
+.scoring-input {
+  width: 70px !important;
+  height: 32px;
+  padding: 4px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  border: 1px solid #ced4da;
+  border-radius: 6px;
+  transition: all 0.2s;
+}
+
+.scoring-input:focus {
+  border-color: #80bdff;
+  box-shadow: 0 0 0 0.2rem rgba(0,123,255,.25);
+}
+
+/* Hilangkan panah spinner bawaan input number */
+.scoring-input::-webkit-outer-spin-button,
+.scoring-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.scoring-input[type=number] {
+  -moz-appearance: textfield;
 }
 
 .text-xxs {
-  font-size: 0.65rem;
-}
-
-.btn-xs {
-  padding: 2px 6px;
-  font-size: 0.75rem;
+  font-size: 0.7rem;
 }
 
 .badge-xs {
   font-size: 0.7rem;
-  padding: 0.25em 0.4em;
+  padding: 0.35em 0.5em;
 }
 
 .badge-sm {
-  font-size: 0.75rem;
+  font-size: 0.8rem;
 }
-
 </style>

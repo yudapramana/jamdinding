@@ -345,7 +345,7 @@ class EventMedalStandingController extends Controller
         * ============================================ */
         $fieldOrder = EventFieldComponent::query()
             ->where('event_group_id', $competition->event_group_id)
-            ->orderByRaw('COALESCE(order_number, 999999)')
+            ->orderByRaw('COALESCE(order_number, 999999) asc')
             ->pluck('id')
             ->map(fn ($v) => (int)$v)
             ->all();
@@ -353,8 +353,7 @@ class EventMedalStandingController extends Controller
         /* ============================================
         * CHIEF JUDGE
         * ============================================ */
-        $chiefSource = null;
-        $chiefJudgeId = $this->getChiefJudgeId($competition, $chiefSource);
+        $chiefJudgeId = $this->getChiefJudgeId($competition);
 
         /* ============================================
         * LOAD SCORESHEETS
@@ -426,7 +425,8 @@ class EventMedalStandingController extends Controller
                 $rows[$pid]['field_counts'][$fid]++;
 
                 if ($chiefJudgeId && $jid === $chiefJudgeId) {
-                    $rows[$pid]['chief_field'][$fid] = $val;
+                    // Ambil nilai mentah (score) untuk diadu identik dengan RankingV2
+                    $rows[$pid]['chief_field'][$fid] = (float) $it->score;
                 }
             }
         }
@@ -480,7 +480,6 @@ class EventMedalStandingController extends Controller
                 'mode' => 'individu',
                 'field_order' => $fieldOrder,
                 'chief_judge_id' => $chiefJudgeId,
-                'chief_source' => $chiefSource,
             ] : null,
         ];
     }
@@ -490,17 +489,16 @@ class EventMedalStandingController extends Controller
 
         $fieldOrder = EventFieldComponent::query()
             ->where('event_group_id', $competition->event_group_id)
-            ->orderByRaw('COALESCE(order_number, 999999)')
+            ->orderByRaw('COALESCE(order_number, 999999) asc')
             ->pluck('id')
             ->map(fn ($v) => (int)$v)
             ->all();
 
-        $chiefSource = null;
-        $chiefJudgeId = $this->getChiefJudgeId($competition, $chiefSource);
+        $chiefJudgeId = $this->getChiefJudgeId($competition);
 
         $sheets = EventScoresheet::query()
             ->with([
-                'eventParticipant:id,event_category_id,contingent',
+                'eventParticipant:id,event_team_id,event_category_id,contingent', // Tambah event_team_id
                 'eventParticipant.participant:id,full_name',
                 'eventParticipant.eventCategory:id,full_name',
                 'items:id,event_scoresheet_id,event_field_component_id,score,weighted_score',
@@ -515,7 +513,10 @@ class EventMedalStandingController extends Controller
             $ep = $ss->eventParticipant;
             if (!$ep) continue;
 
-            $key = ($ep->contingent ?: '-') . '|' . ($ep->event_category_id ?? 'null');
+            // FIX: Gunakan event_team_id sebagai Key Group untuk menghindari tumpang tindih
+            $teamId = $ep->event_team_id ?? $ss->event_team_id;
+            $key = $teamId ? 'team_' . $teamId : ($ep->contingent ?: '-') . '|' . ($ep->event_category_id ?? 'null');
+            
             $jid = (int)$ss->event_judge_id;
 
             if (!isset($groups[$key])) {
@@ -562,7 +563,8 @@ class EventMedalStandingController extends Controller
                 $groups[$key]['field_counts'][$fid]++;
 
                 if ($chiefJudgeId && $jid === $chiefJudgeId) {
-                    $groups[$key]['chief_field'][$fid] = $val;
+                    // Ambil nilai mentah (score)
+                    $groups[$key]['chief_field'][$fid] = (float) $it->score;
                 }
             }
         }
@@ -618,12 +620,12 @@ class EventMedalStandingController extends Controller
                 'mode' => 'group',
                 'field_order' => $fieldOrder,
                 'chief_judge_id' => $chiefJudgeId,
-                'chief_source' => $chiefSource,
             ] : null,
         ];
     }
 
-    private function compareParticipants(array $a, array $b, array $fieldOrder, int $cmpDecimals = 2): array{
+    private function compareParticipants(array $a, array $b, array $fieldOrder, int $cmpDecimals = 2): array {
+        // 1️⃣ Final score
         $aFinal = $this->roundCmp($a['final_score'] ?? $a['avg_score'] ?? 0, $cmpDecimals);
         $bFinal = $this->roundCmp($b['final_score'] ?? $b['avg_score'] ?? 0, $cmpDecimals);
 
@@ -635,42 +637,44 @@ class EventMedalStandingController extends Controller
             ]];
         }
 
-        // #2 avg bidang
+        // 2️⃣ Tie-break per field avg (urut sesuai order field)
         foreach ($fieldOrder as $fcId) {
             $av = $this->roundCmp($a['field_avg'][(string)$fcId] ?? $a['field_avg'][$fcId] ?? 0, $cmpDecimals);
             $bv = $this->roundCmp($b['field_avg'][(string)$fcId] ?? $b['field_avg'][$fcId] ?? 0, $cmpDecimals);
-            if ($av === $bv) continue;
-
-            return [($bv <=> $av), [
-                'rule' => 2,
-                'field_component_id' => (int)$fcId,
-                'a' => $av,
-                'b' => $bv,
-            ]];
+            
+            if ($av !== $bv) {
+                return [($bv <=> $av), [
+                    'rule' => 2,
+                    'field_component_id' => (int)$fcId,
+                    'a' => $av,
+                    'b' => $bv,
+                ]];
+            }
         }
 
-        // #3 nilai ketua per bidang (SKIP NULL)
-        foreach ($fieldOrder as $fcId) {
-            $acRaw = $a['chief_field'][(string)$fcId] ?? $a['chief_field'][$fcId] ?? null;
-            $bcRaw = $b['chief_field'][(string)$fcId] ?? $b['chief_field'][$fcId] ?? null;
-
-            if ($acRaw === null || $bcRaw === null) continue;
-
-            $ac = $this->roundCmp($acRaw, $cmpDecimals);
-            $bc = $this->roundCmp($bcRaw, $cmpDecimals);
-
-            if ($ac === $bc) continue;
-
-            return [($bc <=> $ac), [
-                'rule' => 3,
-                'field_component_id' => (int)$fcId,
-                'a' => $ac,
-                'b' => $bc,
-            ]];
+        // 3️⃣ Tie-break Nilai Ketua Hakim (is_chief) HANYA DARI BIDANG PRIORITAS PERTAMA
+        if (!empty($fieldOrder)) {
+            $firstFid = $fieldOrder[0];
+            
+            // FIX: Gunakan nilai Raw float langsung (TIDAK DIBULATKAN), persis seperti RankingV2Controller
+            $ac = (float) ($a['chief_field'][(string)$firstFid] ?? $a['chief_field'][$firstFid] ?? 0);
+            $bc = (float) ($b['chief_field'][(string)$firstFid] ?? $b['chief_field'][$firstFid] ?? 0);
+            
+            if ($ac !== $bc) {
+                return [($bc <=> $ac), [
+                    'rule' => 3,
+                    'field_component_id' => (int)$firstFid,
+                    'a' => $ac,
+                    'b' => $bc,
+                ]];
+            }
         }
 
-        // #4 fallback nama asc
-        $cmp = strcasecmp($a['full_name'] ?? '', $b['full_name'] ?? '');
+        // 4️⃣ Fallback nama deterministik / alfabet
+        $aName = $a['full_name'] ?? $a['contingent'] ?? '';
+        $bName = $b['full_name'] ?? $b['contingent'] ?? '';
+        $cmp = strcmp(mb_strtolower($aName), mb_strtolower($bName));
+        
         return [$cmp, ['rule' => 4]];
     }
 
@@ -690,34 +694,15 @@ class EventMedalStandingController extends Controller
         return round($n, $decimals);
     }
 
-    protected function getChiefJudgeId(EventCompetition $competition, ?string &$source = null): ?int{
-        $group = $competition->eventGroup;
+    protected function getChiefJudgeId(EventCompetition $competition): ?int
+    {
+        $panelId = $competition->eventGroup->event_judge_panel_id ?? null;
+        if (!$panelId) return null;
 
-        if ($group->judge_assignment_mode === 'BY_PANEL') {
-            $row = DB::table('event_judge_panel_members')
-                ->where('event_judge_panel_id', $group->event_judge_panel_id)
-                ->where('is_chief', true)
-                ->first();
-
-            if ($row) {
-                $source = 'panel';
-                return (int) $row->event_judge_id;
-            }
-        }
-
-        if ($group->judge_assignment_mode === 'BY_COMPONENT') {
-            $row = DB::table('event_field_component_judges')
-                ->where('is_chief', true)
-                ->first();
-
-            if ($row) {
-                $source = 'component';
-                return (int) $row->event_judge_id;
-            }
-        }
-
-        $source = 'none';
-        return null;
+        return (int) DB::table('event_judge_panel_members')
+            ->where('event_judge_panel_id', $panelId)
+            ->where('is_chief', 1)
+            ->value('event_judge_id') ?: null;
     }
 
     protected function resolveRegionIdByName(string $regionType, string $name): ?int {

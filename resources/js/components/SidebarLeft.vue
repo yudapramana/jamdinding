@@ -252,9 +252,11 @@ const syncOpenByRoute = () => {
     'admin.event.co-card',
   ])
 
+  // Ditambahkan maqra.drawings ke sini agar menu dropdown "Peserta Lomba" otomatis terbuka
   openMenu.value.participantExec = isAnyNameActive([
     'admin.event.participants.reregistration',
     'admin.event.participants.final',
+    'maqra.drawings' 
   ])
 
   openMenu.value.scoring = isAnyNameActive([
@@ -438,12 +440,6 @@ watch(
                     <i class="far fa-circle nav-icon"></i><p>Aturan Medali Event</p>
                   </router-link>
                 </li>
-                <!-- MAJELIS HAKIM EVENT (dinonaktifkan; sudah ada di menu Dewan Hakim)
-                <li class="nav-item" v-if="authUserStore.can('manage.event.judge-panels')">
-                  <router-link :to="{ name: 'admin.event.judge-panels' }" class="nav-link" :class="{ active: isNameActive('admin.event.judge-panels') }">
-                    <i class="far fa-circle nav-icon"></i><p>Majelis Hakim Event</p>
-                  </router-link>
-                </li> -->
             </ul>
           </li>
 
@@ -530,6 +526,14 @@ watch(
                     <i class="far fa-circle nav-icon"></i><p>Daftar Ulang</p>
                   </router-link>
                 </li>
+                
+                <!-- TAMBAHAN MENU CABUT MAQRA -->
+                <li class="nav-item" v-if="canParticipantMenu">
+                  <router-link target="_blank" :to="{ name: 'maqra.drawings' }" class="nav-link" :class="{ active: isNameActive('maqra.drawings') }">
+                    <i class="far fa-circle nav-icon"></i><p>Cabut Maqra</p>
+                  </router-link>
+                </li>
+                
                 <li class="nav-item" v-if="canParticipantMenu && authUserStore.can('manage.event.participant.final')">
                   <router-link :to="{ name: 'admin.event.participants.final' }" class="nav-link" :class="{ active: isNameActive('admin.event.participants.final') }">
                     <i class="far fa-circle nav-icon"></i><p>Final</p>
@@ -603,20 +607,6 @@ watch(
 
           <!-- ================= HASIL LOMBA ================= -->
           <li class="nav-header" v-if="showResultGroup">HASIL LOMBA</li>
-
-          <!-- Rekap Nilai (dinonaktifkan)
-          <li class="nav-item" v-if="canScoresMenu && showScoresSection">
-            <router-link :to="scoresSelectLink" class="nav-link"
-              :class="{ active: isNameActive('admin.event.scores.select') || isNameActive('admin.event.scores.index') }">
-              <i class="nav-icon fas fa-clipboard-list"></i><p>Rekap Nilai</p>
-            </router-link>
-          </li>
-          <li class="nav-item" v-if="canScoresMenu && showScoresSection">
-            <router-link :to="scoresDetailSelectLink" class="nav-link"
-              :class="{ active: isNameActive('admin.event.scores.detail.select') || isNameActive('admin.event.scores.detail.index') }">
-              <i class="nav-icon fas fa-clipboard-list"></i><p>Rekap Nilai Detail</p>
-            </router-link>
-          </li> -->
 
           <li class="nav-item" v-if="visibleRanking">
             <router-link

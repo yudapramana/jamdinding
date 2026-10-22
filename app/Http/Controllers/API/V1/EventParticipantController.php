@@ -71,6 +71,8 @@ class EventParticipantController extends Controller
                     'event_participants.event_category_id',
                     'event_participants.contingent',
                     DB::raw('COUNT(*) as member_count'),
+                    // ✅ Ditambahkan: Ambil perwakilan participant_number untuk keperluan sorting
+                    DB::raw('MIN(event_participants.participant_number) as participant_number'), 
                 ])
                 ->where('event_participants.event_id', $event->id)
                 ->where('event_participants.event_group_id', $groupId)
@@ -98,7 +100,9 @@ class EventParticipantController extends Controller
             }
 
             $teams = $teamQuery
-                ->orderBy('event_participants.contingent')
+                // ✅ Diubah: Mengurutkan berdasarkan participant_number terlebih dahulu
+                ->orderBy('participant_number', 'asc')
+                ->orderBy('event_participants.contingent', 'asc')
                 ->limit($perPage)
                 ->get();
 
@@ -198,7 +202,11 @@ class EventParticipantController extends Controller
             });
         }
 
-        $list = $q->orderBy('id')->limit($perPage)->get();
+        // ✅ Diubah: Mengurutkan berdasarkan participant_number (dengan fallback id)
+        $list = $q->orderBy('participant_number', 'asc')
+                  ->orderBy('id', 'asc') 
+                  ->limit($perPage)
+                  ->get();
 
         $out = $list->map(function ($ep) {
             return [

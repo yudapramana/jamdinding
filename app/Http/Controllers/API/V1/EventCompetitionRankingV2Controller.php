@@ -5,16 +5,75 @@ namespace App\Http\Controllers\API\V1;
 use App\Http\Controllers\Controller;
 use App\Models\EventCompetition;
 use App\Models\EventFieldComponent;
-use App\Models\EventScoresheet;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
-use Illuminate\Support\Collection;
-
-
-
 
 class EventCompetitionRankingV2Controller extends Controller
 {
+    /**
+     * ============================
+     * FUNGSI BANTUAN TIE-BREAK
+     * ============================
+     */
+
+    // Ambil ID Ketua Hakim (is_chief = 1)
+    protected function getChiefJudgeId(EventCompetition $competition): ?int
+    {
+        $panelId = $competition->eventGroup->event_judge_panel_id ?? null;
+        if (!$panelId) return null;
+
+        return (int) DB::table('event_judge_panel_members')
+            ->where('event_judge_panel_id', $panelId)
+            ->where('is_chief', 1)
+            ->value('event_judge_id') ?: null;
+    }
+
+    // Ambil Nilai Khusus dari Ketua Hakim (Untuk Individu)
+    protected function getChiefScoresIndividual(EventCompetition $competition, int $chiefJudgeId): array
+    {
+        return DB::table('event_score_items as esi')
+            ->join('event_scoresheets as es', 'es.id', '=', 'esi.event_scoresheet_id')
+            ->where('es.event_competition_id', $competition->id)
+            ->where('es.event_judge_id', $chiefJudgeId)
+            ->where('es.status', 'submitted')
+            ->select([
+                'es.event_participant_id',
+                'esi.event_field_component_id',
+                'esi.score',
+            ])
+            ->get()
+            ->groupBy('event_participant_id')
+            ->map(fn ($rows) =>
+                $rows->keyBy('event_field_component_id')
+                    ->map(fn ($r) => (float) $r->score)
+                    ->toArray()
+            )
+            ->toArray();
+    }
+
+    // Ambil Nilai Khusus dari Ketua Hakim (Untuk Tim)
+    protected function getChiefScoresTeam(EventCompetition $competition, int $chiefJudgeId): array
+    {
+        return DB::table('event_score_items as esi')
+            ->join('event_scoresheets as es', 'es.id', '=', 'esi.event_scoresheet_id')
+            ->join('event_participants as ep', 'ep.id', '=', 'es.event_participant_id')
+            ->where('es.event_competition_id', $competition->id)
+            ->where('es.event_judge_id', $chiefJudgeId)
+            ->where('es.status', 'submitted')
+            ->select([
+                'ep.event_team_id',
+                'esi.event_field_component_id',
+                'esi.score',
+            ])
+            ->get()
+            ->groupBy('event_team_id')
+            ->map(fn ($rows) =>
+                $rows->keyBy('event_field_component_id')
+                    ->map(fn ($r) => (float) $r->score)
+                    ->toArray()
+            )
+            ->toArray();
+    }
 
     protected function getIndividualFieldScores(EventCompetition $competition): array
     {
@@ -73,6 +132,7 @@ class EventCompetitionRankingV2Controller extends Controller
         array $rows,
         array $fieldOrder,
         array $fieldScores,
+        array $chiefScores, // <-- Ditambahkan
         callable $nameGetter,
         callable $idGetter,
         callable $extraCompare = null
@@ -80,6 +140,7 @@ class EventCompetitionRankingV2Controller extends Controller
         usort($rows, function ($a, $b) use (
             $fieldOrder,
             $fieldScores,
+            $chiefScores,
             $nameGetter,
             $idGetter,
             $extraCompare
@@ -92,7 +153,7 @@ class EventCompetitionRankingV2Controller extends Controller
             $idA = $idGetter($a);
             $idB = $idGetter($b);
 
-            // 2. Tie-break per bidang
+            // 2. Tie-break per bidang penilaian (Rata-rata)
             foreach ($fieldOrder as $fid) {
                 $va = $fieldScores[$idA][$fid] ?? 0;
                 $vb = $fieldScores[$idB][$fid] ?? 0;
@@ -102,13 +163,24 @@ class EventCompetitionRankingV2Controller extends Controller
                 }
             }
 
-            // 3. Extra compare (optional)
+            // 3. Tie-break Nilai Ketua Hakim (is_chief) dari bidang prioritas pertama
+            if (!empty($fieldOrder) && !empty($chiefScores)) {
+                $firstFid = $fieldOrder[0];
+                $cVa = $chiefScores[$idA][$firstFid] ?? 0;
+                $cVb = $chiefScores[$idB][$firstFid] ?? 0;
+
+                if ($cVa !== $cVb) {
+                    return $cVb <=> $cVa;
+                }
+            }
+
+            // 4. Extra compare (optional)
             if ($extraCompare) {
                 $r = $extraCompare($a, $b);
                 if ($r !== 0) return $r;
             }
 
-            // 4. Nama (deterministik)
+            // 5. Nama (deterministik / alfabet)
             return strcmp(
                 mb_strtolower($nameGetter($a)),
                 mb_strtolower($nameGetter($b))
@@ -118,8 +190,6 @@ class EventCompetitionRankingV2Controller extends Controller
         return $rows;
     }
 
-
-
     /**
      * ============================
      * RANKING V2
@@ -128,7 +198,7 @@ class EventCompetitionRankingV2Controller extends Controller
     public function index(EventCompetition $eventCompetition)
     {
         $eventCompetition->load([
-            'eventGroup:id,full_name,is_team,judge_assignment_mode',
+            'eventGroup:id,full_name,is_team,judge_assignment_mode,event_judge_panel_id',
             'round:id,name',
         ]);
 
@@ -162,10 +232,6 @@ class EventCompetitionRankingV2Controller extends Controller
      */
     protected function buildIndividualRanking(EventCompetition $competition): array
     {
-        /**
-         * STEP 1
-         * Ambil rata-rata nilai per FIELD per PESERTA
-         */
         $fieldAverages = DB::table('event_score_items as esi')
             ->join('event_scoresheets as es', 'es.id', '=', 'esi.event_scoresheet_id')
             ->join('event_participants as ep', 'ep.id', '=', 'es.event_participant_id')
@@ -178,7 +244,6 @@ class EventCompetitionRankingV2Controller extends Controller
                 'ep.event_category_id',
                 'ec.full_name as category_name',
                 'esi.event_field_component_id',
-
                 DB::raw('AVG(esi.score) as avg_field_score'),
             ])
             ->where('es.event_competition_id', $competition->id)
@@ -193,54 +258,46 @@ class EventCompetitionRankingV2Controller extends Controller
             )
             ->get();
 
-        /**
-         * STEP 2
-         * Group by peserta → sum avg_field_score
-         */
         $byParticipant = $fieldAverages->groupBy('event_participant_id');
 
         $rows = $byParticipant->map(function ($items) {
             $first = $items->first();
-
             $finalScore = $items->sum('avg_field_score');
 
             return [
                 'event_participant_id' => (int) $first->event_participant_id,
                 'full_name'            => $first->full_name,
                 'contingent'           => $first->contingent,
-
                 'event_category_id'    => (int) $first->event_category_id,
                 'event_category'       => [
                     'id' => (int) $first->event_category_id,
                     'full_name' => $first->category_name,
                 ],
-
                 'final_score'          => round($finalScore, 2),
             ];
         })->values();
 
-        /**
-         * STEP 3
-         * Ranking per kategori (Putra / Putri)
-         */
         $rows = $rows->groupBy('event_category_id');
 
         $fieldOrder  = $this->getFieldOrder($competition);
         $fieldScores = $this->getIndividualFieldScores($competition);
 
+        // Ambil Data Ketua Hakim
+        $chiefJudgeId = $this->getChiefJudgeId($competition);
+        $chiefScores  = $chiefJudgeId ? $this->getChiefScoresIndividual($competition, $chiefJudgeId) : [];
+
         $finalRows = collect();
 
         foreach ($rows as $categoryId => $catRows) {
-            // 🔑 tie-break hanya dalam 1 kategori
             $sorted = $this->sortWithTieBreak(
                 $catRows->values()->all(),
                 $fieldOrder,
                 $fieldScores,
+                $chiefScores, // <-- Masukkan nilai ketua
                 fn ($r) => $r['full_name'],
                 fn ($r) => $r['event_participant_id']
             );
 
-            // 🔢 ranking
             $rank = 1;
             foreach ($sorted as &$r) {
                 $r['rank'] = $rank++;
@@ -249,11 +306,7 @@ class EventCompetitionRankingV2Controller extends Controller
         }
 
         return $finalRows->values()->all();
-
-
     }
-
-
 
     /**
      * ============================
@@ -262,9 +315,6 @@ class EventCompetitionRankingV2Controller extends Controller
      */
     protected function buildTeamRanking(EventCompetition $competition): array
     {
-        /* =====================================================
-        * 1. Ambil rata-rata nilai per BIDANG per TIM
-        * ===================================================== */
         $fieldAverages = DB::table('event_score_items as esi')
             ->join('event_scoresheets as es', 'es.id', '=', 'esi.event_scoresheet_id')
             ->join('event_participants as ep', 'ep.id', '=', 'es.event_participant_id')
@@ -275,10 +325,8 @@ class EventCompetitionRankingV2Controller extends Controller
             ->select([
                 'et.id as event_team_id',
                 'et.contingent',
-
                 'ep.event_category_id',
                 'ec.full_name as category_name',
-
                 'esi.event_field_component_id',
                 DB::raw('AVG(esi.score) as avg_field_score'),
             ])
@@ -291,14 +339,8 @@ class EventCompetitionRankingV2Controller extends Controller
             )
             ->get();
 
-        /* =====================================================
-        * 2. Kelompokkan per TIM
-        * ===================================================== */
         $byTeam = $fieldAverages->groupBy('event_team_id');
 
-        /* =====================================================
-        * 3. Ambil anggota tim
-        * ===================================================== */
         $teamMembers = DB::table('event_participants as ep')
             ->join('participants as p', 'p.id', '=', 'ep.participant_id')
             ->where('ep.event_id', $competition->event_id)
@@ -311,79 +353,61 @@ class EventCompetitionRankingV2Controller extends Controller
             ->get()
             ->groupBy('event_team_id');
 
-        /* =====================================================
-        * 4. Build rows
-        * ===================================================== */
         $rows = $byTeam->map(function ($items) use ($teamMembers) {
             $first = $items->first();
             $members = $teamMembers[$first->event_team_id] ?? collect();
 
             return [
                 'group_key' => 'team-' . $first->event_team_id,
-
                 'event_team_id' => (int) $first->event_team_id,
                 'contingent'    => $first->contingent,
-
                 'event_category_id' => (int) $first->event_category_id,
                 'event_category' => [
                     'id'        => (int) $first->event_category_id,
                     'full_name'=> $first->category_name,
                 ],
-
-                // 🔑 ANGGOTA TIM
                 'members' => $members->map(fn ($m) => [
                     'event_participant_id' => (int) $m->event_participant_id,
                     'full_name'            => $m->full_name,
                 ])->values(),
-
                 'member_count' => $members->count(),
-
-                // 🔑 FINAL SCORE = SUM AVG BIDANG
                 'final_score' => round($items->sum('avg_field_score'), 2),
             ];
         })->values();
 
-        /* =====================================================
-        * 5. Ranking per kategori (TIM / REGU) + TIE BREAK
-        * ===================================================== */
-
         $fieldOrder  = $this->getFieldOrder($competition);
         $fieldScores = $this->getTeamFieldScores($competition);
 
+        // Ambil Data Ketua Hakim
+        $chiefJudgeId = $this->getChiefJudgeId($competition);
+        $chiefScores  = $chiefJudgeId ? $this->getChiefScoresTeam($competition, $chiefJudgeId) : [];
+
         $finalRows = collect();
 
-        $rows
-            ->groupBy('event_category_id')
-            ->each(function ($categoryRows) use (
-                &$finalRows,
+        $rows->groupBy('event_category_id')->each(function ($categoryRows) use (
+            &$finalRows,
+            $fieldOrder,
+            $fieldScores,
+            $chiefScores // <-- Masukkan nilai ketua
+        ) {
+            $sorted = $this->sortWithTieBreak(
+                $categoryRows->values()->all(),
                 $fieldOrder,
-                $fieldScores
-            ) {
-                // 🔑 Tie-break hanya dalam kategori yang sama
-                $sorted = $this->sortWithTieBreak(
-                    $categoryRows->values()->all(),
-                    $fieldOrder,
-                    $fieldScores,
-                    fn ($r) => $r['contingent'],      // fallback nama
-                    fn ($r) => $r['event_team_id']    // key unik tim
-                );
+                $fieldScores,
+                $chiefScores,
+                fn ($r) => $r['contingent'],      
+                fn ($r) => $r['event_team_id']    
+            );
 
-                // 🔢 Penentuan rank
-                $rank = 1;
-                foreach ($sorted as &$row) {
-                    $row['rank'] = $rank++;
-                    $finalRows->push($row);
-                }
-            });
+            $rank = 1;
+            foreach ($sorted as &$row) {
+                $row['rank'] = $rank++;
+                $finalRows->push($row);
+            }
+        });
 
         return $finalRows->values()->all();
-
     }
-
-
-
-
-
 
     /**
      * ============================
@@ -395,11 +419,7 @@ class EventCompetitionRankingV2Controller extends Controller
         $categoryId = $request->integer('event_category_id');
         abort_if(!$categoryId, 422, 'event_category_id wajib');
 
-
         $competition->load('eventGroup');
-
-
-
 
         if ($competition->eventGroup->is_team) {
             return response()->json(
@@ -438,21 +458,19 @@ class EventCompetitionRankingV2Controller extends Controller
             ->get([
                 'ej.id',
                 'mj.full_name as name',
+                'm.is_chief' // <-- TAMBAHKAN INI
             ])
             ->map(fn ($row) => [
-                'id'   => (int) $row->id,
-                'name' => $row->name,
+                'id'       => (int) $row->id,
+                'name'     => $row->name,
+                'is_chief' => (bool) $row->is_chief, // <-- MAP FIELD BARU INI KE JSON
             ]);
-
     }
 
     protected function getJudgesByField(EventCompetition $competition): array
     {
         $group = $competition->eventGroup;
 
-        // =========================
-        // OPSI A: BY_PANEL
-        // =========================
         if ($group->judge_assignment_mode === 'BY_PANEL') {
             $panelJudges = DB::table('event_judge_panel_members')
                 ->where('event_judge_panel_id', $group->event_judge_panel_id)
@@ -468,9 +486,6 @@ class EventCompetitionRankingV2Controller extends Controller
                 ->toArray();
         }
 
-        // =========================
-        // OPSI B: BY_COMPONENT
-        // =========================
         return DB::table('event_field_component_judges')
             ->whereIn(
                 'event_field_component_id',
@@ -486,9 +501,6 @@ class EventCompetitionRankingV2Controller extends Controller
     {
         $group = $competition->eventGroup;
 
-        /* ===============================
-        * FIELD ORDER
-        * =============================== */
         $fieldIds = EventFieldComponent::query()
             ->where('event_group_id', $group->id)
             ->orderByRaw('COALESCE(order_number, 999999) asc')
@@ -496,28 +508,13 @@ class EventCompetitionRankingV2Controller extends Controller
             ->values()
             ->all();
 
-
-
         $fields = EventFieldComponent::whereIn('id', $fieldIds)
             ->orderByRaw('FIELD(id,' . implode(',', $fieldIds) . ')')
             ->get(['id', 'field_name as name']);
 
-
-
-        /* ===============================
-        * JUDGES HEADER (MAJELIS)
-        * =============================== */
         $judges = $this->getPanelJudges($competition);
-
-
-        /* ===============================
-        * JUDGES SAH PER FIELD
-        * =============================== */
         $fieldJudges = $this->getJudgesByField($competition);
 
-        /* ===============================
-        * ANCHOR QUERY: SCORESHEETS
-        * =============================== */
         $rowsRaw = DB::table('event_scoresheets as es')
             ->join('event_participants as ep', 'ep.id', '=', 'es.event_participant_id')
             ->join('participants as p', 'p.id', '=', 'ep.participant_id')
@@ -535,12 +532,7 @@ class EventCompetitionRankingV2Controller extends Controller
             ])
             ->get();
 
-
-        /* ===============================
-        * GROUP RAW
-        * =============================== */
         $rows = [];
-
         foreach ($rowsRaw as $r) {
             $pid = $r->event_participant_id;
 
@@ -549,38 +541,33 @@ class EventCompetitionRankingV2Controller extends Controller
             $rows[$pid]['contingent'] = $r->contingent;
 
             if ($r->event_field_component_id) {
-                $rows[$pid]['scores']
-                    [$r->event_field_component_id]
-                    [$r->event_judge_id][] = (float) $r->score;
+                $rows[$pid]['scores'][$r->event_field_component_id][$r->event_judge_id][] = (float) $r->score;
             }
         }
 
-        /* ===============================
-        * HITUNG AVG PER FIELD
-        * =============================== */
         foreach ($rows as &$row) {
             $final = 0;
-
             foreach ($fields as $f) {
                 $vals = [];
-
                 foreach ($fieldJudges[$f->id] ?? [] as $jid) {
                     if (!empty($row['scores'][$f->id][$jid])) {
                         $vals = array_merge($vals, $row['scores'][$f->id][$jid]);
                     }
                 }
-
                 $avg = count($vals) ? array_sum($vals) / count($vals) : 0;
                 $row['field_avg'][$f->id] = round($avg, 2);
                 $final += $avg;
             }
-
             $row['final_score'] = round($final, 2);
         }
 
+        // Ambil Data Ketua Hakim
+        $chiefJudgeId = $this->getChiefJudgeId($competition);
+
         $rows = $this->sortRowsWithTieBreak(
             array_values($rows),
-            $fields
+            $fields,
+            $chiefJudgeId // <-- Masukkan ID Ketua Hakim
         );
 
         return [
@@ -589,7 +576,6 @@ class EventCompetitionRankingV2Controller extends Controller
             'rows'   => $rows,
         ];
     }
-
 
     protected function buildTeamDetails(EventCompetition $competition, int $categoryId): array
     {
@@ -626,7 +612,6 @@ class EventCompetitionRankingV2Controller extends Controller
             ->get();
 
         $rows = [];
-
         foreach ($rowsRaw as $r) {
             $tid = $r->event_team_id;
 
@@ -634,35 +619,33 @@ class EventCompetitionRankingV2Controller extends Controller
             $rows[$tid]['contingent'] = $r->contingent;
 
             if ($r->event_field_component_id) {
-                $rows[$tid]['scores']
-                    [$r->event_field_component_id]
-                    [$r->event_judge_id][] = (float) $r->score;
+                $rows[$tid]['scores'][$r->event_field_component_id][$r->event_judge_id][] = (float) $r->score;
             }
         }
 
         foreach ($rows as &$row) {
             $final = 0;
-
             foreach ($fields as $f) {
                 $vals = [];
-
                 foreach ($fieldJudges[$f->id] ?? [] as $jid) {
                     if (!empty($row['scores'][$f->id][$jid])) {
                         $vals = array_merge($vals, $row['scores'][$f->id][$jid]);
                     }
                 }
-
                 $avg = count($vals) ? array_sum($vals) / count($vals) : 0;
                 $row['field_avg'][$f->id] = round($avg, 2);
                 $final += $avg;
             }
-
             $row['final_score'] = round($final, 2);
         }
 
+        // Ambil Data Ketua Hakim
+        $chiefJudgeId = $this->getChiefJudgeId($competition);
+
         $rows = $this->sortRowsWithTieBreak(
             array_values($rows),
-            $fields
+            $fields,
+            $chiefJudgeId // <-- Masukkan ID Ketua Hakim
         );
 
         return [
@@ -670,17 +653,13 @@ class EventCompetitionRankingV2Controller extends Controller
             'judges' => $judges,
             'rows'   => $rows,
         ];
-
-
     }
 
-
-
-    protected function sortRowsWithTieBreak(array $rows, \Illuminate\Support\Collection $fields): array
+    protected function sortRowsWithTieBreak(array $rows, \Illuminate\Support\Collection $fields, ?int $chiefJudgeId): array
     {
         $fieldOrder = $fields->pluck('id')->values()->all();
 
-        usort($rows, function ($a, $b) use ($fieldOrder) {
+        usort($rows, function ($a, $b) use ($fieldOrder, $chiefJudgeId) {
             // 1️⃣ Final score
             if ($a['final_score'] !== $b['final_score']) {
                 return $b['final_score'] <=> $a['final_score'];
@@ -696,7 +675,20 @@ class EventCompetitionRankingV2Controller extends Controller
                 }
             }
 
-            // 3️⃣ Stabilizer (nama / kontingen)
+            // 3️⃣ Tie-break Nilai Ketua Hakim (is_chief) dari bidang prioritas pertama
+            if ($chiefJudgeId && !empty($fieldOrder)) {
+                $firstFid = $fieldOrder[0];
+                
+                // Ambil index 0 karena score disimpan dalam array pada proses generate rows
+                $aChiefScore = $a['scores'][$firstFid][$chiefJudgeId][0] ?? 0;
+                $bChiefScore = $b['scores'][$firstFid][$chiefJudgeId][0] ?? 0;
+
+                if ($aChiefScore !== $bChiefScore) {
+                    return $bChiefScore <=> $aChiefScore; // Urutan Menurun (Tertinggi ke Terendah)
+                }
+            }
+
+            // 4️⃣ & 5️⃣ Stabilizer / Ekstra (nama / kontingen)
             $aName = $a['full_name'] ?? $a['contingent'] ?? '';
             $bName = $b['full_name'] ?? $b['contingent'] ?? '';
 
@@ -705,17 +697,4 @@ class EventCompetitionRankingV2Controller extends Controller
 
         return $rows;
     }
-
-
-
-
-
-
-
-
-
-
-
-
-
 }

@@ -1389,7 +1389,7 @@ import {
 const printKokarde = (item) => {
   if (!item?.id) return
 
-  const url = `/participant/${item.uuid}`
+  const url = `/participant/${item.uuid}/kokarde`
   window.open(url, '_blank')
 }
 

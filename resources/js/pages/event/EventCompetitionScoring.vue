@@ -335,7 +335,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch, onMounted, nextTick } from 'vue' // <-- Tambahkan nextTick
 import { useRoute } from 'vue-router'
 import axios from 'axios'
 import Swal from 'sweetalert2'
@@ -578,6 +578,14 @@ const fetchMeta = async () => {
   try {
     const { data } = await axios.get(`/api/v1/events/${eventId.value}/competitions/tree`, { params: { search: '' } })
     competitionsByRound.value = data.rounds || []
+
+    // ---- TAMBAHKAN KODE INI ----
+    await nextTick() // Tunggu Vue merender elemen <option> ke dalam DOM
+    if (route.params.id) {
+      selectedCompetitionId.value = String(route.params.id)
+    }
+    // ----------------------------
+
   } catch (e) {
     console.error(e)
     Swal.fire('Gagal', 'Gagal memuat daftar kompetisi.', 'error')

@@ -169,7 +169,7 @@ const rounds = ref([])
 const eventGroups = ref([])
 
 // tree state
-const fullTree = ref([])
+const fullTree = computed(() => authUserStore.eventCompetitionsTree)
 const search = ref('')
 
 // modal state
@@ -240,12 +240,11 @@ const fetchMeta = async () => {
   eventGroups.value = data.event_groups || []
 }
 
-const fetchTree = async () => {
+// UBAH FUNGSI fetchTree:
+const fetchTree = async (forceRefresh = false) => {
   if (!eventId.value) return
-  const { data } = await axios.get(`/api/v1/events/${eventId.value}/competitions/tree`, {
-    params: { search: search.value || '' },
-  })
-  fullTree.value = data.rounds || []
+  // Panggil action dari store
+  await authUserStore.fetchEventCompetitionsTree(eventId.value, forceRefresh)
 }
 
 // ===================== jsTree build =====================
@@ -376,7 +375,7 @@ const buildJsTree = async () => {
 }
 
 const reloadTree = async () => {
-  await fetchTree()
+  await fetchTree(true) // Kirim "true" untuk force fetch ulang API
   await buildJsTree()
 }
 
@@ -392,12 +391,13 @@ const resetTreeView = async () => {
   } catch (_) {}
 }
 
-// jsTree search debounce: Mencegah hit API berkali-kali saat user mengetik
+// UBAH FUNGSI PENCARIAN DEBOUNCE:
+// Karena data sudah full di store, kita tidak perlu hit API lagi saat mengetik pencarian, 
+// biarkan plugin jsTree yang memfilter di frontend.
 const doSearchDebounced = useDebounceFn(async (q) => {
-  await reloadTree()
   const inst = $('#tree-container').jstree(true)
   if (inst) inst.search(q)
-}, 500) // Delay 500ms setelah selesai ketik
+}, 500)
 
 watch(() => search.value, (q) => {
   doSearchDebounced(q)

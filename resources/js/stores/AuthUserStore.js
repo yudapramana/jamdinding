@@ -354,6 +354,28 @@ export const useAuthUserStore = defineStore('AuthUserStore', () => {
         }
     };
 
+    // 1. TAMBAHKAN STATE BARU
+    const eventCompetitionsTree = useStorage('AuthUserStore:eventCompetitionsTree', ref([]));
+
+    // 2. TAMBAHKAN ACTION FETCH
+    const fetchEventCompetitionsTree = async (eventId, forceRefresh = false) => {
+        if (!eventId) return;
+
+        // Jika tidak dipaksa refresh dan data sudah ada, abaikan hit API (gunakan cache)
+        if (!forceRefresh && eventCompetitionsTree.value.length > 0) {
+            return; 
+        }
+
+        try {
+            const response = await axios.get(`/api/v1/events/${eventId}/competitions/tree`, {
+                params: { search: '' } // Selalu ambil full tree untuk di-cache
+            });
+            eventCompetitionsTree.value = response.data.rounds || [];
+        } catch (error) {
+            handleAuthError(error);
+        }
+    };
+
     return {
         user,
         isAuthenticated,
@@ -370,6 +392,7 @@ export const useAuthUserStore = defineStore('AuthUserStore', () => {
         selectedEventKey,
         mandateStatus,
         isMandateCheckRequired,
+        eventCompetitionsTree,
         getAuthUser,
         getDocsUpdateState,
         getMyDocuments,
@@ -381,6 +404,7 @@ export const useAuthUserStore = defineStore('AuthUserStore', () => {
         syncFilesIndividual,
         fetchMandateStatus,
         resetMandateStatus, 
-        can
+        can,
+        fetchEventCompetitionsTree,
     };
 });
