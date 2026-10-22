@@ -8,11 +8,17 @@ use Illuminate\Support\Facades\Session;
 
 class CaptchaController extends Controller
 {
-    public function generate()
+    public function generate(Request $request)
     {
+        // /captcha                  -> session 'captcha_code' (login, tidak berubah)
+        // /captcha?for=participant  -> session 'captcha_code_participant'
+        $sessionKey = $request->query('for') === 'participant'
+            ? 'captcha_code_participant'
+            : 'captcha_code';
+
         $code = strtoupper(substr(str_shuffle('ABCDEFGHJKLMNPQRSTUVWXYZ23456789'), 0, 5));
 
-        Session::put('captcha_code', $code);
+        Session::put($sessionKey, $code);
 
         $img = imagecreate(120, 40);
 

@@ -88,6 +88,9 @@ Route::get('/api/events/by-key/{key}', [ApiEventController::class, 'byKey']);
 */
 Route::middleware(['throttle:kokarde'])->get('/participant/{eventParticipant:uuid}/kokarde', [PublicParticipantController::class, 'printKokarde'])->name('public.participants.kokarde');
 Route::middleware(['throttle:participant-public'])->get('/participant/{eventParticipant:uuid}', [PublicParticipantController::class, 'show'])->name('public.participant.show');
+Route::middleware(['throttle:participant-public'])
+    ->post('/participant/{eventParticipant:uuid}/verify', [PublicParticipantController::class, 'verify'])
+    ->name('public.participant.verify');
 
 /*
 |--------------------------------------------------------------------------
