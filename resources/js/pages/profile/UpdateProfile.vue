@@ -184,7 +184,7 @@ const handleFileChange = (event) => {
                             <div class="text-center">
                                 <!-- <input @change="handleFileChange" ref="fileInput" type="file" class="d-none"> -->
                                 <img @click="openUploadWidget" class="profile-user-img img-circle"
-                                    :src="authUserStore.user?.avatar" alt="User profile picture">
+                                    :src="authUserStore.user?.avatar_square" alt="User profile picture">
                                 <!-- <input @change="handleFileChange" ref="fileInput" type="hidden" class="d-none"> -->
                                 <!-- <img @click="openUploadWidget" class="profile-user-img img-circle" :src="authUserStore.user.avatar" alt="User profile picture"> -->
                                 <!-- profile_picture_pegawai/hhmk4hzeqytpoehlne2a -->

@@ -1,1 +1,0 @@
-import{av as o,au as a}from"./_plugin-vue_export-helper-CocZtXkY.js";import i from"./Landing-BE9epeng.js";const t=window.__INITIAL_EVENTS__||[],_=window.__LOGIN_URL__||"/login",n=o(i,{events:t,loginUrl:_}),p=a();n.use(p);n.mount("#app");

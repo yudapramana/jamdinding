@@ -65,6 +65,7 @@ class User extends Authenticatable
         'role_names',
         'must_change_password',
         'permissions',
+        'avatar_square',
         // 'clerk_panels' // <--- Tambahkan di sini
     ];
 
@@ -107,6 +108,16 @@ class User extends Authenticatable
             $separator = '/upload/';
             $exp = explode($separator, $this->attributes['avatar']);
             return $exp[0] . '/upload/ar_3:4,c_fill,f_avif/' . $exp[1];
+        } else {
+            return "http://res.cloudinary.com/kemenagpessel/image/upload/v1709086972/profile_picture_pegawai/ijf9mhs8e1m2mjjgz69l.png";
+        }
+    }
+
+    public function getAvatarSquareAttribute(){
+        if($this->attributes['avatar']){
+            $separator = '/upload/';
+            $exp = explode($separator, $this->attributes['avatar']);
+            return $exp[0] . '/upload/ar_1.0,c_fill,f_avif/' . $exp[1];
         } else {
             return "http://res.cloudinary.com/kemenagpessel/image/upload/v1709086972/profile_picture_pegawai/ijf9mhs8e1m2mjjgz69l.png";
         }
