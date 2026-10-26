@@ -133,6 +133,21 @@ class EventGroupController extends Controller
         return response()->json(['success' => true, 'data' => $data]);
     }
 
+    // ➕ METHOD BARU: Toggle is_maqra_drawing_open
+    public function toggleMaqraDrawing(EventGroup $eventGroup)
+    {
+        $eventGroup->is_maqra_drawing_open = !$eventGroup->is_maqra_drawing_open;
+        $eventGroup->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => $eventGroup->is_maqra_drawing_open 
+                            ? 'Akses Pencabutan Maqra Dibuka' 
+                            : 'Akses Pencabutan Maqra Ditutup',
+            'data'    => $eventGroup,
+        ]);
+    }
+
     // public function index(Request $request)
     // {
     //     $status    = $request->get('status', 'active'); // 👈 DEFAULT active

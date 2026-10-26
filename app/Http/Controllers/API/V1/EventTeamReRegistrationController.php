@@ -26,14 +26,14 @@ class EventTeamReRegistrationController extends Controller
             ], 422);
         }
 
-        // Hanya boleh daftar ulang kalau semua anggota SUDAH lolos pendaftaran awal
-        $unverifiedMember = $eventTeam->participants()
-            ->where('registration_status', '!=', 'verified')
-            ->exists();
+        // Daftar ulang hanya butuh 3 anggota yang sudah lolos verifikasi pendaftaran awal
+        $verifiedCount = $eventTeam->participants()
+            ->where('registration_status', 'verified')
+            ->count();
 
-        if ($unverifiedMember) {
+        if ($verifiedCount < 3) {
             return response()->json([
-                'message' => 'Masih ada anggota tim yang belum lolos verifikasi pendaftaran awal.',
+                'message' => "Tim belum memenuhi syarat daftar ulang. Dibutuhkan 3 anggota yang sudah terverifikasi (saat ini {$verifiedCount}).",
             ], 422);
         }
 

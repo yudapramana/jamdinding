@@ -14,11 +14,19 @@ use Illuminate\Support\Facades\DB;
 
 class KafilahMaqraDrawingController extends Controller
 {
+    /**
+     * Helper: cek apakah branch_sequence sudah terisi (0 dianggap terisi).
+     */
+    private function hasBranchSequence($value): bool
+    {
+        return !is_null($value) && $value !== '';
+    }
+
     public function getParticipants(Request $request)
     {
         $roundId = $request->get('round_id');
-        $contingent = $request->get('contingent'); 
-        $groupId = $request->get('event_group_id'); // ➕ Tangkap parameter groupId
+        $contingent = $request->get('contingent');
+        $groupId = $request->get('event_group_id');
 
         if (!$contingent) {
             return response()->json(['message' => 'Kontingen tidak ditemukan.'], 400);
@@ -28,7 +36,7 @@ class KafilahMaqraDrawingController extends Controller
         $groups = EventGroup::where('has_maqra_drawing', true)->get()->keyBy('id');
         $groupIds = $groups->keys();
 
-        // ➕ Cek status gerbang jika filter event_group_id spesifik dipilih
+        // Cek status gerbang jika filter event_group_id spesifik dipilih
         $isDrawingOpen = false;
         if ($groupId && isset($groups[$groupId])) {
             $isDrawingOpen = (bool) $groups[$groupId]->is_maqra_drawing_open;
@@ -38,40 +46,42 @@ class KafilahMaqraDrawingController extends Controller
         $drawings = EventMaqraDrawing::with(['eventMaqra', 'eventQuestionPackage'])
             ->where('round_id', $roundId)
             ->get();
-            
+
         $drawingsParticipantDict = $drawings->whereNotNull('event_participant_id')->keyBy('event_participant_id');
         $drawingsTeamDict = $drawings->whereNotNull('event_team_id')->keyBy('event_team_id');
 
         $result = collect();
 
-        // 3. Ambil Peserta Individu dari kecamatan tersebut
-        // Tambahkan whereNull('event_team_id') agar anggota regu tidak terhitung sebagai individu
+        // 3. Peserta Individu (anggota regu tidak dihitung sebagai individu)
         $individuals = EventParticipant::with(['participant'])
             ->whereIn('event_group_id', $groupIds)
             ->where('contingent', $contingent)
             ->where('registration_status', 'verified')
-            ->whereNull('event_team_id') // <--- TAMBAHKAN BARIS INI
+            ->whereNull('event_team_id')
             ->get();
 
         foreach ($individuals as $p) {
             $drawing = $drawingsParticipantDict->get($p->id);
-            $groupInfo = $groups[$p->event_group_id] ?? null; // Ambil info golongan
+            $groupInfo = $groups[$p->event_group_id] ?? null;
+
             $result->push([
                 'participant_id'     => $p->id,
                 'event_group_id'     => $p->event_group_id,
-                'group_name'         => $groups[$p->event_group_id]->full_name ?? '-',
-                'is_drawing_open'    => $groupInfo ? (bool) $groupInfo->is_maqra_drawing_open : false, // ➕ STATUS PER BARIS
+                'group_name'         => $groupInfo->full_name ?? '-',
+                'is_drawing_open'    => $groupInfo ? (bool) $groupInfo->is_maqra_drawing_open : false,
+                'branch_sequence'    => $p->branch_sequence,                                   // ➕
+                'is_registered'      => $this->hasBranchSequence($p->branch_sequence),        // ➕
                 'participant_number' => $p->participant_number,
                 'name'               => $p->participant->full_name ?? 'Peserta',
                 'contingent'         => $p->contingent,
                 'is_team'            => false,
-                'members'            => null, // Individu tidak memiliki anggota tambahan
+                'members'            => null,
                 'drawing_status'     => $drawing ? $drawing->status : 'pending',
-                'drawing_data'       => $drawing
+                'drawing_data'       => $drawing,
             ]);
         }
 
-        // 4. Ambil Peserta Regu dari kecamatan tersebut beserta relasi anggotanya
+        // 4. Peserta Regu beserta anggotanya
         $teams = EventTeam::with(['participants.participant'])
             ->whereIn('event_group_id', $groupIds)
             ->where('contingent', $contingent)
@@ -79,33 +89,43 @@ class KafilahMaqraDrawingController extends Controller
 
         foreach ($teams as $t) {
             $drawing = $drawingsTeamDict->get($t->id);
-            $groupInfo = $groups[$t->event_group_id] ?? null; // Ambil info golongan
+            $groupInfo = $groups[$t->event_group_id] ?? null;
+            $hasSeq = $this->hasBranchSequence($t->branch_sequence);
+
             $result->push([
                 'participant_id'     => $t->id,
                 'event_group_id'     => $t->event_group_id,
-                'group_name'         => $groups[$t->event_group_id]->full_name ?? '-',
-                'is_drawing_open'    => $groupInfo ? (bool) $groupInfo->is_maqra_drawing_open : false, // ➕ STATUS PER BARIS
-                'participant_number' => $t->participant_number ?? ($t->branch_code . '-' . $t->branch_sequence),
+                'group_name'         => $groupInfo->full_name ?? '-',
+                'is_drawing_open'    => $groupInfo ? (bool) $groupInfo->is_maqra_drawing_open : false,
+                'branch_sequence'    => $t->branch_sequence,                                   // ➕
+                'is_registered'      => $hasSeq,                                               // ➕
+                'participant_number' => $t->participant_number
+                    ?? ($hasSeq ? ($t->branch_code . '-' . $t->branch_sequence) : null),
                 'name'               => $t->team_name ?? 'Regu ' . $t->contingent,
                 'contingent'         => $t->contingent,
                 'is_team'            => true,
-                // Mengambil nama peserta menggunakan relasi ->participants() ke model EventParticipant, lalu ke participant()
                 'members'            => $t->participants->pluck('participant.full_name')->filter()->implode(', '),
                 'drawing_status'     => $drawing ? $drawing->status : 'pending',
-                'drawing_data'       => $drawing
+                'drawing_data'       => $drawing,
             ]);
         }
 
-        // 5. Urutkan berdasarkan nomor peserta secara natural
-        $sortedResult = $result->sortBy(fn($item) => strnatcmp($item['participant_number'], $item['participant_number']))->values();
+        // 5. Urutkan natural berdasarkan nomor peserta (yang belum punya nomor di akhir)
+        $sortedResult = $result->sort(function ($a, $b) {
+            $na = (string) ($a['participant_number'] ?? '');
+            $nb = (string) ($b['participant_number'] ?? '');
+            if ($na === '' && $nb !== '') return 1;
+            if ($nb === '' && $na !== '') return -1;
+            return strnatcmp($na, $nb);
+        })->values();
 
         return response()->json([
-            'is_drawing_open' => $isDrawingOpen, // ➕ Kirim data gerbang
-            'pending' => $sortedResult->where('drawing_status', 'pending')->values(),
-            'history' => $sortedResult->where('drawing_status', '!=', 'pending')->values(),
-            'available_groups' => $sortedResult->pluck('group_name', 'event_group_id')->unique()->map(function($name, $id) {
+            'is_drawing_open'  => $isDrawingOpen,
+            'pending'          => $sortedResult->where('drawing_status', 'pending')->values(),
+            'history'          => $sortedResult->where('drawing_status', '!=', 'pending')->values(),
+            'available_groups' => $sortedResult->pluck('group_name', 'event_group_id')->unique()->map(function ($name, $id) {
                 return ['id' => $id, 'name' => $name];
-            })->values()
+            })->values(),
         ]);
     }
 
@@ -113,69 +133,85 @@ class KafilahMaqraDrawingController extends Controller
     {
         $groupId = $request->get('event_group_id');
         $roundId = $request->get('round_id');
-        
+
         $maqras = EventMaqra::where('event_group_id', $groupId)
             ->where('round_id', $roundId)
             ->where('is_available', true)
             ->get();
-            
+
         $packages = EventQuestionPackage::where('event_group_id', $groupId)
             ->where('round_id', $roundId)
             ->where('is_available', true)
             ->get();
 
         return response()->json([
-            'maqras' => $maqras,
-            'packages' => $packages
+            'maqras'   => $maqras,
+            'packages' => $packages,
         ]);
     }
 
     public function storeDraw(Request $request)
     {
         $request->validate([
-            'round_id' => 'required',
-            'event_participant_id' => 'required',
-            'is_team' => 'required|boolean',
-            'exam_type' => 'required',
-            'event_maqra_id' => 'nullable|exists:event_maqras,id',
+            'round_id'                  => 'required',
+            'event_participant_id'      => 'required',
+            'is_team'                   => 'required|boolean',
+            'exam_type'                 => 'required',
+            'event_maqra_id'            => 'nullable|exists:event_maqras,id',
             'event_question_package_id' => 'nullable|exists:event_question_packages,id',
-            'disable_item' => 'required|boolean'
+            'disable_item'              => 'required|boolean',
         ]);
 
-        // 1. PENGAMAN GATEKEEPER: Cek apakah golongan ditutup
-        $groupId = null;
-        if ($request->is_team) {
-            $groupId = \App\Models\EventTeam::find($request->event_participant_id)->event_group_id ?? null;
-        } else {
-            $groupId = \App\Models\EventParticipant::find($request->event_participant_id)->event_group_id ?? null;
+        // 1. Ambil entitas peserta / regu
+        $entity = $request->is_team
+            ? EventTeam::find($request->event_participant_id)
+            : EventParticipant::find($request->event_participant_id);
+
+        if (!$entity) {
+            return response()->json(['message' => 'Peserta / regu tidak ditemukan.'], 404);
         }
 
-        $group = EventGroup::find($groupId);
+        // 2. ➕ PENGAMAN DAFTAR ULANG: branch_sequence wajib terisi
+        if (!$this->hasBranchSequence($entity->branch_sequence)) {
+            return response()->json([
+                'message' => 'Peserta / regu belum terdaftar (nomor urut cabang belum diisi). Tidak dapat mencabut maqra.'
+            ], 422);
+        }
+
+        // 3. PENGAMAN GATEKEEPER: Cek apakah golongan ditutup
+        $group = EventGroup::find($entity->event_group_id);
         if (!$group || !$group->is_maqra_drawing_open) {
             return response()->json(['message' => 'Pencabutan Maqra untuk golongan ini sedang ditutup oleh Panitia Pusat.'], 403);
         }
 
         DB::beginTransaction();
         try {
-            // 2. PENGAMAN RACE CONDITION: Lock & Validasi ketersediaan Maqra
+            // 4. ➕ Cegah cabut ganda di babak yang sama
+            $alreadyDrawn = EventMaqraDrawing::where('round_id', $request->round_id)
+                ->where($request->is_team ? 'event_team_id' : 'event_participant_id', $entity->id)
+                ->lockForUpdate()
+                ->exists();
+
+            if ($alreadyDrawn) {
+                DB::rollBack();
+                return response()->json(['message' => 'Peserta / regu ini sudah melakukan pencabutan di babak ini.'], 422);
+            }
+
+            // 5. Lock & Validasi ketersediaan Maqra
             if ($request->event_maqra_id) {
-                $maqra = EventMaqra::where('id', $request->event_maqra_id)
-                    ->lockForUpdate()
-                    ->first();
+                $maqra = EventMaqra::where('id', $request->event_maqra_id)->lockForUpdate()->first();
 
                 if (!$maqra || !$maqra->is_available) {
                     DB::rollBack();
                     return response()->json([
-                        'message' => 'Maqra tersebut sudah dicabut oleh peserta lain sesaat lalu. Silakan pilih maqra yang lain.'
+                        'message' => 'Amplop maqra tersebut sudah dicabut oleh peserta lain sesaat lalu. Silakan pilih amplop yang lain.'
                     ], 422);
                 }
             }
 
-            // 3. PENGAMAN RACE CONDITION: Lock & Validasi ketersediaan Paket Soal
+            // 6. Lock & Validasi ketersediaan Paket Soal
             if ($request->event_question_package_id) {
-                $package = EventQuestionPackage::where('id', $request->event_question_package_id)
-                    ->lockForUpdate()
-                    ->first();
+                $package = EventQuestionPackage::where('id', $request->event_question_package_id)->lockForUpdate()->first();
 
                 if (!$package || !$package->is_available) {
                     DB::rollBack();
@@ -185,26 +221,26 @@ class KafilahMaqraDrawingController extends Controller
                 }
             }
 
-            // 4. Simpan Transaksi Draw
+            // 7. Simpan Transaksi Draw
             $dataDraw = [
-                'round_id' => $request->round_id,
-                'exam_type' => $request->exam_type,
-                'event_maqra_id' => $request->event_maqra_id,
+                'round_id'                  => $request->round_id,
+                'exam_type'                 => $request->exam_type,
+                'event_maqra_id'            => $request->event_maqra_id,
                 'event_question_package_id' => $request->event_question_package_id,
-                'drawn_at' => now(),
-                'drawn_by' => auth()->id(),
-                'status' => 'drawn'
+                'drawn_at'                  => now(),
+                'drawn_by'                  => auth()->id(),
+                'status'                    => 'drawn',
             ];
 
             if ($request->is_team) {
-                $dataDraw['event_team_id'] = $request->event_participant_id;
+                $dataDraw['event_team_id'] = $entity->id;
             } else {
-                $dataDraw['event_participant_id'] = $request->event_participant_id;
+                $dataDraw['event_participant_id'] = $entity->id;
             }
 
             $draw = EventMaqraDrawing::create($dataDraw);
 
-            // 5. Nonaktifkan item jika opsi disable_item aktif
+            // 8. Nonaktifkan item jika opsi disable_item aktif
             if ($request->disable_item) {
                 if ($request->event_maqra_id) {
                     EventMaqra::where('id', $request->event_maqra_id)->update(['is_available' => false]);
@@ -215,7 +251,7 @@ class KafilahMaqraDrawingController extends Controller
             }
 
             DB::commit();
-            return response()->json(['success' => true, 'data' => $draw]);
+            return response()->json(['success' => true, 'data' => $draw->load(['eventMaqra', 'eventQuestionPackage'])]);
         } catch (\Exception $e) {
             DB::rollBack();
             return response()->json(['message' => 'Gagal menyimpan undian', 'error' => $e->getMessage()], 500);

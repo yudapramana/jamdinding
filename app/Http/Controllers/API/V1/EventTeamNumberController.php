@@ -14,9 +14,9 @@ class EventTeamNumberController extends Controller
         // VALIDASI DASAR
         // ============================
 
-        if ($eventTeam->participant_number) {
+        if ($eventTeam->branch_sequence !== null) {
             return response()->json([
-                'message' => 'Nomor tim sudah ditetapkan.'
+                'message' => 'Nomor urut tampil tim sudah ditetapkan dan tidak bisa diundi ulang.'
             ], 422);
         }
 
@@ -130,8 +130,11 @@ class EventTeamNumberController extends Controller
             'branch_sequence' => 'required|integer|min:1|max:99',
         ]);
 
-        if ($eventTeam->participant_number) {
-            return response()->json(['message' => 'Nomor tim sudah dikunci.'], 422);
+        // ❌ Cek apakah Nomor Tampil (branch_sequence) sudah pernah dikunci
+        if ($eventTeam->branch_sequence !== null) {
+            return response()->json([
+                'message' => 'Nomor urut tampil tim sudah dikunci sebelumnya.'
+            ], 422);
         }
 
         $exists = EventTeam::where('event_id', $eventTeam->event_id)
