@@ -103,24 +103,55 @@ class User extends Authenticatable
         return $this->permissions->contains($permission);
     }
 
-    public function getAvatarAttribute(){
-        if($this->attributes['avatar']){
-            $separator = '/upload/';
-            $exp = explode($separator, $this->attributes['avatar']);
-            return $exp[0] . '/upload/ar_3:4,c_fill,f_avif/' . $exp[1];
-        } else {
-            return "http://res.cloudinary.com/kemenagpessel/image/upload/v1709086972/profile_picture_pegawai/ijf9mhs8e1m2mjjgz69l.png";
+    // public function getAvatarAttribute(){
+    //     if($this->attributes['avatar']){
+    //         $separator = '/upload/';
+    //         $exp = explode($separator, $this->attributes['avatar']);
+    //         return $exp[0] . '/upload/ar_3:4,c_fill,f_avif/' . $exp[1];
+    //     } else {
+    //         return "http://res.cloudinary.com/kemenagpessel/image/upload/v1709086972/profile_picture_pegawai/ijf9mhs8e1m2mjjgz69l.png";
+    //     }
+    // }
+
+    // public function getAvatarSquareAttribute(){
+    //     if($this->attributes['avatar']){
+    //         $separator = '/upload/';
+    //         $exp = explode($separator, $this->attributes['avatar']);
+    //         return $exp[0] . '/upload/ar_1.0,c_fill,f_avif/' . $exp[1];
+    //     } else {
+    //         return "http://res.cloudinary.com/kemenagpessel/image/upload/v1709086972/profile_picture_pegawai/ijf9mhs8e1m2mjjgz69l.png";
+    //     }
+    // }
+
+    private const DEFAULT_AVATAR = 'https://res.cloudinary.com/kemenagpessel/image/upload/v1709086972/profile_picture_pegawai/ijf9mhs8e1m2mjjgz69l.png';
+
+    private function cloudinaryTransform(?string $url, string $transform): string
+    {
+        $url = trim((string) $url) ?: self::DEFAULT_AVATAR;
+
+        $sep = '/upload/';
+        if (!str_contains($url, $sep)) {
+            return $url; // bukan URL Cloudinary, kembalikan apa adanya
         }
+
+        [$base, $path] = explode($sep, $url, 2);
+
+        // Buang transformasi lama (mis. "ar_3:4,c_fill,f_avif/") agar tidak bertumpuk
+        $path = preg_replace('#^([a-z]{1,3}_[^/]*/)+#', '', $path);
+
+        return "{$base}{$sep}{$transform}/{$path}";
     }
 
-    public function getAvatarSquareAttribute(){
-        if($this->attributes['avatar']){
-            $separator = '/upload/';
-            $exp = explode($separator, $this->attributes['avatar']);
-            return $exp[0] . '/upload/ar_1.0,c_fill,f_avif/' . $exp[1];
-        } else {
-            return "http://res.cloudinary.com/kemenagpessel/image/upload/v1709086972/profile_picture_pegawai/ijf9mhs8e1m2mjjgz69l.png";
-        }
+    public function getAvatarAttribute($value)
+    {
+        return $this->cloudinaryTransform($value, 'ar_3:4,c_fill,f_avif');
+    }
+
+    public function getAvatarSquareAttribute()
+    {
+        // getRawOriginal tidak error walau kolom tidak di-select
+        $raw = $this->attributes['avatar'] ?? $this->getRawOriginal('avatar');
+        return $this->cloudinaryTransform($raw, 'ar_1.0,c_fill,f_avif');
     }
 
     public function org()
