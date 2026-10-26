@@ -109,7 +109,7 @@
                     <th>No. Peserta</th>
                     <th>Nama / Regu</th>
                     <th>Utusan</th>
-                    <th style="width: 120px;" class="text-center">Aksi</th>
+                    <th style="width: 170px;" class="text-center">Aksi</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -137,7 +137,17 @@
                       <span class="badge badge-light border">{{ p.contingent || '-' }}</span>
                     </td>
                     <td class="text-center">
+                      <!-- Belum daftar ulang (branch_sequence null) -->
+                      <button
+                        v-if="!isRegistered(p)"
+                        class="btn btn-xs px-2 font-weight-bold btn-warning"
+                        disabled
+                        title="Peserta belum melakukan daftar ulang"
+                      >
+                        <i class="fas fa-user-clock"></i> Belum Daftar
+                      </button>
                       <button 
+                        v-else
                         class="btn btn-xs px-2 font-weight-bold" 
                         :class="isDrawingOpen ? 'btn-success' : 'btn-secondary'"
                         @click="openDrawModal(p)"
@@ -236,29 +246,39 @@
                <h5>{{ isSubmittingDraw ? 'Menyimpan Hasil Undian...' : 'Mempersiapkan Bank Soal...' }}</h5>
             </div>
 
+            <!-- PENCABUTAN DITUTUP -->
+            <div v-else-if="isModalDrawingClosed" class="py-5">
+              <i class="fas fa-lock fa-4x text-danger mb-3"></i>
+              <h4 class="font-weight-bold text-danger mb-2">Pencabutan Maqra Sedang Ditutup</h4>
+              <p class="text-muted mb-0">Silakan hubungi panitia atau admin untuk membuka akses pencabutan.</p>
+            </div>
+
             <div v-else class="row justify-content-center">
               
-              <!-- PANEL MAQRA -->
+              <!-- PANEL MAQRA (AMPLOP) -->
               <div v-if="showMaqraPanel" class="col-md-5 mx-2">
                 <div class="card border-primary shadow" style="min-height: 250px;">
                   <div class="card-header bg-primary text-white font-weight-bold">MAQRA BACAAN</div>
-                  <div class="card-body d-flex flex-column justify-content-center align-items-center">
-                    
-                    <div v-if="!isRollingMaqra && !finalMaqra" class="text-muted">
-                      <i class="fas fa-book-open fa-3x mb-3"></i>
-                      <p>Siap diacak</p>
-                    </div>
-                    
-                    <div v-if="isRollingMaqra || finalMaqra" class="w-100 p-3" :class="{'pulse-anim': isRollingMaqra, 'bg-success text-white rounded': finalMaqra}">
-                      <h4 class="font-weight-bold mb-1">Surah {{ displayedMaqra?.surah_name }}</h4>
-                      <h5 class="mb-0">Ayat {{ displayedMaqra?.start_ayah }} - {{ displayedMaqra?.end_ayah }}</h5>
-                      <span v-if="displayedMaqra?.juz" class="badge badge-light mt-2 text-dark">Juz {{ displayedMaqra.juz }}</span>
+                  <div class="card-body">
+
+                    <div v-if="!finalMaqra" class="d-flex flex-wrap justify-content-center gap-2">
+                      <!-- Grid Amplop tertutup -->
+                      <button
+                        v-for="(maqra) in availableMaqras" :key="maqra.id"
+                        class="btn btn-outline-primary m-1 px-4 py-3"
+                        @click="selectMaqra(maqra)"
+                      >
+                        <i class="fas fa-envelope fa-2x"></i>
+                      </button>
                     </div>
 
-                    <button v-if="!finalMaqra" class="btn btn-primary mt-4 px-5 rounded-pill font-weight-bold" @click="startRollMaqra" :disabled="isRollingMaqra">
-                      <i v-if="isRollingMaqra" class="fas fa-spinner fa-spin mr-1"></i>
-                      {{ isRollingMaqra ? 'MENGACAK...' : 'ACAK MAQRA' }}
-                    </button>
+                    <div v-else class="h-100 d-flex flex-column justify-content-center align-items-center bg-success text-white rounded p-4">
+                      <i class="fas fa-envelope-open-text fa-3x mb-3"></i>
+                      <h4 class="font-weight-bold mb-1">Surah {{ finalMaqra.surah_name }}</h4>
+                      <h5 class="mb-0">Ayat {{ finalMaqra.start_ayah }} - {{ finalMaqra.end_ayah }}</h5>
+                      <span v-if="finalMaqra.juz" class="badge badge-light mt-2 text-dark">Juz {{ finalMaqra.juz }}</span>
+                    </div>
+
                   </div>
                 </div>
               </div>
@@ -291,13 +311,13 @@
             </div>
             
             <!-- PESAN JIKA ITEM HABIS -->
-            <div v-if="!isModalLoading && availableMaqras.length === 0 && availablePackages.length === 0" class="alert alert-danger mt-4 text-left text-sm">
+            <div v-if="!isModalLoading && !isModalDrawingClosed && availableMaqras.length === 0 && availablePackages.length === 0" class="alert alert-danger mt-4 text-left text-sm">
               <i class="fas fa-exclamation-triangle mr-2"></i> Bank Maqra & Soal Kosong atau belum disiapkan untuk Golongan ini.
             </div>
           </div>
 
           <div class="modal-footer justify-content-between bg-dark border-0 py-3">
-             <div class="d-flex align-items-center ml-2 text-white text-sm">
+             <div v-if="!isModalDrawingClosed" class="d-flex align-items-center ml-2 text-white text-sm">
                 <input type="checkbox" id="disableItem" v-model="disableItemAfterDraw" class="mr-2" style="width: 16px; height: 16px;">
                 <label for="disableItem" class="mb-0">Tandai Maqra/Soal telah dicabut (Tidak bisa dipilih orang lain)</label>
              </div>
@@ -365,18 +385,16 @@ const historyParticipants = ref([])
 
 // State Modal Draw & Submitting
 const isModalLoading = ref(false)
+const isModalDrawingClosed = ref(false) // true jika backend menyatakan pencabutan ditutup
 const isSubmittingDraw = ref(false)
 const activeParticipant = ref(null)
 const availableMaqras = ref([])
 const availablePackages = ref([])
 const disableItemAfterDraw = ref(true)
 
-// Visual State Maqra & Paket
-const isRollingMaqra = ref(false)
-const displayedMaqra = ref(null)
+// Visual State Maqra & Paket (hasil pilihan amplop)
 const finalMaqra = ref(null)
 const finalPackage = ref(null)
-let rollInterval = null
 
 // Fisher-Yates Shuffle
 const shuffleArray = (array) => {
@@ -410,6 +428,9 @@ const debouncedLoadData = useDebounceFn(() => {
 // Tambahkan state baru untuk menyimpan status gerbang
 const isDrawingOpen = ref(false)
 const isToggling = ref(false)
+
+// Peserta dianggap sudah daftar ulang jika branch_sequence terisi
+const isRegistered = (p) => p?.branch_sequence !== null && p?.branch_sequence !== undefined && p?.branch_sequence !== ''
 
 // Cek apakah user adalah admin (Sesuaikan dengan auth user store Anda)
 const isPrivilegedAdmin = computed(() => {
@@ -470,9 +491,16 @@ const loadAvailableItems = async () => {
     const resItems = await axios.get('/api/v1/event-maqra-drawings/available-items', {
       params: { event_group_id: selectedGroupId.value, round_id: selectedRoundId.value }
     })
+    // Jika admin menutup akses saat modal dibuka, backend tidak mengirim maqra/soal
+    isModalDrawingClosed.value = resItems.data.is_drawing_open === false
+    isDrawingOpen.value = resItems.data.is_drawing_open !== false
     availableMaqras.value = resItems.data.maqras || []
     availablePackages.value = resItems.data.packages || []
     
+    // Acak posisi amplop agar isi tidak bisa ditebak dari urutan
+    if (availableMaqras.value.length > 0) {
+      availableMaqras.value = shuffleArray([...availableMaqras.value])
+    }
     if (availablePackages.value.length > 0) {
       availablePackages.value = shuffleArray([...availablePackages.value])
     }
@@ -485,12 +513,17 @@ const loadAvailableItems = async () => {
 
 // BUKA MODAL PENCABUTAN
 const openDrawModal = async (participant) => {
+  if (!isRegistered(participant)) {
+    Swal.fire('Belum Daftar Ulang', 'Peserta ini belum melakukan daftar ulang sehingga belum dapat mencabut maqra.', 'warning')
+    return
+  }
   activeParticipant.value = participant
   finalMaqra.value = null
   finalPackage.value = null
-  displayedMaqra.value = null
-  isRollingMaqra.value = false
   isSubmittingDraw.value = false
+  isModalDrawingClosed.value = false
+  availableMaqras.value = []
+  availablePackages.value = []
   
   $('#drawModal').modal('show')
   await loadAvailableItems() // Fetch item sesaat modal dibuka agar valid (real-time)
@@ -498,7 +531,6 @@ const openDrawModal = async (participant) => {
 
 const closeDrawModal = () => {
   if (isSubmittingDraw.value) return // Jangan tutup jika sedang simpan
-  clearInterval(rollInterval)
   $('#drawModal').modal('hide')
 }
 
@@ -519,36 +551,23 @@ const isReadyToSave = computed(() => {
   return true;
 })
 
-// LOGIKA ACAK MAQRA
-const startRollMaqra = () => {
-  if (availableMaqras.value.length === 0) return
-  isRollingMaqra.value = true
-  
-  let count = 0
-  rollInterval = setInterval(() => {
-    const randomIndex = Math.floor(Math.random() * availableMaqras.value.length)
-    displayedMaqra.value = availableMaqras.value[randomIndex]
-    count++
-    
-    // Berhenti setelah 30 putaran
-    if (count > 30) {
-      clearInterval(rollInterval)
-      isRollingMaqra.value = false
-      finalMaqra.value = displayedMaqra.value
-      
-      // AUTO-SAVE: Jika tidak ada panel soal, langsung submit
-      if (!showPackagePanel.value && isReadyToSave.value) {
-          // Beri jeda sedikit agar pengguna melihat hasilnya sebelum loading submit
-          setTimeout(() => {
-              submitDraw()
-          }, 800)
-      }
-    }
-  }, 80) // Sedikit dipercepat animasinya (100ms -> 80ms)
+// LOGIKA PILIH AMPLOP MAQRA
+const selectMaqra = (maqra) => {
+  if (finalMaqra.value || isSubmittingDraw.value) return
+  finalMaqra.value = maqra
+
+  // AUTO-SAVE: Jika tidak ada panel soal, langsung submit
+  if (!showPackagePanel.value && isReadyToSave.value) {
+    // Beri jeda sedikit agar efek amplop terbuka terlihat
+    setTimeout(() => {
+      submitDraw()
+    }, 800)
+  }
 }
 
 // LOGIKA PILIH PAKET
 const selectPackage = (pkg) => {
+  if (finalPackage.value || isSubmittingDraw.value) return
   finalPackage.value = pkg
   
   // AUTO-SAVE: Setelah memilih amplop, langsung submit
@@ -588,7 +607,17 @@ const submitDraw = async () => {
     loadData() // Refresh tabel di background
   } catch (error) {
     isSubmittingDraw.value = false
-    Swal.fire('Gagal', 'Terjadi kesalahan saat menyimpan undian.', 'error')
+    if (error.response?.status === 403) {
+      isDrawingOpen.value = false
+      isModalDrawingClosed.value = true
+      finalMaqra.value = null
+      finalPackage.value = null
+      availableMaqras.value = []
+      availablePackages.value = []
+      Swal.fire('Ditutup', error.response.data?.message || 'Pencabutan Maqra sedang ditutup.', 'warning')
+    } else {
+      Swal.fire('Gagal', error.response?.data?.message || 'Terjadi kesalahan saat menyimpan undian.', 'error')
+    }
   } 
 }
 </script>
@@ -620,14 +649,5 @@ const submitDraw = async () => {
   top: 0; left: 0; right: 0; bottom: 0;
   background: rgba(0, 0, 0, 0.85);
   z-index: -1;
-}
-.pulse-anim {
-  animation: pulse 0.1s infinite;
-  opacity: 0.7;
-}
-@keyframes pulse {
-  0% { transform: scale(0.98); }
-  50% { transform: scale(1.02); }
-  100% { transform: scale(0.98); }
 }
 </style>

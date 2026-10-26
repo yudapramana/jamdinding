@@ -271,6 +271,35 @@
             <strong>{{ RANGE_LIMIT }}</strong> poin.
           </div>
 
+          <!-- PERINGATAN: nilai sudah submitted/locked -->
+          <div
+            v-if="isFinalStatus"
+            class="alert alert-secondary py-2 px-3 mb-3 text-sm text-left shadow-sm"
+            style="border-radius: 6px;"
+          >
+            <i class="fas fa-lock mr-1"></i>
+            Nilai sudah <strong>{{ scoringStatus.toUpperCase() }}</strong> dan tidak dapat diubah.
+            <template v-if="canRevert">
+              <br />
+              <i class="fas fa-exclamation-triangle text-warning mr-1"></i>
+              Perubahan nilai hanya dapat dilakukan jika ada <strong>hitam di atas putih</strong>
+              berupa <strong>Berita Acara</strong> atau <strong>Status Quo</strong>
+              yang ditandatangani pihak berwenang.
+            </template>
+          </div>
+
+          <!-- Hanya superadmin / admin_event, saat SUBMITTED atau LOCKED -->
+          <button
+            v-if="canRevert && isFinalStatus"
+            class="btn btn-outline-danger"
+            :disabled="isSaving"
+            @click="revertToDraft"
+          >
+            <i v-if="isSaving" class="fas fa-spinner fa-spin mr-1"></i>
+            <i v-else class="fas fa-undo mr-1"></i>
+            Kembalikan ke Draft
+          </button>
+
           <!-- Muncul saat NEW atau DRAFT -->
           <button
             v-if="scoringStatus === 'new' || scoringStatus === 'draft'"
@@ -375,6 +404,13 @@ const scoringStatus = ref('new')
 
 /* ================= COMPUTED ================= */
 const isTeam = computed(() => competitionInfo.value?.event_group?.is_team)
+// Cek role (acuan: EventGroups.vue → authUserStore.user.role.name)
+const REVERT_ROLES = ['SUPERADMIN', 'ADMIN_EVENT']
+const canRevert = computed(() => {
+  const roleName = String(authUserStore.user?.role?.name || '').trim().toUpperCase().replace(/[\s-]+/g, '_')
+  return REVERT_ROLES.includes(roleName)
+})
+const isFinalStatus = computed(() => ['submitted', 'locked'].includes(scoringStatus.value))
 const judges = computed(() => formData.value?.judges || [])
 const components = computed(() => formData.value?.components || [])
 
@@ -566,7 +602,7 @@ const saveDraft = async () => {
 const submitScore = async () => {
   const confirm = await Swal.fire({
     title: 'Submit Nilai?',
-    text: 'Setelah submit, nilai tidak dapat diubah.',
+    text: 'Setelah submit, nilai tidak dapat diubah. Perubahan hanya bisa dilakukan Superadmin/Admin Event dengan dasar Berita Acara atau Status Quo.',
     icon: 'warning',
     showCancelButton: true,
     confirmButtonText: 'Ya, Submit',
@@ -587,6 +623,106 @@ const submitScore = async () => {
   scoringStatus.value = 'submitted'
   Swal.fire('Berhasil', 'Nilai berhasil disubmit', 'success')
   isSaving.value = false
+}
+
+const revertToDraft = async () => {
+  const today = new Date().toISOString().slice(0, 10)
+
+  const result = await Swal.fire({
+    title: 'Kembalikan Nilai ke Draft?',
+    icon: 'warning',
+    width: 560,
+    html: `
+      <div class="text-left" style="font-size:14px">
+        <div class="alert alert-warning py-2 px-3 mb-3">
+          <strong>Perhatian!</strong> Perubahan nilai yang sudah disubmit
+          <u>wajib memiliki hitam di atas putih</u> berupa
+          <strong>Berita Acara</strong> atau <strong>Status Quo</strong>
+          yang ditandatangani oleh pihak berwenang (Dewan Hakim / Ketua Panitia).
+          Tindakan ini <strong>dicatat</strong> beserta nama akun Anda.
+        </div>
+
+        <label class="mb-1">Jenis Dokumen Dasar <span class="text-danger">*</span></label>
+        <select id="rv-type" class="form-control form-control-sm mb-2">
+          <option value="">-- Pilih --</option>
+          <option value="berita_acara">Berita Acara</option>
+          <option value="status_quo">Status Quo</option>
+        </select>
+
+        <div class="form-row">
+          <div class="col-md-7 mb-2">
+            <label class="mb-1">Nomor Dokumen <span class="text-danger">*</span></label>
+            <input id="rv-number" type="text" maxlength="100"
+              class="form-control form-control-sm" placeholder="Contoh: 012/BA/MTQ/2026" />
+          </div>
+          <div class="col-md-5 mb-2">
+            <label class="mb-1">Tanggal Dokumen <span class="text-danger">*</span></label>
+            <input id="rv-date" type="date" max="${today}" value="${today}"
+              class="form-control form-control-sm" />
+          </div>
+        </div>
+
+        <label class="mb-1">Alasan Revisi <span class="text-danger">*</span></label>
+        <textarea id="rv-reason" rows="3" maxlength="1000"
+          class="form-control form-control-sm mb-2"
+          placeholder="Jelaskan kesalahan yang dikoreksi (min. 15 karakter)"></textarea>
+
+        <div class="custom-control custom-checkbox">
+          <input id="rv-confirm" type="checkbox" class="custom-control-input" />
+          <label for="rv-confirm" class="custom-control-label">
+            Saya menyatakan dokumen tersebut sudah ada, ditandatangani, dan diarsipkan.
+          </label>
+        </div>
+      </div>
+    `,
+    showCancelButton: true,
+    confirmButtonText: 'Ya, Kembalikan ke Draft',
+    cancelButtonText: 'Batal',
+    confirmButtonColor: '#dc3545',
+    focusConfirm: false,
+    preConfirm: () => {
+      const el = (id) => Swal.getPopup().querySelector(id)
+      const payload = {
+        document_type: el('#rv-type').value,
+        document_number: el('#rv-number').value.trim(),
+        document_date: el('#rv-date').value,
+        reason: el('#rv-reason').value.trim(),
+        confirm_document: el('#rv-confirm').checked,
+      }
+
+      if (!payload.document_type) return Swal.showValidationMessage('Pilih jenis dokumen dasar.')
+      if (!payload.document_number) return Swal.showValidationMessage('Nomor dokumen wajib diisi.')
+      if (!payload.document_date) return Swal.showValidationMessage('Tanggal dokumen wajib diisi.')
+      if (payload.reason.length < 15) return Swal.showValidationMessage('Alasan revisi minimal 15 karakter.')
+      if (!payload.confirm_document) return Swal.showValidationMessage('Centang pernyataan dokumen dasar.')
+
+      return payload
+    },
+  })
+
+  if (!result.isConfirmed) return
+
+  isSaving.value = true
+  try {
+    await axios.post(
+      `/api/v1/event-competitions/${selectedCompetitionId.value}/scoring/revert-v2`,
+      {
+        event_participant_id: selectedEventParticipantId.value,
+        ...result.value,
+      }
+    )
+
+    await loadForm() // status & nilai diambil ulang dari server
+    Swal.fire('Berhasil', 'Status dikembalikan ke draft. Nilai kini dapat diedit.', 'success')
+  } catch (e) {
+    const errors = e.response?.data?.errors
+    const msg = errors
+      ? Object.values(errors).flat().join('\n')
+      : e.response?.data?.message || 'Gagal mengembalikan status ke draft.'
+    Swal.fire('Gagal', msg, 'error')
+  } finally {
+    isSaving.value = false
+  }
 }
 
 

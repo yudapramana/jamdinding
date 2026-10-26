@@ -429,6 +429,11 @@ Route::middleware(['auth:sanctum']) // kalau belum pakai sanctum, boleh dihapus 
             [EventCompetitionScoringController::class, 'lock']
         );
 
+        Route::post(
+            'event-competitions/{eventCompetition}/scoring/revert-v2', 
+            [EventCompetitionScoringController::class, 'revertToDraft']
+        );
+
         // EVENT COMPETITIONS - SCORES
         Route::get('/event-competitions/{competition}/scores', [EventCompetitionScoresController::class, 'index']);
         Route::get('/event-competitions/{competition}/scores-detail', [EventCompetitionScoresController::class, 'indexDetail']);

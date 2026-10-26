@@ -192,28 +192,30 @@ class EventCompetitionScoringController extends Controller
 
                 // ==========================================
                 // Ambil / buat scoresheet
+                // (JANGAN pakai updateOrCreate dengan status => 'draft',
+                //  karena akan menimpa status submitted/locked)
                 // ==========================================
-                $scoresheet = EventScoresheet::updateOrCreate(
-                    [
-                        'event_competition_id' => $eventCompetition->id,
-                        'event_participant_id' => $eventParticipant->id,
-                        'event_judge_id'       => $judgeId,
-                    ],
-                    [
-                        'event_group_id'    => $group->id,
-                        'event_category_id' => $eventParticipant->event_category_id, // 🔑 FIX UTAMA
-                        'event_team_id'     => $eventParticipant->event_team_id,     // 🔑 FIX TEAM
-                        'scoring_mode'      => $scoringMode,
-                        'status'            => 'draft',
-                    ]
-                );
+                $scoresheet = EventScoresheet::firstOrNew([
+                    'event_competition_id' => $eventCompetition->id,
+                    'event_participant_id' => $eventParticipant->id,
+                    'event_judge_id'       => $judgeId,
+                ]);
 
                 // ==========================================
-                // Skip jika locked
+                // Skip jika sudah submitted / locked
+                // (hanya bisa diedit setelah di-revert ke draft)
                 // ==========================================
-                if ($scoresheet->status === 'locked') {
+                if ($scoresheet->exists && in_array($scoresheet->status, ['submitted', 'locked'], true)) {
                     continue;
                 }
+
+                $scoresheet->fill([
+                    'event_group_id'    => $group->id,
+                    'event_category_id' => $eventParticipant->event_category_id,
+                    'event_team_id'     => $eventParticipant->event_team_id,
+                    'scoring_mode'      => $scoringMode,
+                    'status'            => 'draft',
+                ])->save();
 
                 // ==========================================
                 // Reset items
@@ -371,6 +373,120 @@ class EventCompetitionScoringController extends Controller
 
 
 
+
+
+    /**
+     * ============================
+     * REVERT KE DRAFT
+     * Hanya superadmin / admin_event.
+     * Wajib menyertakan dasar tertulis (Berita Acara / Status Quo).
+     * ============================
+     */
+    public function revertToDraft(Request $request, EventCompetition $eventCompetition)
+    {
+        if (!$this->canRevert($request->user())) {
+            return response()->json([
+                'message' => 'Anda tidak memiliki hak untuk mengembalikan status nilai ke draft.',
+            ], 403);
+        }
+
+        $data = $request->validate([
+            'event_participant_id' => ['required', 'integer'],
+            'document_type'        => ['required', 'in:berita_acara,status_quo'],
+            'document_number'      => ['required', 'string', 'max:100'],
+            'document_date'        => ['required', 'date', 'before_or_equal:today'],
+            'reason'               => ['required', 'string', 'min:15', 'max:1000'],
+            'confirm_document'     => ['accepted'],
+        ], [
+            'document_type.required'       => 'Jenis dokumen dasar (Berita Acara / Status Quo) wajib dipilih.',
+            'document_number.required'     => 'Nomor dokumen wajib diisi.',
+            'document_date.required'       => 'Tanggal dokumen wajib diisi.',
+            'document_date.before_or_equal'=> 'Tanggal dokumen tidak boleh melebihi hari ini.',
+            'reason.required'              => 'Alasan revisi wajib diisi.',
+            'reason.min'                   => 'Alasan revisi minimal 15 karakter.',
+            'confirm_document.accepted'    => 'Anda harus menyatakan dokumen dasar sudah ada dan diarsipkan.',
+        ]);
+
+        // Pastikan peserta memang milik event kompetisi ini
+        EventParticipant::query()
+            ->where('id', $data['event_participant_id'])
+            ->where('event_id', $eventCompetition->event_id)
+            ->firstOrFail();
+
+        $affected = DB::transaction(function () use ($request, $eventCompetition, $data) {
+            $sheets = EventScoresheet::where('event_competition_id', $eventCompetition->id)
+                ->where('event_participant_id', $data['event_participant_id'])
+                ->whereIn('status', ['submitted', 'locked'])
+                ->lockForUpdate()
+                ->get();
+
+            if ($sheets->isEmpty()) {
+                return 0;
+            }
+
+            $previousStatuses = $sheets->pluck('status')->unique()->values()->all();
+
+            EventScoresheet::whereIn('id', $sheets->pluck('id'))
+                ->update(['status' => 'draft']);
+
+            // Jejak audit
+            DB::table('event_scoresheet_revert_logs')->insert([
+                'event_competition_id' => $eventCompetition->id,
+                'event_participant_id' => $data['event_participant_id'],
+                'user_id'              => $request->user()->id,
+                'document_type'        => $data['document_type'],
+                'document_number'      => $data['document_number'],
+                'document_date'        => $data['document_date'],
+                'reason'               => $data['reason'],
+                'previous_status'      => implode(',', $previousStatuses),
+                'affected_sheets'      => $sheets->count(),
+                'ip_address'           => $request->ip(),
+                'created_at'           => now(),
+                'updated_at'           => now(),
+            ]);
+
+            \Log::warning('SCORESHEET REVERTED TO DRAFT', [
+                'user_id'              => $request->user()->id,
+                'event_competition_id' => $eventCompetition->id,
+                'event_participant_id' => $data['event_participant_id'],
+                'document'             => $data['document_type'] . ' ' . $data['document_number'],
+                'sheets'               => $sheets->count(),
+            ]);
+
+            return $sheets->count();
+        });
+
+        if ($affected === 0) {
+            return response()->json([
+                'message' => 'Tidak ada nilai berstatus submitted/locked yang dapat dikembalikan.',
+            ], 422);
+        }
+
+        return response()->json([
+            'message' => 'Status nilai berhasil dikembalikan ke draft.',
+            'affected_sheets' => $affected,
+        ]);
+    }
+
+    /**
+     * Role yang boleh melakukan revert.
+     * Sumber role sama dengan frontend (EventGroups.vue): $user->role->name
+     * (contoh nilai: SUPERADMIN, ADMIN_EVENT).
+     */
+    private const REVERT_ROLES = ['SUPERADMIN', 'ADMIN_EVENT'];
+
+    private function canRevert($user): bool
+    {
+        $roleName = $user?->role?->name;
+
+        if (!is_string($roleName) || $roleName === '') {
+            return false;
+        }
+
+        $norm = strtoupper(preg_replace('/[\s-]+/', '_', trim($roleName)));
+
+        return in_array($norm, self::REVERT_ROLES, true);
+    }
 
 
     // =================================================

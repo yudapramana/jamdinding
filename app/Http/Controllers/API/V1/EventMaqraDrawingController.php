@@ -69,7 +69,8 @@ class EventMaqraDrawingController extends Controller
                     'contingent' => $t->contingent,
                     'is_team' => true,
                     'drawing_status' => $drawing ? $drawing->status : 'pending',
-                    'drawing_data' => $drawing
+                    'drawing_data' => $drawing,
+                    'branch_sequence' => $t->branch_sequence,
                 ];
             });
 
@@ -94,7 +95,8 @@ class EventMaqraDrawingController extends Controller
                     'contingent' => $p->contingent,
                     'is_team' => false,
                     'drawing_status' => $drawing ? $drawing->status : 'pending',
-                    'drawing_data' => $drawing
+                    'drawing_data' => $drawing,
+                    'branch_sequence' => $p->branch_sequence,
                 ];
             });
         }
@@ -118,6 +120,19 @@ class EventMaqraDrawingController extends Controller
     {
         $groupId = $request->get('event_group_id');
         $roundId = $request->get('round_id'); // Tangkap round_id
+
+        // Cek status gerbang pencabutan pada golongan ini
+        $group = EventGroup::findOrFail($groupId);
+        $isOpen = (bool) $group->is_maqra_drawing_open;
+
+        // Jika pencabutan ditutup, jangan kirim maqra & paket soal sama sekali
+        if (!$isOpen) {
+            return response()->json([
+                'is_drawing_open' => false,
+                'maqras' => [],
+                'packages' => []
+            ]);
+        }
         
         $maqras = EventMaqra::where('event_group_id', $groupId)
             ->where('round_id', $roundId) // Filter tambahan
@@ -130,6 +145,7 @@ class EventMaqraDrawingController extends Controller
             ->get();
 
         return response()->json([
+            'is_drawing_open' => true,
             'maqras' => $maqras,
             'packages' => $packages
         ]);
