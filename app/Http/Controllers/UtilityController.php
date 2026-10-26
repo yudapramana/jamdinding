@@ -1758,11 +1758,11 @@ class UtilityController extends Controller
             ["majelis" => 5, "panitera" => [["nama" => "Sarifah Aini, S.Th I"], ["nama" => "Ramadhanera Puteri M, SE"]]],
             ["majelis" => 6, "panitera" => [["nama" => "Gustiwarni, S.Ag"], ["nama" => "Azka Juanda, S.Pd"]]],
             ["majelis" => 7, "panitera" => [["nama" => "Dedi Gustiawan, S.Pd."], ["nama" => "M. Fatih Alfaris, S.Si"]]],
-            ["majelis" => 8, "panitera" => [["nama" => "Richo Hardiatno, S.Pd"], ["nama" => "Fauzhi Abdhilah, S. Kom"]]],
+            ["majelis" => 8, "panitera" => [["nama" => "Lisa Arischa, S. Sos"], ["nama" => "Fauzhi Abdhilah, S. Kom"]]],
             ["majelis" => 9, "panitera" => [["nama" => "Afrinozayenti, S.AP"], ["nama" => "Anna Yoladevika, SH"]]],
             ["majelis" => 10, "panitera" => [["nama" => "Yunefri, S.Kom"], ["nama" => "Ermaningsih"]]],
             ["majelis" => 11, "panitera" => [["nama" => "Upik Mike, S.AP"], ["nama" => "Nigel Rodesta, S.Kom"]]],
-            ["majelis" => 12, "panitera" => [["nama" => "Usri, S.Ag, MA"], ["nama" => "Muhammad Luthfi"]]]
+            ["majelis" => 12, "panitera" => [["nama" => "Richo Hardiatno, S.Pd"], ["nama" => "Muhammad Luthfi"]]]
         ];
 
         \Illuminate\Support\Facades\DB::beginTransaction();
