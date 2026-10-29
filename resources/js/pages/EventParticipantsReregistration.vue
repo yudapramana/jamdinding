@@ -397,7 +397,7 @@
     />
 
     <DrawNumberModal
-      :event-participant="selectedReRegister"
+      :event-participant="selectedDraw" 
       @assigned="handleReRegisterUpdated"
     />
 
@@ -503,6 +503,7 @@ const meta = ref({
 // MODAL
 const selectedParticipant = ref(null)
 const selectedReRegister = ref(null)
+const selectedDraw = ref(null) 
 
 const openViewModal = (row) => {
   selectedParticipant.value = row
@@ -520,7 +521,7 @@ const openReRegisterModal = (row) => {
 }
 
 const openDrawModal = (row) => {
-  selectedReRegister.value = row
+  selectedDraw.value = row 
   $('#drawNumberModal').modal('show')
 }
 

@@ -26,14 +26,17 @@ class EventTeamReRegistrationController extends Controller
             ], 422);
         }
 
-        // Daftar ulang hanya butuh 3 anggota yang sudah lolos verifikasi pendaftaran awal
+        // Daftar ulang butuh minimal 2 anggota yang sudah lolos verifikasi pendaftaran awal
+        // (mis. cabang Khutbah Jumat hanya 2 orang). Tim dengan 1 anggota tidak boleh.
+        $minVerified = 2;
+
         $verifiedCount = $eventTeam->participants()
             ->where('registration_status', 'verified')
             ->count();
 
-        if ($verifiedCount < 3) {
+        if ($verifiedCount < $minVerified) {
             return response()->json([
-                'message' => "Tim belum memenuhi syarat daftar ulang. Dibutuhkan 3 anggota yang sudah terverifikasi (saat ini {$verifiedCount}).",
+                'message' => "Tim belum memenuhi syarat daftar ulang. Dibutuhkan minimal {$minVerified} anggota yang sudah terverifikasi (saat ini {$verifiedCount}).",
             ], 422);
         }
 

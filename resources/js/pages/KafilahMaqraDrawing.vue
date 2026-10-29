@@ -218,7 +218,7 @@
                         </template>
                       </td>
 
-                      <!-- TOMBOL AKSI: Belum Daftar > Ditutup > Cabut -->
+                      <!-- TOMBOL AKSI: Disinkronkan dengan style Panitera -->
                       <td class="text-center align-middle">
                         <button
                           class="btn btn-xs px-3 font-weight-bold"
@@ -321,7 +321,7 @@
       </div>
     </div>
 
-    <!-- MODAL PENCABUTAN KIOSK MODE (AUTO SUBMIT) -->
+    <!-- MODAL PENCABUTAN KIOSK MODE -->
     <div class="modal fade kiosk-modal" id="drawModal" data-backdrop="static" data-keyboard="false">
       <div class="modal-dialog modal-xl modal-dialog-centered">
         <div class="modal-content text-center">
@@ -345,7 +345,7 @@
             <!-- Loading Indicator -->
             <div v-if="isModalLoading || isSubmittingDraw" class="py-5">
               <i class="fas fa-circle-notch fa-spin fa-3x text-primary mb-3"></i>
-              <h5>{{ isSubmittingDraw ? 'Menyimpan Hasil Undian...' : 'Mempersiapkan Bank Soal...' }}</h5>
+              <h5>{{ isSubmittingDraw ? 'Memverifikasi & Menyimpan Hasil...' : 'Mempersiapkan Bank Soal...' }}</h5>
             </div>
 
             <div v-else class="row justify-content-center">
@@ -359,12 +359,13 @@
                   </div>
                   <div class="card-body">
 
+                    <!-- AMPLOP BELUM DIPILIH -->
                     <div v-if="!finalMaqra" class="d-flex flex-wrap justify-content-center gap-2 envelope-grid">
                       <button
                         v-for="(m, idx) in availableMaqras"
                         :key="m.id"
                         class="btn btn-outline-primary envelope-btn m-1"
-                        :disabled="isLocked"
+                        :disabled="isSubmittingDraw || isDrawSuccess"
                         @click="selectMaqra(m)"
                       >
                         <i class="fas fa-envelope fa-2x"></i>
@@ -372,6 +373,13 @@
                       </button>
                     </div>
 
+                    <!-- AMPLOP TERPILIH, TAPI BELUM DISUBMIT KE SERVER -->
+                    <div v-else-if="finalMaqra && !isDrawSuccess" class="h-100 d-flex flex-column justify-content-center align-items-center bg-secondary text-white rounded p-4">
+                      <i class="fas fa-envelope fa-3x mb-3"></i>
+                      <h4 class="font-weight-bold mb-1">Amplop Terpilih</h4>
+                    </div>
+
+                    <!-- KETIKA BERHASIL -> TAMPILKAN ISINYA -->
                     <div v-else class="h-100 d-flex flex-column justify-content-center align-items-center bg-success text-white rounded p-4 reveal-anim">
                       <i class="fas fa-envelope-open-text fa-3x mb-3"></i>
                       <h4 class="font-weight-bold mb-1">Surah {{ finalMaqra.surah_name }}</h4>
@@ -383,7 +391,7 @@
                 </div>
               </div>
 
-              <!-- PANEL PAKET SOAL (AMPLOP) - muncul setelah maqra dipilih -->
+              <!-- PANEL PAKET SOAL (AMPLOP) -->
               <div v-if="showPackagePanel && isMaqraStepFinished" class="col-md-5 mx-2 mb-3">
                 <div class="card border-warning shadow" style="min-height: 250px;">
                   <div class="card-header bg-warning font-weight-bold text-dark">
@@ -392,12 +400,13 @@
                   </div>
                   <div class="card-body">
 
+                    <!-- AMPLOP BELUM DIPILIH -->
                     <div v-if="!finalPackage" class="d-flex flex-wrap justify-content-center gap-2 envelope-grid">
                       <button
                         v-for="(pkg, idx) in availablePackages"
                         :key="pkg.id"
                         class="btn btn-outline-secondary envelope-btn m-1"
-                        :disabled="isLocked"
+                        :disabled="isSubmittingDraw || isDrawSuccess"
                         @click="selectPackage(pkg)"
                       >
                         <i class="fas fa-envelope fa-2x"></i>
@@ -405,6 +414,13 @@
                       </button>
                     </div>
 
+                    <!-- AMPLOP TERPILIH, TAPI BELUM DISUBMIT -->
+                    <div v-else-if="finalPackage && !isDrawSuccess" class="h-100 d-flex flex-column justify-content-center align-items-center bg-secondary text-white rounded p-4">
+                      <i class="fas fa-envelope fa-3x mb-3"></i>
+                      <h4 class="font-weight-bold mb-1">Amplop Terpilih</h4>
+                    </div>
+
+                    <!-- KETIKA BERHASIL -> TAMPILKAN ISINYA -->
                     <div v-else class="h-100 d-flex flex-column justify-content-center align-items-center bg-success text-white rounded p-4 reveal-anim">
                       <i class="fas fa-envelope-open-text fa-3x mb-3"></i>
                       <h3 class="font-weight-bold mb-0">{{ finalPackage.package_number }}</h3>
@@ -426,7 +442,10 @@
               <label for="disableItem" class="mb-0">Tandai Maqra/Soal telah dicabut (Tidak bisa dipilih orang lain)</label>
             </div>
 
-            <button class="btn btn-light btn-sm px-4 mr-2" @click="closeDrawModal" :disabled="isSubmittingDraw">Tutup</button>
+            <!-- Tombol Tutup Manual -->
+            <button class="btn btn-light btn-sm px-4 mr-2" @click="closeDrawModal" :disabled="isSubmittingDraw">
+              {{ isDrawSuccess ? 'Selesai & Tutup' : 'Batal / Tutup' }}
+            </button>
           </div>
         </div>
       </div>
@@ -475,14 +494,15 @@ const isRegistered = (p) => {
   return p.branch_sequence !== null && p.branch_sequence !== undefined && p.branch_sequence !== ''
 }
 
+// ⭐️ ACTION STATE SINKRON DENGAN PANITERA
 const actionState = (p) => {
   if (!isRegistered(p)) {
     return {
       canDraw: false,
       btnClass: 'btn-warning text-dark',
-      icon: 'fa-exclamation-triangle',
+      icon: 'fa-user-clock', 
       label: 'Belum Daftar',
-      title: 'Nomor urut cabang (branch sequence) belum diisi. Selesaikan pendaftaran terlebih dahulu.'
+      title: 'Nomor urut cabang belum diisi. Hubungi panitia pendaftaran.'
     }
   }
   if (!p.is_drawing_open) {
@@ -528,6 +548,7 @@ const filteredHistory = computed(() => historyParticipants.value.filter(matchesF
 // State Modal Pencabutan
 const isModalLoading = ref(false)
 const isSubmittingDraw = ref(false)
+const isDrawSuccess = ref(false) // ⭐️ STATE BARU (Mencegah isi bocor)
 const activeParticipant = ref(null)
 const availableMaqras = ref([])
 const availablePackages = ref([])
@@ -536,10 +557,6 @@ const disableItemAfterDraw = ref(true)
 // Hasil pilihan amplop
 const finalMaqra = ref(null)
 const finalPackage = ref(null)
-let submitTimer = null
-
-// Kunci tombol amplop saat sedang menyimpan / menunggu auto-submit
-const isLocked = computed(() => isSubmittingDraw.value || submitTimer !== null)
 
 // Acak urutan amplop (Fisher-Yates) agar posisi isi tidak bisa ditebak
 const shuffleArray = (array) => {
@@ -602,13 +619,6 @@ const loadAvailableItems = async (groupId) => {
   }
 }
 
-const clearSubmitTimer = () => {
-  if (submitTimer) {
-    clearTimeout(submitTimer)
-    submitTimer = null
-  }
-}
-
 // BUKA MODAL
 const openDrawModal = async (participant) => {
   if (!isRegistered(participant)) {
@@ -620,11 +630,11 @@ const openDrawModal = async (participant) => {
     return
   }
 
-  clearSubmitTimer()
   activeParticipant.value = participant
   finalMaqra.value = null
   finalPackage.value = null
   isSubmittingDraw.value = false
+  isDrawSuccess.value = false
 
   $('#drawModal').modal('show')
   await loadAvailableItems(participant.event_group_id)
@@ -632,7 +642,6 @@ const openDrawModal = async (participant) => {
 
 const closeDrawModal = () => {
   if (isSubmittingDraw.value) return
-  clearSubmitTimer()
   $('#drawModal').modal('hide')
 }
 
@@ -652,32 +661,29 @@ const isReadyToSave = computed(() => {
   return true
 })
 
-const scheduleSubmit = (delay) => {
-  if (!isReadyToSave.value || submitTimer) return
-  submitTimer = setTimeout(() => {
-    submitTimer = null
-    submitDraw()
-  }, delay)
-}
 
-// LOGIKA PILIH AMPLOP MAQRA
+// ⭐️ LOGIKA PILIH AMPLOP MAQRA (AUTO SUBMIT)
 const selectMaqra = (maqra) => {
-  if (finalMaqra.value || isLocked.value) return
+  if (finalMaqra.value || isSubmittingDraw.value || isDrawSuccess.value) return
   finalMaqra.value = maqra
-  // Jika tidak ada paket soal, langsung simpan
-  scheduleSubmit(1200)
+  
+  if (!showPackagePanel.value && isReadyToSave.value) {
+    submitDraw()
+  }
 }
 
-// LOGIKA PILIH AMPLOP PAKET SOAL
+// ⭐️ LOGIKA PILIH AMPLOP PAKET SOAL (AUTO SUBMIT)
 const selectPackage = (pkg) => {
-  if (finalPackage.value || isLocked.value) return
+  if (finalPackage.value || isSubmittingDraw.value || isDrawSuccess.value) return
   finalPackage.value = pkg
-  scheduleSubmit(1200)
+  
+  if (isReadyToSave.value) {
+    submitDraw()
+  }
 }
 
 // SUBMIT OTOMATIS KE BACKEND
 const submitDraw = async () => {
-  if (isSubmittingDraw.value) return
   isSubmittingDraw.value = true
   try {
     await axios.post('/api/v1/kafilah/maqra-drawings/draw', {
@@ -691,26 +697,22 @@ const submitDraw = async () => {
     })
 
     isSubmittingDraw.value = false
-    closeDrawModal()
+    isDrawSuccess.value = true // ⭐️ Buka isi Amplop!
 
-    Swal.fire({
-      icon: 'success',
-      title: 'Berhasil!',
-      text: 'Undian otomatis tersimpan.',
-      timer: 1500,
-      showConfirmButton: false
-    })
-
-    loadData()
+    loadData() // Refresh tabel di background
   } catch (error) {
     isSubmittingDraw.value = false
-    const msg = error.response?.data?.message || 'Terjadi kesalahan saat menyimpan undian.'
-    await Swal.fire('Gagal', msg, 'error')
+    
+    // ⭐️ RESET JIKA GAGAL (Tabrakan Amplop)
+    finalMaqra.value = null
+    finalPackage.value = null
+    isDrawSuccess.value = false
 
-    // Jika amplop sudah diambil orang lain, muat ulang amplop & minta pilih ulang
+    const msg = error.response?.data?.message || 'Terjadi kesalahan saat menyimpan undian.'
+    await Swal.fire('Gagal Tersimpan', msg, 'error')
+
+    // Refresh daftar amplop jika diambil orang lain (422)
     if (error.response?.status === 422 && activeParticipant.value) {
-      finalMaqra.value = null
-      finalPackage.value = null
       await loadAvailableItems(activeParticipant.value.event_group_id)
     }
   }

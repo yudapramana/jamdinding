@@ -24,7 +24,6 @@
             <!-- LEFT: FILTERS -->
             <div class="d-flex flex-wrap align-items-center gap-2">
               
-              <!-- FILTER CABANG/GOLONGAN -->
               <select 
                 v-model="selectedGroupId" 
                 class="form-control form-control-sm w-auto" 
@@ -33,13 +32,11 @@
                 title="Cabang / Golongan"
               >
                 <option value="">-- Pilih Golongan --</option>
-                <!-- PERUBAHAN DI SINI: Gunakan availableEventGroups -->
                 <option v-for="group in availableEventGroups" :key="group.id" :value="group.id">
                   {{ group.full_name }}
                 </option>
               </select>
 
-              <!-- KONTROL ADMIN: BUKA / TUTUP PENCABUTAN -->
               <button
                 v-if="isPrivilegedAdmin && selectedGroupId"
                 type="button"
@@ -52,7 +49,6 @@
                 {{ isDrawingOpen ? 'Akses Terbuka' : 'Akses Tertutup' }}
               </button>
 
-              <!-- FILTER BABAK: Disesuaikan dengan 3 Opsi -->
               <select 
                 v-model="selectedRoundId" 
                 class="form-control form-control-sm w-auto"
@@ -65,7 +61,6 @@
                 <option value="3">Final</option>
               </select>
               
-              <!-- TOMBOL REFRESH -->
               <button
                 type="button"
                 class="btn btn-outline-secondary btn-sm"
@@ -79,7 +74,7 @@
 
             </div>
 
-            <!-- RIGHT: TABS / NAV PILLS -->
+            <!-- RIGHT: TABS -->
             <ul class="nav nav-pills mt-2 mt-md-0" style="font-size: 0.875rem;" role="tablist">
               <li class="nav-item">
                 <a class="nav-link active py-1 px-3" data-toggle="pill" href="#pills-pending">
@@ -96,7 +91,7 @@
           </div>
         </div>
         
-        <!-- CARD BODY / TAB CONTENT -->
+        <!-- CARD BODY -->
         <div class="card-body table-responsive p-0">
           <div class="tab-content" id="pills-tabContent">
             
@@ -137,12 +132,10 @@
                       <span class="badge badge-light border">{{ p.contingent || '-' }}</span>
                     </td>
                     <td class="text-center">
-                      <!-- Belum daftar ulang (branch_sequence null) -->
                       <button
                         v-if="!isRegistered(p)"
                         class="btn btn-xs px-2 font-weight-bold btn-warning"
                         disabled
-                        title="Peserta belum melakukan daftar ulang"
                       >
                         <i class="fas fa-user-clock"></i> Belum Daftar
                       </button>
@@ -152,7 +145,6 @@
                         :class="isDrawingOpen ? 'btn-success' : 'btn-secondary'"
                         @click="openDrawModal(p)"
                         :disabled="!isDrawingOpen"
-                        :title="!isDrawingOpen ? 'Pencabutan sedang ditutup oleh Admin' : 'Cabut Maqra'"
                       >
                         <i class="fas" :class="isDrawingOpen ? 'fa-random' : 'fa-lock'"></i> 
                         {{ isDrawingOpen ? 'Cabut' : 'Ditutup' }}
@@ -243,7 +235,7 @@
             <!-- Loading Indicator Modal -->
             <div v-if="isModalLoading || isSubmittingDraw" class="py-5">
                <i class="fas fa-circle-notch fa-spin fa-3x text-primary mb-3"></i>
-               <h5>{{ isSubmittingDraw ? 'Menyimpan Hasil Undian...' : 'Mempersiapkan Bank Soal...' }}</h5>
+               <h5>{{ isSubmittingDraw ? 'Memverifikasi & Menyimpan Hasil...' : 'Mempersiapkan Bank Soal...' }}</h5>
             </div>
 
             <!-- PENCABUTAN DITUTUP -->
@@ -261,8 +253,8 @@
                   <div class="card-header bg-primary text-white font-weight-bold">MAQRA BACAAN</div>
                   <div class="card-body">
 
+                    <!-- AMPLOP BELUM DIPILIH -->
                     <div v-if="!finalMaqra" class="d-flex flex-wrap justify-content-center gap-2">
-                      <!-- Grid Amplop tertutup -->
                       <button
                         v-for="(maqra) in availableMaqras" :key="maqra.id"
                         class="btn btn-outline-primary m-1 px-4 py-3"
@@ -272,6 +264,13 @@
                       </button>
                     </div>
 
+                    <!-- AMPLOP TERPILIH, TAPI BELUM DISUBMIT KE SERVER -->
+                    <div v-else-if="finalMaqra && !isDrawSuccess" class="h-100 d-flex flex-column justify-content-center align-items-center bg-secondary text-white rounded p-4">
+                      <i class="fas fa-envelope fa-3x mb-3"></i>
+                      <h4 class="font-weight-bold mb-1">Amplop Terpilih</h4>
+                    </div>
+
+                    <!-- KETIKA BERHASIL (API SUKSES MENYIMPAN) -> TAMPILKAN ISINYA -->
                     <div v-else class="h-100 d-flex flex-column justify-content-center align-items-center bg-success text-white rounded p-4">
                       <i class="fas fa-envelope-open-text fa-3x mb-3"></i>
                       <h4 class="font-weight-bold mb-1">Surah {{ finalMaqra.surah_name }}</h4>
@@ -290,7 +289,6 @@
                   <div class="card-body">
                     
                     <div v-if="!finalPackage" class="d-flex flex-wrap justify-content-center gap-2">
-                      <!-- Grid Amplop tertutup -->
                       <button 
                         v-for="(pkg) in availablePackages" :key="pkg.id"
                         class="btn btn-outline-secondary m-1 px-4 py-3"
@@ -298,6 +296,11 @@
                       >
                         <i class="fas fa-envelope fa-2x"></i>
                       </button>
+                    </div>
+
+                    <div v-else-if="finalPackage && !isDrawSuccess" class="h-100 d-flex flex-column justify-content-center align-items-center bg-secondary text-white rounded p-4">
+                      <i class="fas fa-envelope fa-3x mb-3"></i>
+                      <h4 class="font-weight-bold mb-1">Amplop Terpilih</h4>
                     </div>
 
                     <div v-else class="h-100 d-flex flex-column justify-content-center align-items-center bg-success text-white rounded p-4">
@@ -322,10 +325,11 @@
                 <label for="disableItem" class="mb-0">Tandai Maqra/Soal telah dicabut (Tidak bisa dipilih orang lain)</label>
              </div>
              
-             <!-- Tombol Batal/Tutup dipindah ke kanan -->
-             <button class="btn btn-light btn-sm px-4 mr-2" @click="closeDrawModal" :disabled="isSubmittingDraw">Tutup</button>
+             <!-- Tombol Tutup Manual -->
+             <button class="btn btn-light btn-sm px-4 mr-2" @click="closeDrawModal" :disabled="isSubmittingDraw">
+               {{ isDrawSuccess ? 'Selesai & Tutup' : 'Batal / Tutup' }}
+             </button>
              
-             <!-- Tombol SIMPAN HASIL telah dihapus karena penyimpanan dilakukan otomatis -->
           </div>
         </div>
       </div>
@@ -350,33 +354,22 @@ const currentUser = computed(() => authUserStore.user || {})
 const isLoading = ref(false)
 const selectedGroupId = ref('')
 const selectedRoundId = ref('1')
-// --- STATE FILTER CABANG DINAMIS (TERMASUK ROLE PANITERA) ---
 const availableEventGroups = computed(() => {
   const roleName = currentUser.value?.role?.name?.toLowerCase() || ''
   let baseGroups = []
-
-  // 1. Jika rolenya adalah Panitera, ambil cabang sesuai tugas Majelisnya
   if (roleName.includes('panitera')) {
     const assignment = currentUser.value?.clerk_assignment || currentUser.value?.clerkAssignment
-
     if (assignment?.event_judge_panel?.event_groups) {
       baseGroups = assignment.event_judge_panel.event_groups
     } else if (assignment?.event_judge_panel_id) {
-      // Fallback: Filter dari data master jika relasi nested tidak ada
       baseGroups = (masterStore.eventGroups || []).filter(
         (g) => g.event_judge_panel_id === assignment.event_judge_panel_id
       )
     }
-  } 
-  // 2. Jika bukan Panitera (Admin/Superadmin), tampilkan semua
-  else {
+  } else {
     baseGroups = masterStore.eventGroups || []
   }
-
-  // 3. Wajib: Hanya kembalikan golongan yang memiliki fitur pencabutan maqra aktif
-  return baseGroups.filter(group => 
-    group.has_maqra_drawing === true || group.has_maqra_drawing === 1
-  )
+  return baseGroups.filter(group => group.has_maqra_drawing === true || group.has_maqra_drawing === 1)
 })
 
 // State Data Peserta
@@ -385,8 +378,9 @@ const historyParticipants = ref([])
 
 // State Modal Draw & Submitting
 const isModalLoading = ref(false)
-const isModalDrawingClosed = ref(false) // true jika backend menyatakan pencabutan ditutup
+const isModalDrawingClosed = ref(false) 
 const isSubmittingDraw = ref(false)
+const isDrawSuccess = ref(false) // ⭐️ STATE BARU: Mencegah maqra terbuka sebelum sukses
 const activeParticipant = ref(null)
 const availableMaqras = ref([])
 const availablePackages = ref([])
@@ -396,7 +390,6 @@ const disableItemAfterDraw = ref(true)
 const finalMaqra = ref(null)
 const finalPackage = ref(null)
 
-// Fisher-Yates Shuffle
 const shuffleArray = (array) => {
   let currentIndex = array.length, randomIndex;
   while (currentIndex !== 0) {
@@ -420,34 +413,28 @@ const onFilterChange = () => {
   }
 }
 
-// Gunakan Debounce agar tidak nge-spam backend saat klik pindah dropdown cepat
 const debouncedLoadData = useDebounceFn(() => {
   loadData()
 }, 300)
 
-// Tambahkan state baru untuk menyimpan status gerbang
 const isDrawingOpen = ref(false)
 const isToggling = ref(false)
 
-// Peserta dianggap sudah daftar ulang jika branch_sequence terisi
 const isRegistered = (p) => p?.branch_sequence !== null && p?.branch_sequence !== undefined && p?.branch_sequence !== ''
 
-// Cek apakah user adalah admin (Sesuaikan dengan auth user store Anda)
 const isPrivilegedAdmin = computed(() => {
   const roleName = currentUser.value?.role?.name || ''
   return ['SUPERADMIN', 'ADMIN_EVENT'].includes(roleName)
 })
 
-// Modifikasi loadData untuk menangkap 'is_drawing_open'
 const loadData = async () => {
   if (!selectedGroupId.value || !selectedRoundId.value) return
-  
   isLoading.value = true
   try {
     const res = await axios.get('/api/v1/event-maqra-drawings/participants', {
       params: { event_group_id: selectedGroupId.value, round_id: selectedRoundId.value }
     })
-    isDrawingOpen.value = res.data.is_drawing_open // Tangkap status gerbang
+    isDrawingOpen.value = res.data.is_drawing_open
     pendingParticipants.value = res.data.pending
     historyParticipants.value = res.data.history
   } catch (error) {
@@ -457,26 +444,18 @@ const loadData = async () => {
   }
 }
 
-// Method baru untuk Admin menekan toggle Buka/Tutup
 const toggleDrawingAccess = async () => {
   if (!selectedGroupId.value) return;
   isToggling.value = true
-  
   const targetStatus = !isDrawingOpen.value
-  
   try {
     const res = await axios.post('/api/v1/event-maqra-drawings/toggle-status', {
       event_group_id: selectedGroupId.value,
       is_open: targetStatus
     })
-    
     isDrawingOpen.value = targetStatus
     Swal.fire({
-      icon: 'success',
-      title: 'Sukses',
-      text: res.data.message,
-      timer: 1500,
-      showConfirmButton: false
+      icon: 'success', title: 'Sukses', text: res.data.message, timer: 1500, showConfirmButton: false
     })
   } catch (error) {
     Swal.fire('Gagal', 'Tidak dapat mengubah status akses.', 'error')
@@ -491,19 +470,12 @@ const loadAvailableItems = async () => {
     const resItems = await axios.get('/api/v1/event-maqra-drawings/available-items', {
       params: { event_group_id: selectedGroupId.value, round_id: selectedRoundId.value }
     })
-    // Jika admin menutup akses saat modal dibuka, backend tidak mengirim maqra/soal
     isModalDrawingClosed.value = resItems.data.is_drawing_open === false
     isDrawingOpen.value = resItems.data.is_drawing_open !== false
-    availableMaqras.value = resItems.data.maqras || []
-    availablePackages.value = resItems.data.packages || []
     
-    // Acak posisi amplop agar isi tidak bisa ditebak dari urutan
-    if (availableMaqras.value.length > 0) {
-      availableMaqras.value = shuffleArray([...availableMaqras.value])
-    }
-    if (availablePackages.value.length > 0) {
-      availablePackages.value = shuffleArray([...availablePackages.value])
-    }
+    // Acak ulang maqra dan paket agar posisi amplop selalu baru
+    availableMaqras.value = resItems.data.maqras ? shuffleArray([...resItems.data.maqras]) : []
+    availablePackages.value = resItems.data.packages ? shuffleArray([...resItems.data.packages]) : []
   } catch (error) {
      Swal.fire('Gagal', 'Tidak dapat mengambil bank Maqra & Soal', 'error')
   } finally {
@@ -511,30 +483,29 @@ const loadAvailableItems = async () => {
   }
 }
 
-// BUKA MODAL PENCABUTAN
 const openDrawModal = async (participant) => {
   if (!isRegistered(participant)) {
-    Swal.fire('Belum Daftar Ulang', 'Peserta ini belum melakukan daftar ulang sehingga belum dapat mencabut maqra.', 'warning')
+    Swal.fire('Belum Daftar Ulang', 'Peserta ini belum melakukan daftar ulang.', 'warning')
     return
   }
   activeParticipant.value = participant
   finalMaqra.value = null
   finalPackage.value = null
   isSubmittingDraw.value = false
+  isDrawSuccess.value = false // ⭐️ Reset state success
   isModalDrawingClosed.value = false
   availableMaqras.value = []
   availablePackages.value = []
   
   $('#drawModal').modal('show')
-  await loadAvailableItems() // Fetch item sesaat modal dibuka agar valid (real-time)
+  await loadAvailableItems()
 }
 
 const closeDrawModal = () => {
-  if (isSubmittingDraw.value) return // Jangan tutup jika sedang simpan
+  if (isSubmittingDraw.value) return 
   $('#drawModal').modal('hide')
 }
 
-// LOGIKA VISIBILITAS PANEL (BERDASARKAN HASIL FETCH)
 const showMaqraPanel = computed(() => availableMaqras.value.length > 0)
 const showPackagePanel = computed(() => availablePackages.value.length > 0)
 
@@ -543,7 +514,6 @@ const isMaqraStepFinished = computed(() => {
   return finalMaqra.value !== null;
 })
 
-// VALIDASI SEBELUM SIMPAN
 const isReadyToSave = computed(() => {
   if (showMaqraPanel.value && !finalMaqra.value) return false;
   if (showPackagePanel.value && !finalPackage.value) return false;
@@ -553,29 +523,22 @@ const isReadyToSave = computed(() => {
 
 // LOGIKA PILIH AMPLOP MAQRA
 const selectMaqra = (maqra) => {
-  if (finalMaqra.value || isSubmittingDraw.value) return
-  finalMaqra.value = maqra
+  if (finalMaqra.value || isSubmittingDraw.value || isDrawSuccess.value) return
+  finalMaqra.value = maqra // ⭐️ UI akan menahan tampilannya karena isDrawSuccess masih false
 
-  // AUTO-SAVE: Jika tidak ada panel soal, langsung submit
+  // Langsung submit jika tidak ada paket soal
   if (!showPackagePanel.value && isReadyToSave.value) {
-    // Beri jeda sedikit agar efek amplop terbuka terlihat
-    setTimeout(() => {
-      submitDraw()
-    }, 800)
+     submitDraw()
   }
 }
 
 // LOGIKA PILIH PAKET
 const selectPackage = (pkg) => {
-  if (finalPackage.value || isSubmittingDraw.value) return
+  if (finalPackage.value || isSubmittingDraw.value || isDrawSuccess.value) return
   finalPackage.value = pkg
   
-  // AUTO-SAVE: Setelah memilih amplop, langsung submit
   if (isReadyToSave.value) {
-      // Beri jeda sedikit agar efek amplop terbuka terlihat
-      setTimeout(() => {
-          submitDraw()
-      }, 500)
+     submitDraw()
   }
 }
 
@@ -594,50 +557,42 @@ const submitDraw = async () => {
     })
     
     isSubmittingDraw.value = false 
-    closeDrawModal()
+    isDrawSuccess.value = true // ⭐️ API BERHASIL! SEKARANG TAMPILKAN ISI AMPLOPNYA!
     
-    Swal.fire({
-      icon: 'success',
-      title: 'Berhasil!',
-      text: 'Undian otomatis tersimpan.',
-      timer: 1500,
-      showConfirmButton: false
-    })
+    // ⭐️ DIHAPUS: Modal tidak otomatis menutup lagi agar user bisa membaca hasil akhir
+    // closeDrawModal() 
     
     loadData() // Refresh tabel di background
   } catch (error) {
     isSubmittingDraw.value = false
+    
+    // ⭐️ RESET PILIHAN JIKA GAGAL: Kembalikan status amplop ke belum dipilih
+    finalMaqra.value = null
+    finalPackage.value = null
+    isDrawSuccess.value = false
+
     if (error.response?.status === 403) {
       isDrawingOpen.value = false
       isModalDrawingClosed.value = true
-      finalMaqra.value = null
-      finalPackage.value = null
       availableMaqras.value = []
       availablePackages.value = []
       Swal.fire('Ditutup', error.response.data?.message || 'Pencabutan Maqra sedang ditutup.', 'warning')
     } else {
-      Swal.fire('Gagal', error.response?.data?.message || 'Terjadi kesalahan saat menyimpan undian.', 'error')
+      // ⭐️ MUNCULKAN ERROR RACE CONDITION DARI CONTROLLER
+      Swal.fire('Gagal Tersimpan', error.response?.data?.message || 'Terjadi kesalahan saat menyimpan undian.', 'error')
+      
+      // ⭐️ REFRESH AMPLOP DI LAYAR (Membuang amplop yang sudah didahului peserta lain)
+      loadAvailableItems()
     }
   } 
 }
 </script>
 
 <style scoped>
-.btn-xs {
-    padding: 2px 8px !important;
-    font-size: 0.75rem !important;
-    line-height: 1.5 !important;
-}
+.btn-xs { padding: 2px 8px !important; font-size: 0.75rem !important; line-height: 1.5 !important; }
+.text-xs { font-size: 0.75rem; }
+.gap-2 { gap: .5rem; }
 
-.text-xs {
-  font-size: 0.75rem;
-}
-
-.gap-2 {
-  gap: .5rem;
-}
-
-/* Kiosk Modal Override */
 .kiosk-modal .modal-content {
   border-radius: 12px;
   overflow: hidden;

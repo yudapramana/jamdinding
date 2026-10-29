@@ -69,8 +69,8 @@ class KafilahMaqraDrawingController extends Controller
                 'event_group_id'     => $p->event_group_id,
                 'group_name'         => $groupInfo->full_name ?? '-',
                 'is_drawing_open'    => $groupInfo ? (bool) $groupInfo->is_maqra_drawing_open : false,
-                'branch_sequence'    => $p->branch_sequence,                                   // ➕
-                'is_registered'      => $this->hasBranchSequence($p->branch_sequence),        // ➕
+                'branch_sequence'    => $p->branch_sequence,
+                'is_registered'      => $this->hasBranchSequence($p->branch_sequence), // ⭐️ Validasi Daftar Ulang
                 'participant_number' => $p->participant_number,
                 'name'               => $p->participant->full_name ?? 'Peserta',
                 'contingent'         => $p->contingent,
@@ -97,8 +97,8 @@ class KafilahMaqraDrawingController extends Controller
                 'event_group_id'     => $t->event_group_id,
                 'group_name'         => $groupInfo->full_name ?? '-',
                 'is_drawing_open'    => $groupInfo ? (bool) $groupInfo->is_maqra_drawing_open : false,
-                'branch_sequence'    => $t->branch_sequence,                                   // ➕
-                'is_registered'      => $hasSeq,                                               // ➕
+                'branch_sequence'    => $t->branch_sequence,
+                'is_registered'      => $hasSeq, // ⭐️ Validasi Daftar Ulang
                 'participant_number' => $t->participant_number
                     ?? ($hasSeq ? ($t->branch_code . '-' . $t->branch_sequence) : null),
                 'name'               => $t->team_name ?? 'Regu ' . $t->contingent,
@@ -171,7 +171,7 @@ class KafilahMaqraDrawingController extends Controller
             return response()->json(['message' => 'Peserta / regu tidak ditemukan.'], 404);
         }
 
-        // 2. ➕ PENGAMAN DAFTAR ULANG: branch_sequence wajib terisi
+        // 2. ⭐️ PENGAMAN DAFTAR ULANG: branch_sequence wajib terisi
         if (!$this->hasBranchSequence($entity->branch_sequence)) {
             return response()->json([
                 'message' => 'Peserta / regu belum terdaftar (nomor urut cabang belum diisi). Tidak dapat mencabut maqra.'
@@ -186,7 +186,7 @@ class KafilahMaqraDrawingController extends Controller
 
         DB::beginTransaction();
         try {
-            // 4. ➕ Cegah cabut ganda di babak yang sama
+            // 4. Cegah cabut ganda di babak yang sama
             $alreadyDrawn = EventMaqraDrawing::where('round_id', $request->round_id)
                 ->where($request->is_team ? 'event_team_id' : 'event_participant_id', $entity->id)
                 ->lockForUpdate()
